@@ -1,53 +1,48 @@
 {
   "expo": {
-    "name": "undead-mobile",
-    "slug": "undead-mobile",
+    "name": "Rust Undead",
+    "slug": "Rust Undead",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "templateexpobasic",
+    "orientation": "landscape",
+    "icon": "./assets/images/damlogo.png",
+    "scheme": "rustundead",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "requireFullScreen": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.beeman.web3jsexpo"
+      "package": "com.alphar33.rustundead"
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "static"
     },
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
+        "expo-screen-orientation",
         {
-          "backgroundColor": "#FFFFFF",
-          "dark": {
-            "backgroundColor": "#000000",
-            "image": "./assets/images/splash-icon.png"
-          },
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain"
+          "initialOrientation": "LANDSCAPE"
         }
       ],
-      "expo-web-browser",
-      "expo-font"
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
+      ],
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {}
     }
   }
 }
