@@ -1,13 +1,14 @@
-import ChooseName from "@/components/ChooseName";
-import GameCardCarousel from "@/components/GameCard/GameCardCarousel";
-import GameCardIntro from "@/components/GameCard/Intro";
-import CharacterSelection from "@/components/GuideCarousel";
-import PersonaSelectionScreen from "@/components/Persona";
-import WarriorProfileSetup from "@/components/warrior/WarriorProfileSetup";
-import { GameFonts } from "@/constants/GameFonts";
-import { CreateContext } from "@/context/Context";
-import { router } from "expo-router";
-import React, { useContext, useEffect, useState } from "react";
+import ChooseName from '@/components/ChooseName'
+import GameCardCarousel from '@/components/GameCard/GameCardCarousel'
+import GameCardIntro from '@/components/GameCard/Intro'
+import CharacterSelection from '@/components/GuideCarousel'
+import PersonaSelectionScreen from '@/components/Persona'
+import WarriorProfileSetup from '@/components/warrior/WarriorProfileSetup'
+import { GameFonts } from '@/constants/GameFonts'
+import { CreateContext } from '@/context/Context'
+import { router } from 'expo-router'
+import React, { useContext, useEffect, useState } from 'react'
+import dialogBox from '@/assets/onboarding/dialog-bg-1.png'
 import {
   Animated,
   Dimensions,
@@ -18,106 +19,102 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from "react-native";
+} from 'react-native'
 
 // Get screen dimensions and handle landscape properly
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const IS_LANDSCAPE = SCREEN_WIDTH > SCREEN_HEIGHT;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
+const IS_LANDSCAPE = SCREEN_WIDTH > SCREEN_HEIGHT
 
 //bg
 const WELCOME_BACKGROUND =
-  "https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeie3ioopzpq2s5z45csnm4comlrhjxzziislwxyfawz5cjzdh6smx4";
+  'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeie3ioopzpq2s5z45csnm4comlrhjxzziislwxyfawz5cjzdh6smx4'
 
 const SELECTION_BACKGROUND =
-  "https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeiaqhe26zritbjrhf7vaocixy22ep2ejxx6rawqlonjlqskywqcobu";
+  'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeiaqhe26zritbjrhf7vaocixy22ep2ejxx6rawqlonjlqskywqcobu'
 
 const PERSONA_BACKGROUND =
-  "https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeiey35dg77o4ym275hr62vdc2minsqno3fagnkx7lti4qowai6ezim";
+  'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeiey35dg77o4ym275hr62vdc2minsqno3fagnkx7lti4qowai6ezim'
 
 const PROFILE_BACKGROUND =
-  "https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeigwpyo3f6gpqwf2xw3qntopgg7rlvescdgiu53ebktsk5lawgpfle";
+  'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeigwpyo3f6gpqwf2xw3qntopgg7rlvescdgiu53ebktsk5lawgpfle'
 
 // Guide data
 const GUIDES = [
   {
     id: 1,
-    name: "JANUS THE BUILDER",
-    title: "Validator Master",
-    type: "Balanced",
+    name: 'JANUS THE BUILDER',
+    title: 'Validator Master',
+    type: 'Balanced',
     description:
       "I am Janus, Master of the Foundation. I build the very bedrock upon which this realm stands. Through me, you'll understand how consensus creates unshakeable truth.",
-    specialty: "Validators, consensus, foundation concepts",
-    recommendedFor: "Complete beginners who want solid fundamentals",
-    learningStyle: "Step-by-step, methodical building of knowledge",
-    color: "#cd7f32",
+    specialty: 'Validators, consensus, foundation concepts',
+    recommendedFor: 'Complete beginners who want solid fundamentals',
+    learningStyle: 'Step-by-step, methodical building of knowledge',
+    color: '#cd7f32',
   },
   {
     id: 2,
-    name: "JAREK THE ORACLE",
-    title: "Knowledge Keeper",
-    type: "Advanced",
+    name: 'JAREK THE ORACLE',
+    title: 'Knowledge Keeper',
+    type: 'Advanced',
     description:
-      "I am Jarek, Keeper of Ancient Wisdom. The deepest secrets of this realm flow through my consciousness like rivers of pure knowledge.",
-    specialty: "Advanced concepts, technical deep-dives, ecosystem insights",
-    recommendedFor:
-      "Technical backgrounds who want comprehensive understanding",
-    learningStyle:
-      "Mystical wisdom, interconnected learning, big picture thinking",
-    color: "#4169E1",
+      'I am Jarek, Keeper of Ancient Wisdom. The deepest secrets of this realm flow through my consciousness like rivers of pure knowledge.',
+    specialty: 'Advanced concepts, technical deep-dives, ecosystem insights',
+    recommendedFor: 'Technical backgrounds who want comprehensive understanding',
+    learningStyle: 'Mystical wisdom, interconnected learning, big picture thinking',
+    color: '#4169E1',
   },
   {
     id: 3,
-    name: "GAIUS THE GUARDIAN",
-    title: "Protector of Assets",
-    type: "Security",
+    name: 'GAIUS THE GUARDIAN',
+    title: 'Protector of Assets',
+    type: 'Security',
     description:
-      "I am Gaius, Shield of the Realm. I guard against the dark forces that would steal your digital treasures and corrupt your transactions.",
-    specialty: "Security, wallets, protection strategies, best practices",
-    recommendedFor: "Security-conscious learners who want to stay safe",
-    learningStyle: "Protective approach, risk awareness, practical safety",
-    color: "#228B22",
+      'I am Gaius, Shield of the Realm. I guard against the dark forces that would steal your digital treasures and corrupt your transactions.',
+    specialty: 'Security, wallets, protection strategies, best practices',
+    recommendedFor: 'Security-conscious learners who want to stay safe',
+    learningStyle: 'Protective approach, risk awareness, practical safety',
+    color: '#228B22',
   },
   {
     id: 4,
-    name: "BRYN THE DAEMON",
-    title: "Code Compiler",
-    type: "Technical",
+    name: 'BRYN THE DAEMON',
+    title: 'Code Compiler',
+    type: 'Technical',
     description:
-      "I am Bryn, Flame of Efficiency. I transform raw code into blazing reality and optimize every process until it burns with perfect precision.",
-    specialty: "Technical implementation, smart contracts, development",
-    recommendedFor: "Developers and power users who want to build",
-    learningStyle:
-      "Aggressive optimization, technical precision, implementation focus",
-    color: "#DC143C",
+      'I am Bryn, Flame of Efficiency. I transform raw code into blazing reality and optimize every process until it burns with perfect precision.',
+    specialty: 'Technical implementation, smart contracts, development',
+    recommendedFor: 'Developers and power users who want to build',
+    learningStyle: 'Aggressive optimization, technical precision, implementation focus',
+    color: '#DC143C',
   },
-];
+]
 
 const GuideSelection = () => {
-  const { currentOnboardingScreen, setCurrentOnboardingScreen } =
-    useContext(CreateContext).onboarding;
+  const { currentOnboardingScreen, setCurrentOnboardingScreen } = useContext(CreateContext).onboarding
 
-  console.log(currentOnboardingScreen);
-  const [selectedGuide, setSelectedGuide] = useState(0);
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [slideAnim] = useState(new Animated.Value(50));
-  const [textDelayAnim] = useState(new Animated.Value(0));
-
-  useEffect(() => {
-    StatusBar.setHidden(true);
-    startWelcomeAnimation();
-    return () => StatusBar.setHidden(false);
-  }, []);
+  console.log(currentOnboardingScreen)
+  const [selectedGuide, setSelectedGuide] = useState(0)
+  const [fadeAnim] = useState(new Animated.Value(0))
+  const [slideAnim] = useState(new Animated.Value(50))
+  const [textDelayAnim] = useState(new Animated.Value(0))
 
   useEffect(() => {
-    if (currentOnboardingScreen === "selection") {
-      startSelectionAnimation();
+    StatusBar.setHidden(true)
+    startWelcomeAnimation()
+    return () => StatusBar.setHidden(false)
+  }, [])
+
+  useEffect(() => {
+    if (currentOnboardingScreen === 'selection') {
+      startSelectionAnimation()
     }
-  }, [currentOnboardingScreen]);
+  }, [currentOnboardingScreen])
 
   const startWelcomeAnimation = () => {
-    fadeAnim.setValue(1);
-    slideAnim.setValue(0);
-    textDelayAnim.setValue(0);
+    fadeAnim.setValue(1)
+    slideAnim.setValue(0)
+    textDelayAnim.setValue(0)
 
     // Delay text by 5 seconds
     setTimeout(() => {
@@ -127,13 +124,13 @@ const GuideSelection = () => {
           duration: 1000,
           useNativeDriver: true,
         }),
-      ]).start();
-    }, 2000);
-  };
+      ]).start()
+    }, 2000)
+  }
 
   const startSelectionAnimation = () => {
-    fadeAnim.setValue(0);
-    slideAnim.setValue(50);
+    fadeAnim.setValue(0)
+    slideAnim.setValue(50)
 
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -146,84 +143,83 @@ const GuideSelection = () => {
         duration: 800,
         useNativeDriver: true,
       }),
-    ]).start();
-  };
+    ]).start()
+  }
 
   const handleNext = () => {
-    setCurrentOnboardingScreen("selection");
-  };
+    setCurrentOnboardingScreen('selection')
+  }
 
   const handleGuideSelect = (index: number) => {
-    setSelectedGuide(index);
-  };
+    setSelectedGuide(index)
+  }
 
   const handleConfirm = () => {
-    router.push(`/warrior-creation?guide=${GUIDES[selectedGuide].id}`);
-  };
+    router.push(`/warrior-creation?guide=${GUIDES[selectedGuide].id}`)
+  }
 
   const renderWelcomeScreen = () => (
     <View style={styles.container}>
       <StatusBar hidden />
-      <ImageBackground
-        source={{ uri: WELCOME_BACKGROUND }}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-      >
+      <ImageBackground source={{ uri: WELCOME_BACKGROUND }} style={styles.backgroundImage} resizeMode="cover">
         <View style={styles.overlay} />
 
-        <SafeAreaView style={styles.content}>
-          <View style={styles.welcomeWrapper}>
+        <SafeAreaView>
+          <View className="flex flex-col items-center gap-y-[-30px]">
             <Animated.View
               style={[
-                styles.welcomeContainer,
                 {
                   opacity: textDelayAnim,
                   transform: [{ translateY: slideAnim }],
                 },
               ]}
             >
-              <View style={styles.titleContainer}>
-                <Text style={[styles.welcomeTitle, GameFonts.epic]}>
-                  CHOOSE YOUR GUIDE
+              <ImageBackground
+                source={require('../assets/onboarding/dialog-bg-1.png')}
+                style={styles.titleContainer}
+                className="p-3 mt-5"
+                resizeMode="contain"
+              >
+                <Text className="text-sm  text-[#E0E0E0]" style={[GameFonts.epic]}>
+                  Choose your guide
                 </Text>
-                <View style={styles.titleUnderline} />
-              </View>
+                {/* <View style={styles.titleUnderline} /> */}
+              </ImageBackground>
 
-              <View style={styles.welcomeTextContainer}>
-                <Text style={[styles.welcomeText, GameFonts.bodyMedium]}>
-                  Four legendary undead masters await to guide you through the
-                  mysteries of blockchain.
+              <ImageBackground
+                source={require('../assets/onboarding/dialog-bg-2.png')}
+                style={styles.welcomeTextContainer}
+                className="p-24"
+                resizeMode="contain"
+              >
+                <Text style={[styles.welcomeText, GameFonts.bodyMedium]} className="">
+                  Four legendary undead masters await to guide you through the mysteries of blockchain.
                 </Text>
-              </View>
+              </ImageBackground>
             </Animated.View>
 
-            <Animated.View
-              style={[styles.buttonContainer, { opacity: textDelayAnim }]}
-            >
-              <TouchableOpacity
-                style={styles.nextButton}
-                onPress={handleNext}
-                activeOpacity={0.85}
-              >
-                <Text style={[styles.buttonText, GameFonts.button]}>
-                  MEET THE GUIDES
-                </Text>
+            <Animated.View style={[{ opacity: textDelayAnim }]}>
+              <TouchableOpacity onPress={handleNext} activeOpacity={0.85}>
+                <ImageBackground
+                  source={require('../assets/onboarding/button-bg-main.png')}
+                  // style={styles.welcomeTextContainer}
+                  className="py-6 px-12 flex "
+                  resizeMode="contain"
+                >
+                  <Text>MEET THE GUIDES</Text>
+                </ImageBackground>
               </TouchableOpacity>
             </Animated.View>
           </View>
         </SafeAreaView>
       </ImageBackground>
     </View>
-  );
+  )
 
   const renderGuideSelection = () => (
     <View style={styles.container}>
       <StatusBar hidden />
-      <ImageBackground
-        source={{ uri: SELECTION_BACKGROUND }}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-      >
+      <ImageBackground source={{ uri: SELECTION_BACKGROUND }} style={styles.backgroundImage} resizeMode="cover">
         <View style={styles.overlay2} />
         <SafeAreaView style={styles.content}>
           <View style={styles.selectionContainer}>
@@ -236,7 +232,7 @@ const GuideSelection = () => {
                 },
               ]}
             >
-              <Text style={styles.headerTitle}>Choose your guide</Text>
+              {/* <Text style={styles.headerTitle}>Choose your guide</Text> */}
             </Animated.View>
 
             <View style={styles.carouselWrapper}>
@@ -246,35 +242,27 @@ const GuideSelection = () => {
         </SafeAreaView>
       </ImageBackground>
     </View>
-  );
+  )
 
   const renderPersonaScreen = () => {
     return (
       <View style={styles.container}>
         <StatusBar hidden />
-        <ImageBackground
-          source={{ uri: PERSONA_BACKGROUND }}
-          style={styles.backgroundImage}
-          resizeMode="cover"
-        >
+        <ImageBackground source={{ uri: PERSONA_BACKGROUND }} style={styles.backgroundImage} resizeMode="cover">
           <View style={styles.overlay3} />
           <SafeAreaView style={styles.content}>
             <PersonaSelectionScreen />
           </SafeAreaView>
         </ImageBackground>
       </View>
-    );
-  };
+    )
+  }
 
   const renderInputScreen = () => {
     return (
       <View style={styles.container}>
         <StatusBar hidden />
-        <ImageBackground
-          source={{ uri: PROFILE_BACKGROUND }}
-          style={styles.backgroundImage}
-          resizeMode="cover" 
-        >
+        <ImageBackground source={{ uri: PROFILE_BACKGROUND }} style={styles.backgroundImage} resizeMode="cover">
           <View style={styles.overlay} />
           <SafeAreaView style={styles.content}>
             <Animated.View
@@ -292,23 +280,42 @@ const GuideSelection = () => {
           </SafeAreaView>
         </ImageBackground>
       </View>
-    );
-  };
+    )
+  }
 
   const renderGameCardIntroScreen = () => {
-    return <GameCardIntro />;
-  };
+    return <View style={styles.container}>
+      <StatusBar hidden />
+      <ImageBackground source={{ uri: PROFILE_BACKGROUND }} style={styles.backgroundImage} resizeMode="cover">
+        <View style={styles.overlay} />
+        <SafeAreaView style={styles.content}>
+          <Animated.View
+            style={[
+              styles.selectionHeader,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          />
+          <View style={styles.nameInputWrapper}>
+            <GameCardIntro />
+          </View>
+        </SafeAreaView>
+      </ImageBackground>
+    </View>
+  }
 
   const renderGameCardCarouselScreen = () => {
-    return <GameCardCarousel />;
-  };
+    return <GameCardCarousel />
+  }
 
   const renderWarriorProfileSetupScreen = () => {
     return (
       <View style={styles.container}>
         <ImageBackground
           source={{
-            uri: "https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeiaqhe26zritbjrhf7vaocixy22ep2ejxx6rawqlonjlqskywqcobu",
+            uri: 'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeiaqhe26zritbjrhf7vaocixy22ep2ejxx6rawqlonjlqskywqcobu',
           }}
           resizeMode="cover" // Changed to cover
           style={styles.backgroundImage}
@@ -317,45 +324,45 @@ const GuideSelection = () => {
           <WarriorProfileSetup />
         </ImageBackground>
       </View>
-    );
-  };
+    )
+  }
 
-  return currentOnboardingScreen === "welcome"
+  return currentOnboardingScreen === 'welcome'
     ? renderWelcomeScreen()
-    : currentOnboardingScreen === "selection"
+    : currentOnboardingScreen === 'selection'
       ? renderGuideSelection()
-      : currentOnboardingScreen === "persona"
+      : currentOnboardingScreen === 'persona'
         ? renderPersonaScreen()
-        : currentOnboardingScreen === "name"
+        : currentOnboardingScreen === 'name'
           ? renderInputScreen()
-          : currentOnboardingScreen === "game-card-intro"
+          : currentOnboardingScreen === 'game-card-intro'
             ? renderGameCardIntroScreen()
-            : currentOnboardingScreen === "game-card-carousel"
+            : currentOnboardingScreen === 'game-card-carousel'
               ? renderGameCardCarouselScreen()
-              : renderWarriorProfileSetupScreen();
-};
+              : renderWarriorProfileSetupScreen()
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
   },
   backgroundImage: {
     flex: 1,
-    width: "100%",
-    height: "125%",
+    width: '100%',
+    height: '125%',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   overlay2: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   overlay3: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.79)",
+    backgroundColor: 'rgba(0, 0, 0, 0.79)',
   },
   content: {
     flex: 1,
@@ -365,72 +372,72 @@ const styles = StyleSheet.create({
   // Welcome Screen Styles
   welcomeWrapper: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: IS_LANDSCAPE ? 20 : 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: IS_LANDSCAPE ? 10 : 40,
   },
   welcomeContainer: {
-    alignItems: "center",
-    paddingHorizontal: 20,
+    alignItems: 'center',
+    paddingHorizontal: 15,
     marginBottom: IS_LANDSCAPE ? 20 : 30,
   },
   titleContainer: {
-    marginBottom: IS_LANDSCAPE ? 15 : 20,
-    alignItems: "center",
+    marginBottom: IS_LANDSCAPE ? 12 : 20,
+    alignItems: 'center',
   },
   welcomeTitle: {
     fontSize: IS_LANDSCAPE ? 28 : 35,
-    color: "#cd7f32",
-    textAlign: "center",
-    textShadowColor: "#000",
+    color: '#cd7f32',
+    textAlign: 'center',
+    textShadowColor: '#000',
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 6,
   },
   titleUnderline: {
     width: SCREEN_WIDTH * (IS_LANDSCAPE ? 0.6 : 0.8),
     height: 3,
-    backgroundColor: "#cd7f32",
+    backgroundColor: '#cd7f32',
     marginTop: 15,
-    shadowColor: "#cd7f32",
+    shadowColor: '#cd7f32',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 10,
   },
   welcomeTextContainer: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingHorizontal: 20,
     maxWidth: IS_LANDSCAPE ? SCREEN_WIDTH * 0.7 : SCREEN_WIDTH * 0.9,
   },
   welcomeText: {
-    fontSize: IS_LANDSCAPE ? 14 : 16,
-    color: "#E0E0E0",
-    textAlign: "center",
+    fontSize: IS_LANDSCAPE ? 12 : 16,
+    color: '#E0E0E0',
+    textAlign: 'center',
     lineHeight: IS_LANDSCAPE ? 20 : 24,
   },
 
   // Selection Screen Styles
   selectionContainer: {
     flex: 1,
-    justifyContent: "space-between",
+    justifyContent: 'space-between',
   },
   selectionHeader: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingVertical: IS_LANDSCAPE ? 10 : 20,
   },
   headerTitle: {
     fontSize: IS_LANDSCAPE ? 20 : 24,
-    color: "#E0E0E0",
-    textAlign: "center",
-    fontWeight: "bold",
+    color: '#E0E0E0',
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
   carouselWrapper: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: 'center',
     paddingVertical: IS_LANDSCAPE ? 10 : 20,
   },
   nameInputWrapper: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: 'center',
     paddingVertical: IS_LANDSCAPE ? 20 : 40,
   },
   selectionContent: {
@@ -445,8 +452,8 @@ const styles = StyleSheet.create({
   },
   guideCard: {
     width: SCREEN_WIDTH,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: IS_LANDSCAPE ? 60 : 40,
   },
   guideAvatar: {
@@ -454,9 +461,9 @@ const styles = StyleSheet.create({
     height: IS_LANDSCAPE ? 100 : 120,
     borderRadius: IS_LANDSCAPE ? 50 : 60,
     borderWidth: 3,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     marginBottom: IS_LANDSCAPE ? 15 : 20,
   },
   guideInitial: {
@@ -464,8 +471,8 @@ const styles = StyleSheet.create({
   },
   guideName: {
     fontSize: IS_LANDSCAPE ? 16 : 18,
-    color: "#E0E0E0",
-    textAlign: "center",
+    color: '#E0E0E0',
+    textAlign: 'center',
   },
 
   // Details Panel
@@ -474,7 +481,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   detailsCard: {
-    backgroundColor: "rgba(205, 127, 50, 0.1)",
+    backgroundColor: 'rgba(205, 127, 50, 0.1)',
     borderWidth: 2,
     borderRadius: 15,
     padding: IS_LANDSCAPE ? 15 : 20,
@@ -483,64 +490,64 @@ const styles = StyleSheet.create({
   },
   detailsTitle: {
     fontSize: IS_LANDSCAPE ? 18 : 20,
-    color: "#cd7f32",
-    textAlign: "center",
+    color: '#cd7f32',
+    textAlign: 'center',
     marginBottom: 5,
   },
   detailsType: {
     fontSize: IS_LANDSCAPE ? 14 : 16,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: IS_LANDSCAPE ? 10 : 15,
   },
   detailsDescription: {
     fontSize: IS_LANDSCAPE ? 12 : 14,
-    color: "#E0E0E0",
-    textAlign: "center",
+    color: '#E0E0E0',
+    textAlign: 'center',
     lineHeight: IS_LANDSCAPE ? 16 : 20,
     marginBottom: IS_LANDSCAPE ? 15 : 20,
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   detailsLabel: {
     fontSize: IS_LANDSCAPE ? 12 : 14,
-    color: "#cd7f32",
+    color: '#cd7f32',
     marginBottom: 5,
   },
   detailsValue: {
     fontSize: IS_LANDSCAPE ? 12 : 14,
-    color: "#C0C0C0",
+    color: '#C0C0C0',
     lineHeight: IS_LANDSCAPE ? 16 : 18,
   },
 
   // Buttons
   buttonContainer: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingVertical: IS_LANDSCAPE ? 15 : 20,
   },
   nextButton: {
-    backgroundColor: "#121212",
+    backgroundColor: '#121212',
     paddingHorizontal: IS_LANDSCAPE ? 35 : 40,
     paddingVertical: IS_LANDSCAPE ? 12 : 16,
     borderRadius: 25,
     borderWidth: 2,
-    borderColor: "#cd7f32",
+    borderColor: '#cd7f32',
     minWidth: IS_LANDSCAPE ? 180 : 200,
-    alignItems: "center",
+    alignItems: 'center',
   },
   confirmButton: {
-    backgroundColor: "#121212",
+    backgroundColor: '#121212',
     paddingHorizontal: IS_LANDSCAPE ? 35 : 40,
     paddingVertical: IS_LANDSCAPE ? 12 : 16,
     borderRadius: 25,
     borderWidth: 2,
     minWidth: IS_LANDSCAPE ? 180 : 200,
-    alignItems: "center",
+    alignItems: 'center',
   },
   buttonText: {
     fontSize: IS_LANDSCAPE ? 14 : 16,
-    color: "#cd7f32",
-    textAlign: "center",
+    color: '#cd7f32',
+    textAlign: 'center',
     letterSpacing: 1,
   },
-});
+})
 
-export default GuideSelection;
+export default GuideSelection

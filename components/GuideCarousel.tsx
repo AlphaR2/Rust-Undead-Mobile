@@ -1,203 +1,240 @@
-import { CreateContext } from "@/context/Context";
-import { Guides as characters } from "@/types/mobile";
-import React, { useContext, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { CreateContext } from '@/context/Context'
+import { Guides as characters } from '@/types/mobile'
+import React, { useContext, useState } from 'react'
+import { Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 const CharacterSelection = () => {
-  const { setCurrentOnboardingScreen, selectedGuide, setSelectedGuide } =
-    useContext(CreateContext).onboarding;
+  const { setCurrentOnboardingScreen, selectedGuide, setSelectedGuide } = useContext(CreateContext).onboarding
 
   const [selectedIndex, setSelectedIndex] = useState(
-    selectedGuide
-      ? characters.findIndex((char) => char.id === selectedGuide.id)
-      : 0
-  );
+    selectedGuide ? characters.findIndex((char) => char.id === selectedGuide.id) : 0,
+  )
 
   const handleCharacterSelect = (index: number) => {
-    setSelectedIndex(index);
-  };
+    setSelectedIndex(index)
+  }
 
   const handleConfirm = () => {
-    const selectedCharacter = characters[selectedIndex];
+    const selectedCharacter = characters[selectedIndex]
 
     // SAVE THE SELECTED GUIDE TO CONTEXT
-    setSelectedGuide(selectedCharacter);
+    setSelectedGuide(selectedCharacter)
 
     // MOVE TO PERSONA SELECTION
-    setCurrentOnboardingScreen("persona");
+    setCurrentOnboardingScreen('persona')
 
-    console.log("Selected guide saved:", selectedCharacter.name);
-  };
+    console.log('Selected guide saved:', selectedCharacter.name)
+  }
 
   const getCharacterIcon = (characterId: string) => {
     switch (characterId) {
-      case "1":
-        return "⚖️"; // Builder
-      case "2":
-        return "🔮"; // Oracle/Knowledge
-      case "3":
-        return "🛡️"; // Guardian/Combat
-      case "4":
-        return "⚡"; // Daemon
+      case '1':
+        return require('../assets/onboarding/builder-icon.png') // Builder
+      case '2':
+        return require('../assets/onboarding/oracle-icon.png') // Oracle/Knowledge
+      case '3':
+        return require('../assets/onboarding/gaurdian-icon.png') // Guardian/Combat
+      case '4':
+        return require('../assets/onboarding/daemon-icon.png') // Daemon
       default:
-        return "⚡";
+        return '⚡'
     }
-  };
+  }
+  const getCharacterImage = (characterId: string) => {
+    switch (characterId) {
+      case '1':
+        return require('../assets/onboarding/guide-character-1.png') // Builder
+      case '2':
+        return require('../assets/onboarding/guide-character-2.png') // Oracle/Knowledge
+      case '3':
+        return require('../assets/onboarding/guide-character-3.png') // Guardian/Combat
+      case '4':
+        return require('../assets/onboarding/guide-character-3.png') // Daemon
+      default:
+        return '⚡'
+    }
+  }
 
   return (
     <View style={styles.container}>
       {/* Character Cards Grid */}
+      <ImageBackground
+        source={require('../assets/onboarding/dialog-bg-1.png')}
+        // style={styles.titleContainer}
+        className="px-10 w-fit py-4"
+        resizeMode="contain"
+      >
+        <Text className="text-sm  text-[#E0E0E0]">Choose your guide</Text>
+        {/* <View style={styles.titleUnderline} /> */}
+      </ImageBackground>
       <View style={styles.cardsGrid}>
         {characters.map((character, index) => (
           <TouchableOpacity
+            className=" flex items-center justify-between flex-col py-1 relative"
             key={character.id}
-            style={[
-              styles.cardContainer,
-              selectedIndex === index && styles.selectedCard,
-            ]}
             onPress={() => handleCharacterSelect(index)}
-            activeOpacity={0.8}
           >
-            <View style={styles.cardContent}>
-              <View style={styles.iconContainer}>
-                <Text style={styles.characterIcon}>
-                  {getCharacterIcon(character.id)}
-                </Text>
-              </View>
-              <Text style={styles.characterName}>{character.name}</Text>
-              <Text style={styles.characterTitle}>{character.title}</Text>
+            <View
+              className={`h-40 border ${selectedIndex === index ? 'border-[#cd7f32]' : 'border-black'} w-full rounded-lg   bg-[#1a1a1a] `}
+            >
+              <Image source={getCharacterImage(character.id)} resizeMode="contain" className="h-40 w-full" />
             </View>
+            <ImageBackground
+              source={
+                selectedIndex === index
+                  ? require('../assets/onboarding/dialog-bg-3-active.png')
+                  : require('../assets/onboarding/dialog-bg-3.png')
+              }
+              className={`flex items-center justify-center p-4 relative bottom-0 left-0 right-0 z-10`} // Absolute positioning
+              resizeMode="contain"
+              style={{
+                top: -20,
+              }}
+            >
+              <Text style={styles.characterName}>{character.name}</Text>
+              <View className="flex flex-row items-center">
+                <Image source={getCharacterIcon(character.id)} resizeMode="contain" className="w-8 h-8" />
+                <Text style={styles.characterTitle}>{character.title}</Text>
+              </View>
+            </ImageBackground>
           </TouchableOpacity>
         ))}
       </View>
 
       {/* Confirm Button */}
       <View style={styles.confirmButtonContainer}>
-        <TouchableOpacity
-          style={styles.confirmButton}
-          onPress={handleConfirm}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.confirmButtonText}>CHOOSE THIS GUIDE</Text>
+        <TouchableOpacity className="flex items-center justify-center " onPress={handleConfirm} activeOpacity={0.85}>
+          <ImageBackground
+            source={require('../assets/onboarding/button-bg-main.png')}
+            // style={styles.welcomeTextContainer}
+            className="flex items-center justify-center p-4 w-fit  "
+            resizeMode="contain"
+            style={{
+              top: -10,
+            }}
+          >
+            <Text>Choose this guide</Text>
+          </ImageBackground>
         </TouchableOpacity>
       </View>
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 200,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardsGrid: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '80%',
     maxWidth: 460,
     gap: 15,
   },
   cardContainer: {
-    width: "42%",
+    width: '42%',
     minWidth: 100,
     marginBottom: 20,
     opacity: 0.7,
-    backgroundColor: "#CA742226",
+    backgroundColor: '#CA742226',
     borderRadius: 15,
     borderWidth: 2,
-    borderColor: "transparent",
+    borderColor: 'transparent',
     padding: 16,
   },
   selectedCard: {
     opacity: 1,
     transform: [{ scale: 1.05 }],
-    backgroundColor: "#CA742290",
-    borderColor: "#cd7f32",
-    shadowColor: "#cd7f32",
+    backgroundColor: '#CA742290',
+    borderColor: '#cd7f32',
+    shadowColor: '#cd7f32',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 10,
     elevation: 8,
   },
   cardContent: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 10,
   },
   iconContainer: {
     width: 60,
     height: 60,
-    backgroundColor: "#CA742226",
+    backgroundColor: '#CA742226',
     borderRadius: 90,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 15,
   },
   characterIcon: {
     fontSize: 32,
   },
   characterName: {
-    color: "#FFFFFF",
+    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: "bold",
-    textAlign: "center",
+    fontWeight: 'bold',
+    textAlign: 'center',
     marginBottom: 6,
-    textShadowColor: "#000",
+    textShadowColor: '#000',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
   characterTitle: {
-    color: "white",
+    color: 'white',
     fontSize: 12,
-    textAlign: "center",
-    fontWeight: "600",
+    textAlign: 'center',
+    fontWeight: '600',
   },
   selectedGuideInfo: {
     marginTop: 20,
     marginBottom: 20,
-    alignItems: "center",
+    alignItems: 'center',
     maxWidth: 300,
   },
   selectedGuideText: {
-    color: "#cd7f32",
+    color: '#cd7f32',
     fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
+    fontWeight: 'bold',
+    textAlign: 'center',
     marginBottom: 8,
   },
   selectedGuideDescription: {
-    color: "#E0E0E0",
+    color: '#E0E0E0',
     fontSize: 14,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 20,
   },
   confirmButtonContainer: {
-    alignItems: "center",
+    alignItems: 'center',
     marginTop: 20,
+    // backgroundColor: "black"
   },
   confirmButton: {
-    backgroundColor: "#121212",
+    backgroundColor: '#121212',
     paddingHorizontal: 40,
     paddingVertical: 16,
     borderRadius: 25,
     borderWidth: 2,
-    borderColor: "#cd7f32",
+    borderColor: '#cd7f32',
     minWidth: 200,
-    alignItems: "center",
+    alignItems: 'center',
   },
   confirmButtonText: {
     fontSize: 16,
-    color: "#cd7f32",
-    textAlign: "center",
+    color: '#cd7f32',
+    textAlign: 'center',
     letterSpacing: 1,
-    fontWeight: "bold",
-    textShadowColor: "#000",
+    fontWeight: 'bold',
+    textShadowColor: '#000',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
-});
+})
 
-export default CharacterSelection;
+export default CharacterSelection
