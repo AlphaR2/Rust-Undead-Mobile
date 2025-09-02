@@ -44,3 +44,4 @@ app-example
 /ios
 /idl
 app.json
+eas.json

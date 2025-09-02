@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Rust Undead",
-    "slug": "Rust Undead",
+    "slug": "Rust_Undead",
     "version": "1.0.0",
     "orientation": "landscape",
     "icon": "./assets/images/damlogo.png",
