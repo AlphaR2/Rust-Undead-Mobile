@@ -45,3 +45,5 @@ app-example
 /idl
 app.json
 eas.json
+
+app.json

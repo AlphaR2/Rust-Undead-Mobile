@@ -1,50 +1,41 @@
-import { useDynamic } from "@/context/wallet";
-import { router } from "expo-router";
-import React, { useEffect } from "react";
-import { Image, StatusBar, StyleSheet, View } from "react-native";
-import "react-native-crypto-js";
-import "react-native-get-random-values";
+import { usePrivy } from '@privy-io/expo';
+import { router } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Image, StatusBar, StyleSheet, View } from 'react-native';
 
 export default function SplashScreen() {
-  const dynamicClient = useDynamic();
+  const { user } = usePrivy();
 
   useEffect(() => {
     // Check if user is already authenticated
     const checkAuthAndNavigate = async () => {
       try {
-        const isAuthenticated = dynamicClient.auth.authenticatedUser?.email;
-
-        if (isAuthenticated) {
+        if (user) {
+          console.log('User authenticated, navigating to guide');
           setTimeout(() => {
-            router.replace("/guide");
+            router.replace('/guide');
           }, 2000);
         } else {
-          // Navigate to trailer after 10 seconds for new users
+          console.log('No user authenticated, navigating to trailer');
           setTimeout(() => {
-            router.replace("/trailer");
+            router.replace('/trailer');
           }, 10000);
         }
       } catch (error) {
-        console.error("Error checking authentication:", error);
+        console.error('Error checking authentication:', error);
         setTimeout(() => {
-          router.replace("/trailer");
+          router.replace('/trailer');
         }, 10000);
       }
     };
 
     checkAuthAndNavigate();
-  }, [dynamicClient]);
+  }, [user]);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
-
-      {/* Splash Image */}
-      <Image
-        source={require("../assets/images/spl.png")}
-        style={styles.splashImage}
-        resizeMode="contain"
-      />
+      <Image source={require('../assets/images/spl.png')} style={styles.splashImage} resizeMode="contain" />
     </View>
   );
 }
@@ -52,12 +43,12 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000000",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   splashImage: {
-    width: "100%",
+    width: '100%',
     height: undefined,
     aspectRatio: 1,
   },
