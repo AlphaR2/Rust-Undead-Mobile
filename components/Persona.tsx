@@ -1,9 +1,9 @@
+import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext, UserPersona } from '@/context/Context'
 import { PERSONA_INFO, PersonaInfo, getGradientColors } from '@/types/mobile'
 import { Ionicons } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
 import React, { useContext, useState } from 'react'
-import { Dimensions, ImageBackground, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
+import { Dimensions, ImageBackground, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 
 const PersonaSelectionScreen: React.FC = () => {
   // Get context functions for onboarding flow
@@ -83,7 +83,7 @@ const PersonaSelectionScreen: React.FC = () => {
               <Text className="text-lg">{info.icon}</Text>
             </View>
             <View className="flex-1">
-              <Text className={`font-semibold text-sm ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+              <Text  style={[GameFonts.body]} className={`font-semibold text-base ${isSelected ? 'text-white' : 'text-gray-400'}`}>
                 {info.title}
               </Text>
             </View>
@@ -95,7 +95,7 @@ const PersonaSelectionScreen: React.FC = () => {
   }
 
   const PreviewCard: React.FC<{ persona: UserPersona; info: PersonaInfo }> = ({ persona, info }) => {
-    const [startColor, endColor] = getGradientColors(info.color)
+   
 
     return (
       <View
@@ -124,13 +124,21 @@ const PersonaSelectionScreen: React.FC = () => {
           <Text className="text-4xl">{info.icon}</Text>
         </View>
         <View className="flex items-center justify-evenly flex-col  mt-10">
-          <Text className="text-white text-2xl font-bold text-center mb-2">{info.title}</Text>
+          <Text style={[GameFonts.subtitle]} className="text-white text-xl font-bold text-center mb-2">
+            {info.title}
+          </Text>
 
-          <Text className="text-gray-300 text-base text-center mb-4 leading-5">{info.description}</Text>
+          <Text style={[GameFonts.body]} className="text-gray-300 text-base text-center mb-4 leading-5">
+            {info.description}
+          </Text>
 
           <View className="bg-gray-800/50 rounded-xl p-3 mb-6 w-full">
-            <Text className="text-gray-400 text-xs font-semibold mb-1 text-center">KEY TRAITS</Text>
-            <Text className="text-white text-sm text-center font-medium">{info.traits}</Text>
+            <Text style={[GameFonts.subtitle]} className="text-gray-400 text-xs font-semibold mb-1 text-center">
+              KEY TRAITS
+            </Text>
+            <Text style={[GameFonts.body]} className="text-white text-sm text-center font-medium">
+              {info.traits}
+            </Text>
           </View>
         </View>
 
@@ -140,8 +148,8 @@ const PersonaSelectionScreen: React.FC = () => {
           className={` rounded-xl top-30 bottom-0  mt-[-40px]  ${!currentSelectedPersona ? 'opacity-50' : ''}`}
           style={{
             bottom: -20, // Overlap with main card
-            left: '50%',
-            top: 40,
+            left: '40%',
+            top: 25,
             marginLeft: -80, // Half of estimated button width
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 6 },
@@ -154,10 +162,10 @@ const PersonaSelectionScreen: React.FC = () => {
           <ImageBackground
             source={require('../assets/onboarding/button-bg-main.png')}
             // style={styles.welcomeTextContainer}
-            className="flex items-center justify-center p-4 w-fit  absolute"
+            className="flex items-center justify-center p-6 w-fit absolute"
             resizeMode="contain"
           >
-            <Text>Choose this persona</Text>
+            <Text style={[GameFonts.button]}>Choose this persona</Text>
           </ImageBackground>
         </TouchableOpacity>
       </View>
@@ -166,16 +174,19 @@ const PersonaSelectionScreen: React.FC = () => {
 
   return (
     <View className="flex-1">
-      <StatusBar barStyle="light-content" />
       <View className="mb-4 flex items-center justify-center flex-col">
         <ImageBackground
           source={require('../assets/onboarding/dialog-bg-1.png')}
-          className="px-10 w-fit py-4"
+          className="px-10 mt-3 text-center  w-fit py-3"
           resizeMode="contain"
         >
-          <Text className="text-sm  text-[#E0E0E0]">Choose your persona</Text>
+          <Text style={[GameFonts.epic]} className="text-base  text-[#E0E0E0]">
+            Choose your persona
+          </Text>
         </ImageBackground>
-        <Text className="text-gray-400 text-sm">Select the identity that best represents your Web3 journey</Text>
+        <Text style={[GameFonts.body]} className="text-gray-400 pt-4 font-semibold text-sm">
+          Select the identity that best represents your Web3 journey
+        </Text>
       </View>
 
       <View className="flex-1 flex-row p-6 pt-12">

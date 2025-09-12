@@ -1,20 +1,38 @@
+import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
-import { guideImages, SELECTION_BACKGROUND } from '@/utils/assets'
-import React, { useContext } from 'react'
-import { Dimensions, Image, ImageBackground, Text, TouchableOpacity, View } from 'react-native'
+import React, { useContext, useMemo, useRef, useState } from 'react'
+import { Image, ImageBackground, Text, TouchableOpacity, View } from 'react-native'
+
+// Import guide images directly
+import guide4 from '../../assets/images/guides/guide-daemon.png'
+import guide3 from '../../assets/images/guides/guide-guard.png'
+import guide2 from '../../assets/images/guides/guide-oracle.png'
+import guide1 from '../../assets/images/guides/guide-val.png'
+import { GameTypewriterPresets, TypewriterText } from '../common/Typewrite'
 
 const GameCardIntro = () => {
-  const { height: SCREEN_HEIGHT } = Dimensions.get('window')
+  const [showNextButton, setShowNextButton] = useState(false)
+
   const { setCurrentOnboardingScreen, selectedGuide, playerName, selectedPersona } =
     useContext(CreateContext).onboarding
 
-  // Get the guide image based on selected guide
-  const getGuideImage = (): string => {
-    if (selectedGuide?.id && guideImages[selectedGuide.id]) {
-      return guideImages[selectedGuide.id]
+  // Check if we should skip animation (returning user or already completed previous steps)
+  const shouldSkipAnimation = useMemo(() => (!playerName ? false : false), [playerName])
+
+  // Get the guide image using direct imports
+  const getGuideImage = () => {
+    switch (selectedGuide?.id) {
+      case '1':
+        return guide1 // Janus the Builder
+      case '2':
+        return guide2 // Jarek the Oracle
+      case '3':
+        return guide3 // Gaius the Guardian
+      case '4':
+        return guide4 // Bryn the Daemon
+      default:
+        return guide1 // Default fallback
     }
-    // Fallback image
-    return 'https://res.cloudinary.com/deensvquc/image/upload/v1753436774/Mask_group_ilokc7.png'
   }
 
   // Get guide title for badge
@@ -35,16 +53,12 @@ const GameCardIntro = () => {
     }
   }
 
-  // Get personalized intro message
-  const getIntroMessage = (): { greeting: string; explanation: string } => {
+  // Memoize the intro message to prevent changes
+  const introMessage = useMemo(() => {
     const name = playerName || 'Warrior'
-    const guideName = getGuideName()
 
-    return {
-      greeting: `Welcome, ${name}. Before we begin, let me explain what lies ahead...`,
-      explanation: 'Your journey begins with forging your first undead warrior ...',
-    }
-  }
+    return `Welcome, ${name}. Before we begin, let me explain what lies ahead... Your journey begins with forging your first undead warrior from the essence of ancient powers. This cursed champion will embody your fighting spirit and supernatural gifts.`
+  }, [playerName, selectedGuide?.name])
 
   // Get the guide's first name for speaking
   const getGuideName = (): string => {
@@ -64,10 +78,10 @@ const GameCardIntro = () => {
     }
   }
 
-  // Format persona for display
-  const formatPersonaName = (persona: string): string => {
-    return persona.replace(/([A-Z])/g, ' $1').trim()
-  }
+  // Use useRef to ensure this callback doesn't change
+  const handleTypewriterCompleteRef = useRef(() => {
+    setShowNextButton(true)
+  })
 
   const handleNext = () => {
     console.log('Moving to game card carousel with:', {
@@ -78,39 +92,42 @@ const GameCardIntro = () => {
     setCurrentOnboardingScreen('game-card-carousel')
   }
 
-  const introContent = getIntroMessage()
+  // Initialize button visibility for skip animation cases
+  React.useEffect(() => {
+    if (shouldSkipAnimation) {
+      setShowNextButton(true)
+    }
+  }, [shouldSkipAnimation])
 
   return (
     <View className="flex-1 h-full w-full flex justify-end items-end">
       <View className="flex-1 justify-end" style={{ width: '85%' }}>
         <ImageBackground
-          className=" w-full flex flex-row px-8"
+          className="w-full absolute -bottom-8 right-8 flex flex-row px-8"
           source={require('../../assets/onboarding/dialog-bg-2.png')}
           style={{
-            height: 180, // Increased height for input elements
+            height: 180,
             overflow: 'visible',
           }}
         >
           {/* Guide Image */}
           <View className="w-[30%] relative" style={{ overflow: 'visible' }}>
             <Image
-              source={{
-                uri: getGuideImage(),
-              }}
-              className="w-[300px] h-[300px] relative z-20"
-              height={280}
-              width={280}
+              source={getGuideImage()}
+              className="w-[290px] h-[320px] relative z-20"
+              height={240}
+              width={240}
               style={{
                 position: 'absolute',
-                bottom: 0,
-                top: -80,
-                right: 2,
+                bottom: -45,
+                right: 25,
               }}
+              resizeMode="contain"
             />
           </View>
 
           {/* Conversation Content */}
-          <View className="flex-1 pt-2 pr-4 w-[50%] flex">
+          <View className="flex-1 pt-2 pr-4 w-[50%]">
             {/* Guide Title Badge */}
             <TouchableOpacity
               className="w-24 p-1 border"
@@ -123,30 +140,38 @@ const GameCardIntro = () => {
               }}
               disabled
             >
-              <Text className="text-white text-xs text-center font-bold">Oracle</Text>
+              <Text className="text-white text-xs text-center font-bold">{getGuideTitle()}</Text>
             </TouchableOpacity>
 
-            {/* Greeting Text */}
-            <Text className="text-white pt-4 text-sm leading-4 mb-1">{introContent.greeting}</Text>
-            <Text className="text-white text-sm leading-4">{introContent.explanation}</Text>
+            {/* Greeting Text with Typewriter Effect */}
+            <TypewriterText
+              key={`intro-typewriter-${selectedGuide?.id}`}
+              text={introMessage}
+              style={[GameFonts.body]}
+              className="text-white mt-2 leading-8 mb-4"
+              {...GameTypewriterPresets.narration}
+              delay={300}
+              skipAnimation={shouldSkipAnimation}
+              onComplete={handleTypewriterCompleteRef.current}
+            />
 
-            <View className="flex flex-row items-center mt-2">
-              {/* Continue Button */}
-              <TouchableOpacity
-                onPress={handleNext}
-                // disabled={!currentPlayerName.trim() || isCreating}
-                className={` py-2 rounded-xl ml-auto`}
-              >
-                <ImageBackground
-                  source={require('../../assets/onboarding/button-bg-main.png')}
-                  // style={styles.welcomeTextContainer}
-                  className="flex items-center justify-center py-2 px-8"
-                  resizeMode="contain"
-                >
-                  <Text className={`text-center font-bold text-sm `}>Next</Text>
-                </ImageBackground>
-              </TouchableOpacity>
-            </View>
+            {/* Continue Button Section - Only show after typewriter completes */}
+            {showNextButton && (
+              <View className="flex flex-row items-center mt-2">
+                {/* Continue Button */}
+                <TouchableOpacity onPress={handleNext} className="ml-2">
+                  <ImageBackground
+                    source={require('../../assets/onboarding/button-bg-main.png')}
+                    className="flex items-center w-fit h-fit -right-[90px] -top-12 absolute justify-center py-2 px-8"
+                    resizeMode="contain"
+                  >
+                    <Text className="text-center font-bold text-xl text-black" style={[GameFonts.button]}>
+                      Next
+                    </Text>
+                  </ImageBackground>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </ImageBackground>
       </View>

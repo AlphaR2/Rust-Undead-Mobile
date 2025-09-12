@@ -1,9 +1,15 @@
 import { CreateContext } from '@/context/Context'
 import { generateRandomDNA } from '@/hooks/useGameActions'
-import { guideImages, PERSONA_BACKGROUND } from '@/utils/assets'
 import { useRouter } from 'expo-router'
 import React, { useContext, useState } from 'react'
 import { Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import PERSONA_BACKGROUND from '../../assets/images/bg-assets/bg-03.png'
+
+// Import guide images directly
+import guide4 from '../../assets/images/guides/guide-daemon.png'
+import guide3 from '../../assets/images/guides/guide-guard.png'
+import guide2 from '../../assets/images/guides/guide-oracle.png'
+import guide1 from '../../assets/images/guides/guide-val.png'
 
 const WarriorProfileSetup = () => {
   const router = useRouter()
@@ -12,12 +18,20 @@ const WarriorProfileSetup = () => {
   const [warriorName, setWarriorName] = useState('')
   const [newWarriorDNA, setNewWarriorDNA] = useState<string>('')
 
-  // Get the guide image
-  const getGuideImage = (): string => {
-    if (selectedGuide?.id && guideImages[selectedGuide.id]) {
-      return guideImages[selectedGuide.id]
+  // Get the guide image using direct imports
+  const getGuideImage = () => {
+    switch (selectedGuide?.id) {
+      case '1':
+        return guide1 // Janus the Builder
+      case '2':
+        return guide2 // Jarek the Oracle
+      case '3':
+        return guide3 // Gaius the Guardian
+      case '4':
+        return guide4 // Bryn the Daemon
+      default:
+        return guide1 // Default fallback
     }
-    return 'https://res.cloudinary.com/deensvquc/image/upload/v1753436774/Mask_group_ilokc7.png'
   }
 
   // Get guide name for speaking
@@ -46,7 +60,6 @@ const WarriorProfileSetup = () => {
   // Get personalized dialogue message
   const getDialogueMessage = (): string => {
     const name = playerName || 'Warrior'
-
     const warriorType = selectedWarriorType?.name || 'warrior'
 
     return `${name}, excellent choice on the ${warriorType}! Now we must forge your undead champion's identity. Give your warrior a name that will strike fear into your enemies, and let the ancient magic generate their unique DNA essence.`
@@ -71,28 +84,21 @@ const WarriorProfileSetup = () => {
   }
 
   return (
-    <ImageBackground source={{ uri: PERSONA_BACKGROUND }} style={styles.backgroundContainer} resizeMode="cover">
+    <ImageBackground source={PERSONA_BACKGROUND} style={styles.backgroundContainer} resizeMode="cover">
       <View style={styles.blackOverlay} />
 
       <View style={styles.container} className="flex flex-col justify-between leading-4">
         {/* Top dialogue with guide */}
-
         <View className="flex items-center justify-center px-40">
           <ImageBackground
             source={require('../../assets/onboarding/dialog-bg-1.png')}
-            // style={styles.titleContainer}
             className="px-10 w-fit py-4"
             resizeMode="contain"
           >
-            <Text className="text-sm  text-[#E0E0E0] text-center">Warrior Name Setup</Text>
-            {/* <View style={styles.titleUnderline} /> */}
+            <Text className="text-sm text-[#E0E0E0] text-center">Warrior Name Setup</Text>
           </ImageBackground>
           <View style={{ width: '65%' }}>
-            <Text className="text-white text-center text-sm ">
-              ‘Name Chosen’, excellent choice on the DAEMON! Now we must forge your undead champion’s identity. Give
-              your warrior a name that will strike fear into your enemies, and let the ancient magic generate their
-              unique DNA essence.
-            </Text>
+            <Text className="text-white text-center text-sm">{getDialogueMessage()}</Text>
           </View>
         </View>
 
@@ -116,17 +122,14 @@ const WarriorProfileSetup = () => {
               {/* Warrior Name Input */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Warrior Name</Text>
-                <View
-                  className="bg-[#1A1A1A] rounded-[20px]"
-                  style={styles.inputBackground}
-                  // resizeMode="contain"
-                >
+                <View className="bg-[#1A1A1A] rounded-[20px]" style={styles.inputBackground}>
                   <TextInput
                     value={warriorName}
                     onChangeText={setWarriorName}
                     placeholder="Enter warrior name"
-                    className="px-2"
-                    // style={styles.textInput}
+                    placeholderTextColor="#666"
+                    className="px-4 text-white"
+                    style={{ fontSize: 16 }}
                     maxLength={20}
                   />
                 </View>
@@ -136,13 +139,14 @@ const WarriorProfileSetup = () => {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Unique DNA (click dice to randomize)</Text>
                 <View style={styles.dnaInputContainer}>
-                  <View className="bg-[#1A1A1A] rounded-[20px]" style={{ width: '80%' }}>
+                  <View className="bg-[#1A1A1A] rounded-[20px]" style={{ width: '80%', height: 50 }}>
                     <TextInput
                       value={newWarriorDNA}
                       onChangeText={setNewWarriorDNA}
                       placeholder="Generate DNA"
-                      // placeholderTextColor="#D4AF37"
-                      // style={styles.textInput}
+                      placeholderTextColor="#666"
+                      className="px-4 text-white h-full"
+                      style={{ fontSize: 16 }}
                       maxLength={20}
                     />
                   </View>
@@ -161,14 +165,13 @@ const WarriorProfileSetup = () => {
               >
                 <ImageBackground
                   source={require('../../assets/onboarding/button-bg-main.png')}
-                  // style={styles.welcomeTextContainer}
                   className="flex items-center justify-center p-4 w-fit"
                   resizeMode="contain"
                   style={{
                     top: -10,
                   }}
                 >
-                  <Text>Choose this guide</Text>
+                  <Text className="text-black font-bold">Create Warrior</Text>
                 </ImageBackground>
               </TouchableOpacity>
             </View>
@@ -183,7 +186,7 @@ const WarriorProfileSetup = () => {
               style={styles.cardPreview}
               resizeMode="contain"
             >
-              {/* You can overlay warrior info here if needed */}
+              {/* Warrior info overlay */}
               <View style={styles.cardOverlay}>
                 <Text style={[styles.previewWarriorName, { color: selectedWarriorType?.color || '#FFFFFF' }]}>
                   {warriorName || 'Your Warrior'}
@@ -239,7 +242,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mainContent: {
-    // flex: 1,
     flexDirection: 'row',
     gap: 16,
   },

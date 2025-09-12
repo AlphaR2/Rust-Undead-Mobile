@@ -1,19 +1,21 @@
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 import { Toast } from '@/components/ui/Toast'
 import ContextProvider from '@/context/Context'
+import { MWAProvider } from '@/context/mwa'
 import { PrivyProvider } from '@privy-io/expo'
 import { useFonts } from 'expo-font'
+import * as NavigationBar from 'expo-navigation-bar'
 import { Stack } from 'expo-router'
+import * as ScreenOrientation from 'expo-screen-orientation'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import React, { useEffect } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Platform, StatusBar as RNStatusBar, StyleSheet } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import 'react-native-reanimated'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import '../global.css'
 import { ThemeProvider } from './providers/ThemeProvider'
-import { MWAProvider } from "@/context/mwa";
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync()
@@ -34,8 +36,26 @@ export default function RootLayout() {
   })
 
   useEffect(() => {
+    const setupFullscreen = async () => {
+      try {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE)
+
+        // Hide status bar on both platforms
+        if (Platform.OS === 'ios') {
+          RNStatusBar.setHidden(true, 'none')
+        } else if (Platform.OS === 'android') {
+          RNStatusBar.setHidden(true, 'none')
+          // Hide navigation bar for true fullscreen on Android
+          await NavigationBar.setVisibilityAsync('hidden')
+        }
+      } catch (error) {
+        console.log('Could not setup fullscreen mode:', error)
+      }
+    }
+
+    setupFullscreen()
+
     if (fontsLoaded) {
-      // Hide the splash screen once fonts are loaded
       SplashScreen.hideAsync()
     }
   }, [fontsLoaded])
@@ -44,8 +64,8 @@ export default function RootLayout() {
     return null
   }
 
-  const appId = process.env.EXPO_PUBLIC_PRIVY_ID;
-  const clientId = process.env.EXPO_PUBLIC_PRIVY_CLIENT;
+  const appId = process.env.EXPO_PUBLIC_PRIVY_ID
+  const clientId = process.env.EXPO_PUBLIC_PRIVY_CLIENT
 
   if (!appId || !clientId) {
     console.error(
@@ -66,10 +86,9 @@ export default function RootLayout() {
         },
       }}
     >
-      <View style={styles.container}>
-        <StatusBar hidden={true} translucent={false} backgroundColor="transparent" />
-        <GestureHandlerRootView style={styles.appContainer}>
-          <MWAProvider>
+      <StatusBar hidden={true} translucent={true} />
+      <GestureHandlerRootView style={styles.fullscreen}>
+        <MWAProvider>
           <ContextProvider>
             <SafeAreaProvider>
               <ThemeProvider>
@@ -78,7 +97,7 @@ export default function RootLayout() {
                     screenOptions={{
                       headerShown: false,
                       statusBarHidden: true,
-                      statusBarTranslucent: false,
+                      statusBarTranslucent: true,
                     }}
                   >
                     <Stack.Screen
@@ -101,30 +120,28 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="intro"
                       options={{
+                        animation: 'slide_from_right',
                         statusBarHidden: true,
                       }}
                     />
                     <Stack.Screen
                       name="guide"
                       options={{
+                        animation: 'slide_from_right',
                         statusBarHidden: true,
                       }}
                     />
                     <Stack.Screen
-                      name="warrior-creation"
+                      name="dashboard"
                       options={{
-                        statusBarHidden: true,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="(tabs)"
-                      options={{
+                        animation: 'fade',
                         statusBarHidden: true,
                       }}
                     />
                     <Stack.Screen
                       name="+not-found"
                       options={{
+                        animation: 'fade',
                         statusBarHidden: true,
                       }}
                     />
@@ -134,20 +151,15 @@ export default function RootLayout() {
               </ThemeProvider>
             </SafeAreaProvider>
           </ContextProvider>
-          </MWAProvider>
-        </GestureHandlerRootView>
-      </View>
+        </MWAProvider>
+      </GestureHandlerRootView>
     </PrivyProvider>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  fullscreen: {
     flex: 1,
-    position: 'relative',
-  },
-  appContainer: {
-    flex: 1,
-    zIndex: 1,
+    backgroundColor: '#000000',
   },
 })

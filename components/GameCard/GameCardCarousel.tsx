@@ -1,8 +1,15 @@
+import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
-import { guideImages, PERSONA_BACKGROUND } from '@/utils/assets'
 import React, { useContext, useState } from 'react'
 import { Image, ImageBackground, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import PERSONA_BACKGROUND from '../../assets/images/bg-assets/bg-03.png'
 import { WARRIOR_TYPES } from '../../types/mobile'
+
+// Import guide images directly
+import guide4 from '../../assets/images/guides/guide-daemon.png'
+import guide3 from '../../assets/images/guides/guide-guard.png'
+import guide2 from '../../assets/images/guides/guide-oracle.png'
+import guide1 from '../../assets/images/guides/guide-val.png'
 
 const GameCardCarousel: React.FC = () => {
   const { setCurrentOnboardingScreen, selectedGuide, playerName, selectedPersona, setSelectedWarriorType } =
@@ -12,16 +19,20 @@ const GameCardCarousel: React.FC = () => {
   const [currentPhase, setCurrentPhase] = useState<'dialogue' | 'selection'>('dialogue')
   const [currentIndex, setCurrentIndex] = useState(0)
 
-  // Background image
-
-  // Guide images mapping
-
-  // Get the guide image
-  const getGuideImage = (): string => {
-    if (selectedGuide?.id && guideImages[selectedGuide.id]) {
-      return guideImages[selectedGuide.id]
+  // Get the guide image using direct imports
+  const getGuideImage = () => {
+    switch (selectedGuide?.id) {
+      case '1':
+        return guide1 // Janus the Builder
+      case '2':
+        return guide2 // Jarek the Oracle
+      case '3':
+        return guide3 // Gaius the Guardian
+      case '4':
+        return guide4 // Bryn the Daemon
+      default:
+        return guide1 // Default fallback
     }
-    return 'https://res.cloudinary.com/deensvquc/image/upload/v1753436774/Mask_group_ilokc7.png'
   }
 
   // Get guide name for speaking
@@ -126,10 +137,7 @@ const GameCardCarousel: React.FC = () => {
   // Phase 1: Guide Dialogue
   if (currentPhase === 'dialogue') {
     return (
-      <ImageBackground
-        className="flex-1 flex flex-row items-center justify-center"
-        source={{ uri: PERSONA_BACKGROUND }}
-      >
+      <ImageBackground className="flex-1 flex flex-row items-center justify-center" source={PERSONA_BACKGROUND}>
         <View style={styles.blackOverlay} />
 
         <ImageBackground source={require('../../assets/onboarding/dialog-bg-4.png')} resizeMode="contain" className="">
@@ -138,20 +146,18 @@ const GameCardCarousel: React.FC = () => {
             <View style={styles.centeredDialogueContainer}>
               <View style={styles.dialogueCard}>
                 <View style={styles.dialogueContent}>
-                  <Text style={styles.guideName}>{getGuideName()}</Text>
+                  <Text style={[GameFonts.title, styles.guideName]}>{getGuideName()}</Text>
                   <Text style={styles.centeredDialogueText}>{getIntroMessage()}</Text>
 
                   <TouchableOpacity
                     className="flex items-center justify-center "
                     onPress={handleContinueToSelection}
-                    // activeOpacity={0.85}
                     style={{
                       top: 20,
                     }}
                   >
                     <ImageBackground
                       source={require('../../assets/onboarding/button-bg-main.png')}
-                      // style={styles.welcomeTextContainer}
                       className="flex items-center justify-center py-8 px-8"
                       resizeMode="contain"
                     >
@@ -163,27 +169,27 @@ const GameCardCarousel: React.FC = () => {
             </View>
           </View>
         </ImageBackground>
-        <Image source={{ uri: getGuideImage() }} resizeMode="contain" style={styles.largeGuideImage} />
+        <Image source={getGuideImage()} resizeMode="contain" style={styles.largeGuideImage} />
       </ImageBackground>
     )
   }
 
   // Phase 2: Warrior Selection
   return (
-    <ImageBackground source={{ uri: PERSONA_BACKGROUND }} style={styles.backgroundContainer} resizeMode="cover">
+    <ImageBackground source={PERSONA_BACKGROUND} style={styles.backgroundContainer} resizeMode="cover">
       <View style={styles.blackOverlay} />
 
       <View style={styles.container}>
         {/* Header with smaller guide indicator */}
         <ImageBackground
-               source={require('../../assets/onboarding/dialog-bg-1.png')}
-               // style={styles.titleContainer}
-               className="px-10 w-fit py-4"
-               resizeMode="contain"
-             >
-               <Text className="text-sm text-center text-[#E0E0E0]">Choose your warrior class</Text>
-               {/* <View style={styles.titleUnderline} /> */}
-             </ImageBackground>
+          source={require('../../assets/onboarding/dialog-bg-1.png')}
+          className="px-10 w-fit py-4"
+          resizeMode="contain"
+        >
+          <Text style={[GameFonts.epic]} className="text-sm text-center  text-[#E0E0E0]">
+            Choose your warrior class
+          </Text>
+        </ImageBackground>
 
         <View style={styles.mainContent}>
           {/* Left Side - Warrior Carousel */}
@@ -217,7 +223,6 @@ const GameCardCarousel: React.FC = () => {
                     <TouchableOpacity style={styles.confirmButtonContainer} onPress={handleConfirm} className="">
                       <ImageBackground
                         source={require('../../assets/onboarding/button-bg-main.png')}
-                        // style={styles.welcomeTextContainer}
                         className="flex items-center justify-center py-6 w-full px-24  absolute "
                         resizeMode="contain"
                       >
@@ -297,12 +302,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   dialogueCard: {
-    // backgroundColor: 'rgba(202, 116, 34, 0.9)',
-    // borderRadius: 20,
     padding: 30,
     alignItems: 'center',
-    // borderWidth: 2,
-    // borderColor: '#CA7422',
     maxWidth: 400,
     minHeight: 300,
   },
@@ -443,7 +444,6 @@ const styles = StyleSheet.create({
   confirmButtonContainer: {
     marginTop: -40,
     alignItems: 'center',
-    // backgroundColor: 'rgba(202, 116, 34, 0.8)',
     width: 200,
     height: 39,
     justifyContent: 'center',
@@ -472,7 +472,6 @@ const styles = StyleSheet.create({
     padding: 20,
     minHeight: 330,
     gap: 12,
-    // justifyContent: "space-between",
   },
   warriorName: {
     fontSize: 20,

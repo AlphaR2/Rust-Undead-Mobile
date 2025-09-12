@@ -1,39 +1,37 @@
-import { ContextTypes, Guide, WarriorType } from "@/types/mobile";
-import { UserPersona } from "@/types/undead";
-import React, { createContext, useState } from "react";
+import { ContextTypes, Guide, WarriorType } from '@/types/mobile'
+import { UserPersona } from '@/types/undead'
+import React, { createContext, useState } from 'react'
 
-export const CreateContext = createContext({} as ContextTypes);
+export const CreateContext = createContext({} as ContextTypes)
 
 const ContextProvider = ({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) => {
   // Auth state
-  const [accessToken, setAccessToken] = useState<string | null>("");
+  const [accessToken, setAccessToken] = useState<string | null>('')
 
   // Loader state
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false)
 
   // Onboarding screen state
   const [currentOnboardingScreen, setCurrentOnboardingScreen] = useState<
-    | "welcome"
-    | "selection"
-    | "name"
-    | "game-card-intro"
-    | "game-card-carousel"
-    | "warrior-setup"
-    | "persona"
-  >("welcome");
+    | 'welcome'
+    | 'selection'
+    | 'name'
+    | 'profile'
+    | 'game-card-intro'
+    | 'game-card-carousel'
+    | 'warrior-setup'
+    | 'persona'
+  >('welcome')
 
   // Onboarding data state
-  const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
-  const [selectedWarriorType, setSelectedWarriorType] =
-    useState<WarriorType | null>(null);
-  const [selectedPersona, setSelectedPersona] = useState<UserPersona | null>(
-    null
-  );
-  const [playerName, setPlayerName] = useState<string>("");
+  const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null)
+  const [selectedWarriorType, setSelectedWarriorType] = useState<WarriorType | null>(null)
+  const [selectedPersona, setSelectedPersona] = useState<UserPersona | null>(null)
+  const [playerName, setPlayerName] = useState<string>('')
 
   // Utility functions
   const getOnboardingData = () => ({
@@ -41,15 +39,15 @@ const ContextProvider = ({
     selectedWarriorType,
     selectedPersona,
     playerName,
-  });
+  })
 
   const resetOnboarding = () => {
-    setCurrentOnboardingScreen("welcome");
-    setSelectedGuide(null);
-    setSelectedWarriorType(null);
-    setSelectedPersona(null);
-    setPlayerName("");
-  };
+    setCurrentOnboardingScreen('welcome')
+    setSelectedGuide(null)
+    setSelectedWarriorType(null)
+    setSelectedPersona(null)
+    setPlayerName('')
+  }
 
   return (
     <CreateContext.Provider
@@ -77,9 +75,9 @@ const ContextProvider = ({
     >
       {children}
     </CreateContext.Provider>
-  );
-};
+  )
+}
 
-export default ContextProvider;
-export { UserPersona };
-export type { WarriorType };
+export default ContextProvider
+export { UserPersona }
+export type { WarriorType }

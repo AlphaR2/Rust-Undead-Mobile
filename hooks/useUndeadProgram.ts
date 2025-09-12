@@ -1,4 +1,4 @@
-import { useMWA } from '@/context/mwa'
+import { useMWA } from '@/context/mwa/MWAContext'
 import { getMWAConnection, useMWAAnchorAdapter } from '@/context/mwa/AnchorAdapter'
 import { RustUndead as UndeadTypes } from '@/types/idlTypes'
 import { AnchorProvider, Program } from '@coral-xyz/anchor'

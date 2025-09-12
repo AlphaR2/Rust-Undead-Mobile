@@ -1,6 +1,7 @@
 // Import required polyfills first
 import 'fast-text-encoding';
 import 'react-native-get-random-values';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
 import { Buffer } from 'buffer';
 import 'react-native-get-random-values';

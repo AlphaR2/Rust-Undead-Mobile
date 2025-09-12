@@ -1,43 +1,43 @@
-import { usePrivy } from '@privy-io/expo';
-import { router } from 'expo-router';
-import React, { useEffect } from 'react';
-import { Image, StatusBar, StyleSheet, View } from 'react-native';
+import { usePrivy } from '@privy-io/expo'
+import { router } from 'expo-router'
+import React, { useEffect } from 'react'
+import { Dimensions, Image,  StyleSheet, View } from 'react-native'
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('screen')
 
 export default function SplashScreen() {
-  const { user } = usePrivy();
+  const { user } = usePrivy()
 
   useEffect(() => {
-    // Check if user is already authenticated
     const checkAuthAndNavigate = async () => {
       try {
         if (user) {
-          console.log('User authenticated, navigating to guide');
+          console.log('User authenticated, navigating to guide')
           setTimeout(() => {
-            router.replace('/guide');
-          }, 2000);
+            router.replace('/guide')
+          }, 2000)
         } else {
-          console.log('No user authenticated, navigating to trailer');
+          console.log('No user authenticated, navigating to intro')
           setTimeout(() => {
-            router.replace('/trailer');
-          }, 10000);
+            router.replace('/intro')
+          }, 3000)
         }
       } catch (error) {
-        console.error('Error checking authentication:', error);
+        console.error('Error checking authentication:', error)
         setTimeout(() => {
-          router.replace('/trailer');
-        }, 10000);
+          router.replace('/intro')
+        }, 3000)
       }
-    };
+    }
 
-    checkAuthAndNavigate();
-  }, [user]);
+    checkAuthAndNavigate()
+  }, [user])
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000000" />
-      <Image source={require('../assets/images/spl.png')} style={styles.splashImage} resizeMode="contain" />
+      <Image source={require('../assets/images/spl.png')} style={styles.splashImage} resizeMode="cover" />
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -46,10 +46,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
+    width: screenWidth,
+    height: screenHeight,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   splashImage: {
-    width: '100%',
-    height: undefined,
-    aspectRatio: 1,
+    width: screenWidth,
+    height: screenHeight,
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
-});
+})

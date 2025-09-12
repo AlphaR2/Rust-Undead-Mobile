@@ -1,3 +1,4 @@
+import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
 import { Guides as characters } from '@/types/mobile'
 import React, { useContext, useState } from 'react'
@@ -43,13 +44,13 @@ const CharacterSelection = () => {
   const getCharacterImage = (characterId: string) => {
     switch (characterId) {
       case '1':
-        return require('../assets/onboarding/guide-character-1.png') // Builder
+        return require('../assets/images/guides/guide-val.png') // Validator/Builder
       case '2':
-        return require('../assets/onboarding/guide-character-2.png') // Oracle/Knowledge
+        return require('../assets/images/guides/guide-oracle.png') // Oracle/Knowledge
       case '3':
-        return require('../assets/onboarding/guide-character-3.png') // Guardian/Combat
+        return require('../assets/images/guides/guide-guard.png') // Guardian/Combat
       case '4':
-        return require('../assets/onboarding/guide-character-3.png') // Daemon
+        return require('../assets/images/guides/guide-daemon.png') // Daemon
       default:
         return '⚡'
     }
@@ -60,24 +61,33 @@ const CharacterSelection = () => {
       {/* Character Cards Grid */}
       <ImageBackground
         source={require('../assets/onboarding/dialog-bg-1.png')}
-        // style={styles.titleContainer}
-        className="px-10 w-fit py-4"
+        style={styles.titleContainer}
+        className="px-12 py-6"
         resizeMode="contain"
       >
-        <Text className="text-sm  text-[#E0E0E0]">Choose your guide</Text>
-        {/* <View style={styles.titleUnderline} /> */}
+        <Text className="text-base  text-[#E0E0E0]" style={[GameFonts.epic]}>
+          Choose your guide
+        </Text>
       </ImageBackground>
+
       <View style={styles.cardsGrid}>
         {characters.map((character, index) => (
           <TouchableOpacity
-            className=" flex items-center justify-between flex-col py-1 relative"
+            className="flex items-center justify-between flex-col py-1 relative"
             key={character.id}
             onPress={() => handleCharacterSelect(index)}
           >
             <View
-              className={`h-40 border ${selectedIndex === index ? 'border-[#cd7f32]' : 'border-black'} w-full rounded-lg   bg-[#1a1a1a] `}
+              className={`h-40 w-[85%] rounded-lg bg-[#1a1a1a]/60 ${
+                selectedIndex === index ? 'border-2 border-[#cd7f32]' : 'border-0'
+              }`}
             >
-              <Image source={getCharacterImage(character.id)} resizeMode="contain" className="h-40 w-full" />
+              <Image
+                source={getCharacterImage(character.id)}
+                resizeMode="contain"
+                style={{ top: -57 }}
+                className="h-[200px] w-[190px]"
+              />
             </View>
             <ImageBackground
               source={
@@ -85,16 +95,16 @@ const CharacterSelection = () => {
                   ? require('../assets/onboarding/dialog-bg-3-active.png')
                   : require('../assets/onboarding/dialog-bg-3.png')
               }
-              className={`flex items-center justify-center p-4 relative bottom-0 left-0 right-0 z-10`} // Absolute positioning
+              className={`flex items-center justify-center p-4 z-10`}
               resizeMode="contain"
               style={{
-                top: -20,
+                top: -12,
               }}
             >
-              <Text style={styles.characterName}>{character.name}</Text>
+              <Text style={[GameFonts.body, styles.characterName]}>{character.name}</Text>
               <View className="flex flex-row items-center">
                 <Image source={getCharacterIcon(character.id)} resizeMode="contain" className="w-8 h-8" />
-                <Text style={styles.characterTitle}>{character.title}</Text>
+                <Text style={[GameFonts.body, styles.characterTitle]}>{character.title}</Text>
               </View>
             </ImageBackground>
           </TouchableOpacity>
@@ -103,17 +113,18 @@ const CharacterSelection = () => {
 
       {/* Confirm Button */}
       <View style={styles.confirmButtonContainer}>
-        <TouchableOpacity className="flex items-center justify-center " onPress={handleConfirm} activeOpacity={0.85}>
+        <TouchableOpacity className="flex items-center justify-center" onPress={handleConfirm} activeOpacity={0.85}>
           <ImageBackground
             source={require('../assets/onboarding/button-bg-main.png')}
-            // style={styles.welcomeTextContainer}
-            className="flex items-center justify-center p-4 w-fit  "
+            className="flex items-center justify-center p-5  w-fit"
             resizeMode="contain"
             style={{
               top: -10,
             }}
           >
-            <Text>Choose this guide</Text>
+            <Text style={[GameFonts.button]} className="text-lg">
+              Choose this guide
+            </Text>
           </ImageBackground>
         </TouchableOpacity>
       </View>
@@ -127,6 +138,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 200,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 4,
   },
   cardsGrid: {
     flexDirection: 'row',
@@ -134,7 +146,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '80%',
     maxWidth: 460,
-    gap: 15,
+    gap: 12,
+    marginTop: 5,
   },
   cardContainer: {
     width: '42%',
@@ -177,16 +190,21 @@ const styles = StyleSheet.create({
   },
   characterName: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     textAlign: 'center',
+    paddingHorizontal: 12,
     marginBottom: 6,
     textShadowColor: '#000',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
+  titleContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
   characterTitle: {
-    color: 'white',
+    color: '#cd7f32',
     fontSize: 12,
     textAlign: 'center',
     fontWeight: '600',
@@ -212,8 +230,6 @@ const styles = StyleSheet.create({
   },
   confirmButtonContainer: {
     alignItems: 'center',
-    marginTop: 20,
-    // backgroundColor: "black"
   },
   confirmButton: {
     backgroundColor: '#121212',
@@ -222,7 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 2,
     borderColor: '#cd7f32',
-    minWidth: 200,
+    minWidth: 400,
     alignItems: 'center',
   },
   confirmButtonText: {

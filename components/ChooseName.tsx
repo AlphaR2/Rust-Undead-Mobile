@@ -1,23 +1,46 @@
 import { toast } from '@/components/ui/Toast'
+import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
-import { GuideImagesType } from '@/types/mobile'
-import { guideImages } from '@/utils/assets'
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Image, ImageBackground, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { GameTypewriterPresets, TypewriterText } from './common/Typewrite'
+
+// Import guide images directly
+import guide4 from '../assets/images/guides/guide-daemon.png'
+import guide3 from '../assets/images/guides/guide-guard.png'
+import guide2 from '../assets/images/guides/guide-oracle.png'
+import guide1 from '../assets/images/guides/guide-val.png'
 
 const ChooseName = () => {
   const [playerName, setPlayerName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [showInputSection, setShowInputSection] = useState(false)
 
-  const { setCurrentOnboardingScreen } = useContext(CreateContext).onboarding
-  const { selectedGuide, selectedPersona } = useContext(CreateContext).onboarding
-  const { playerName: contextPlayerName, setPlayerName: setContextPlayerName } = useContext(CreateContext).onboarding
+  const {
+    setCurrentOnboardingScreen,
+    selectedGuide,
+    selectedPersona,
+    playerName: contextPlayerName,
+    setPlayerName: setContextPlayerName,
+  } = useContext(CreateContext).onboarding
 
-  // Use context player name or local state
-  const currentPlayerName = contextPlayerName || playerName
+  // Sync local playerName with contextPlayerName when component mounts or context changes
+  useEffect(() => {
+    if (contextPlayerName) {
+      setPlayerName(contextPlayerName) // Initialize local state with context value
+    }
+  }, [contextPlayerName])
 
-  const getGuideGreeting = (guideName?: string): string => {
+  // Use local playerName for TextInput
+  const currentPlayerName = playerName
+
+  // Skip animation if user already has a name (returning user)
+  const shouldSkipAnimation = useMemo(() => !!contextPlayerName, [contextPlayerName])
+
+  // Memoize the greeting text to prevent changes
+  const greetingText = useMemo(() => {
+    const guideName = selectedGuide?.name
     if (!guideName) return 'Greetings, traveler. Tell me - what shall I call you on this journey?'
 
     switch (guideName) {
@@ -32,7 +55,7 @@ const ChooseName = () => {
       default:
         return selectedGuide?.description || 'Greetings, traveler. Tell me - what shall I call you on this journey?'
     }
-  }
+  }, [selectedGuide?.name, selectedGuide?.description])
 
   // Guide-specific title display
   const getGuideTitle = (guideName?: string): string => {
@@ -52,13 +75,26 @@ const ChooseName = () => {
     }
   }
 
-  // Get the guide image with proper type checking
-  const getGuideImage = (): string => {
-    if (selectedGuide?.id && selectedGuide.id in guideImages) {
-      return guideImages[selectedGuide.id as keyof GuideImagesType]
+  // Get the guide image using direct imports
+  const getGuideImage = () => {
+    switch (selectedGuide?.id) {
+      case '1':
+        return guide1 // Janus the Builder
+      case '2':
+        return guide2 // Jarek the Oracle
+      case '3':
+        return guide3 // Gaius the Guardian
+      case '4':
+        return guide4 // Bryn the Daemon
+      default:
+        return guide1 // Default fallback
     }
-    return 'https://res.cloudinary.com/deensvquc/image/upload/v1753436774/Mask_group_ilokc7.png'
   }
+
+  // Use useRef to ensure this callback doesn't change
+  const handleTypewriterCompleteRef = useRef(() => {
+    setShowInputSection(true)
+  })
 
   const handleContinue = async () => {
     const nameToUse = currentPlayerName.trim()
@@ -78,14 +114,8 @@ const ChooseName = () => {
     try {
       // Save to context
       setContextPlayerName(nameToUse)
-
-      // Show success toast
-      toast.success('Name Chosen!', `Welcome to the realm, ${nameToUse}!`)
       setShowSuccess(true)
-
-      // Navigate to next screen
-      setCurrentOnboardingScreen('game-card-intro')
-
+      setCurrentOnboardingScreen('profile')
       console.log('✅ Player name saved:', nameToUse)
       console.log('Selected guide:', selectedGuide?.name)
       console.log('Selected persona:', selectedPersona)
@@ -98,51 +128,41 @@ const ChooseName = () => {
   }
 
   const handleNameChange = (text: string) => {
-    setPlayerName(text)
+    setPlayerName(text) // Update local state
+    setContextPlayerName(text) // Sync with context
   }
+
+  // Initialize input section visibility for returning users
+  useEffect(() => {
+    if (shouldSkipAnimation) {
+      setShowInputSection(true)
+    }
+  }, [shouldSkipAnimation])
 
   return (
     <View className="flex-1 h-full w-full flex justify-end items-end">
-      {/* {showSuccess && (
-        <ImageBackground
-          source={require('../assets/onboarding/name-chosen-dialog-bg.png')}
-          className="border p-6 absolute items-center"
-          style={{
-            // bottom: 10,
-            top: -10,
-            left: 0,
-            right: 0,
-          }}
-          resizeMode="contain"
-        >
-          <Text className="text-white text-sm">VICTORY! Name succesfully chosen!</Text>
-          <Text className="text-white text-sm">Welcome to te Realm, ‘Name chosen’</Text>
-        </ImageBackground>
-      )} */}
       <View className="flex-1 justify-end" style={{ width: '85%' }}>
         <ImageBackground
-          className=" w-full flex flex-row px-8"
+          className="w-full absolute -bottom-8 right-8 flex flex-row px-8"
           source={require('../assets/onboarding/dialog-bg-2.png')}
           style={{
-            height: 180, // Increased height for input elements
+            height: 180,
             overflow: 'visible',
           }}
         >
           {/* Guide Image */}
           <View className="w-[30%] relative" style={{ overflow: 'visible' }}>
             <Image
-              source={{
-                uri: getGuideImage(),
-              }}
-              className="w-[300px] h-[300px] relative z-20"
-              height={280}
-              width={280}
+              source={getGuideImage()}
+              className="w-[290px] h-[320px] relative z-20"
+              height={240}
+              width={240}
               style={{
                 position: 'absolute',
-                bottom: 0,
-                top: -80,
-                right: 2,
+                bottom: -45,
+                right: 25,
               }}
+              resizeMode="contain"
             />
           </View>
 
@@ -164,49 +184,63 @@ const ChooseName = () => {
             </TouchableOpacity>
 
             {/* Greeting Text */}
-            <Text className="text-white text-sm mt-2 leading-5 mb-4">{getGuideGreeting(selectedGuide?.name)}</Text>
+            <TypewriterText
+              key={`typewriter-${selectedGuide?.id}`}
+              text={greetingText}
+              style={[GameFonts.body]}
+              className="text-white mt-2 leading-8 mb-2"
+              {...GameTypewriterPresets.dialogue}
+              delay={500}
+              skipAnimation={shouldSkipAnimation}
+              onComplete={handleTypewriterCompleteRef.current}
+            />
 
-            {/* Name Input Section */}
-            <View className="flex flex-row items-center mt-2">
-              {/* Input Field */}
-              <View className="flex-1">
-                <TextInput
-                  value={currentPlayerName}
-                  onChangeText={handleNameChange}
-                  // placeholder="Enter your name..."
-                  placeholderTextColor="#D4AF37"
-                  className="px-4 py-2 bg-[#1A1A1A]  rounded-xl text-white  "
-                  style={{
-                    fontSize: 14,
-                    backgroundColor: '#1A1A1A',
-                  }}
-                  maxLength={32}
-                  editable={!isCreating}
-                />
-              </View>
+            {/* Name Input Section - Only show after typewriter completes */}
+            {showInputSection && (
+              <View className="flex flex-row items-center">
+                {/* Input Field */}
+                <View className="flex-1">
+                  <TextInput
+                    value={currentPlayerName}
+                    onChangeText={handleNameChange}
+                    placeholder="Enter your name..."
+                    placeholderTextColor="#666"
+                    className="px-4 h-[40px] w-[428px] py-2 bg-[#1A1A1A] rounded-xl text-white"
+                    style={{
+                      fontSize: 14,
+                      backgroundColor: '#1A1A1A',
+                    }}
+                    maxLength={32}
+                    editable={!isCreating}
+                  />
+                </View>
 
-              {/* Continue Button */}
-              <TouchableOpacity
-                onPress={handleContinue}
-                disabled={!currentPlayerName.trim() || isCreating}
-                className={` py-2 rounded-xl ${currentPlayerName.trim() && !isCreating ? '' : ' '}`}
-              >
-                <ImageBackground
-                  source={require('../assets/onboarding/button-bg-main.png')}
-                  // style={styles.welcomeTextContainer}
-                  className="flex items-center justify-center py-2 px-8"
-                  resizeMode="contain"
+                {/* Continue Button */}
+                <TouchableOpacity
+                  onPress={handleContinue}
+                  disabled={!currentPlayerName.trim() || isCreating}
+                  className="ml-2"
                 >
-                  <Text
-                    className={`text-center font-bold text-sm ${
-                      currentPlayerName.trim() && !isCreating ? 'text-black' : 'text-black'
-                    }`}
+                  <ImageBackground
+                    source={require('../assets/onboarding/button-bg-main.png')}
+                    className="flex items-center w-fit h-fit -right-[90px] relative justify-center py-2 px-8"
+                    resizeMode="contain"
                   >
-                    {isCreating ? 'Creating...' : 'Continue'}
-                  </Text>
-                </ImageBackground>
-              </TouchableOpacity>
-            </View>
+                    <Text
+                      className="text-center font-bold text-xl text-black"
+                      style={[
+                        GameFonts.button,
+                        {
+                          opacity: currentPlayerName.trim() && !isCreating ? 1 : 0.5,
+                        },
+                      ]}
+                    >
+                      {isCreating ? 'Creating...' : 'Continue'}
+                    </Text>
+                  </ImageBackground>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </ImageBackground>
       </View>

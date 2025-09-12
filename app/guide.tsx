@@ -2,19 +2,24 @@ import ChooseName from '@/components/ChooseName'
 import GameCardCarousel from '@/components/GameCard/GameCardCarousel'
 import GameCardIntro from '@/components/GameCard/Intro'
 import CharacterSelection from '@/components/GuideCarousel'
+import ProfileCreation from '@/components/MintProfile'
 import PersonaSelectionScreen from '@/components/Persona'
 import WarriorProfileSetup from '@/components/warrior/WarriorProfileSetup'
 import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
-import { router } from 'expo-router'
+import { router, useNavigation } from 'expo-router'
 import React, { useContext, useEffect, useState } from 'react'
-import dialogBox from '@/assets/onboarding/dialog-bg-1.png'
+import WELCOME_BACKGROUND from '../assets/images/bg-assets/bg-01.png'
+import SELECTION_BACKGROUND from '../assets/images/bg-assets/bg-02.png'
+import PERSONA_BACKGROUND from '../assets/images/bg-assets/bg-03.png'
+import PROFILE_BACKGROUND from '../assets/images/bg-assets/bg-04.png'
+import PRO_BACKGROUND from '../assets/images/bg-assets/bg-099.png'
+
 import {
   Animated,
   Dimensions,
   ImageBackground,
   SafeAreaView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -23,20 +28,6 @@ import {
 
 // Get screen dimensions and handle landscape properly
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
-const IS_LANDSCAPE = SCREEN_WIDTH > SCREEN_HEIGHT
-
-//bg
-const WELCOME_BACKGROUND =
-  'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeie3ioopzpq2s5z45csnm4comlrhjxzziislwxyfawz5cjzdh6smx4'
-
-const SELECTION_BACKGROUND =
-  'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeiaqhe26zritbjrhf7vaocixy22ep2ejxx6rawqlonjlqskywqcobu'
-
-const PERSONA_BACKGROUND =
-  'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeiey35dg77o4ym275hr62vdc2minsqno3fagnkx7lti4qowai6ezim'
-
-const PROFILE_BACKGROUND =
-  'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeigwpyo3f6gpqwf2xw3qntopgg7rlvescdgiu53ebktsk5lawgpfle'
 
 // Guide data
 const GUIDES = [
@@ -92,22 +83,24 @@ const GUIDES = [
 
 const GuideSelection = () => {
   const { currentOnboardingScreen, setCurrentOnboardingScreen } = useContext(CreateContext).onboarding
+  const navigation = useNavigation()
 
-  console.log(currentOnboardingScreen)
   const [selectedGuide, setSelectedGuide] = useState(0)
   const [fadeAnim] = useState(new Animated.Value(0))
   const [slideAnim] = useState(new Animated.Value(50))
   const [textDelayAnim] = useState(new Animated.Value(0))
 
   useEffect(() => {
-    StatusBar.setHidden(true)
-    startWelcomeAnimation()
-    return () => StatusBar.setHidden(false)
+    requestAnimationFrame(() => {
+      startWelcomeAnimation()
+    })
   }, [])
 
   useEffect(() => {
     if (currentOnboardingScreen === 'selection') {
-      startSelectionAnimation()
+      requestAnimationFrame(() => {
+        startSelectionAnimation()
+      })
     }
   }, [currentOnboardingScreen])
 
@@ -158,13 +151,58 @@ const GuideSelection = () => {
     router.push(`/warrior-creation?guide=${GUIDES[selectedGuide].id}`)
   }
 
+  // Back button logic
+  const handleBack = () => {
+    switch (currentOnboardingScreen) {
+      case 'selection':
+        setCurrentOnboardingScreen('welcome')
+        break
+      case 'persona':
+        setCurrentOnboardingScreen('selection')
+        break
+      case 'name':
+        setCurrentOnboardingScreen('persona')
+        break
+      case 'game-card-intro':
+        setCurrentOnboardingScreen('name')
+        break
+      case 'game-card-carousel':
+        setCurrentOnboardingScreen('game-card-intro')
+        break
+      case 'warrior-profile':
+        setCurrentOnboardingScreen('game-card-carousel')
+        break
+      default:
+        // Check if we can go back in the navigation stack
+        if (navigation.canGoBack()) {
+          router.back()
+        } else {
+          // If no previous screen, navigate to a fallback route
+          router.replace('/intro')
+          setCurrentOnboardingScreen('welcome')
+        }
+        break
+    }
+  }
+
+  // Determine if back button should be shown
+  const shouldShowBackButton = currentOnboardingScreen !== 'welcome'
+
+  // Back Button Component
+  const BackButton = () => (
+    <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7}>
+      <View style={styles.backButtonContainer}>
+        <Text style={styles.backButtonIcon}>←</Text>
+      </View>
+    </TouchableOpacity>
+  )
+
   const renderWelcomeScreen = () => (
     <View style={styles.container}>
-      <StatusBar hidden />
-      <ImageBackground source={{ uri: WELCOME_BACKGROUND }} style={styles.backgroundImage} resizeMode="cover">
+      <ImageBackground source={WELCOME_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
         <View style={styles.overlay} />
 
-        <SafeAreaView>
+        <SafeAreaView style={styles.safeArea}>
           <View className="flex flex-col items-center gap-y-[-30px]">
             <Animated.View
               style={[
@@ -180,10 +218,9 @@ const GuideSelection = () => {
                 className="p-3 mt-5"
                 resizeMode="contain"
               >
-                <Text className="text-sm  text-[#E0E0E0]" style={[GameFonts.epic]}>
+                <Text className="text-base  text-[#E0E0E0]" style={[GameFonts.epic]}>
                   Choose your guide
                 </Text>
-                {/* <View style={styles.titleUnderline} /> */}
               </ImageBackground>
 
               <ImageBackground
@@ -197,16 +234,15 @@ const GuideSelection = () => {
                 </Text>
               </ImageBackground>
             </Animated.View>
-
+            {/* button  */}
             <Animated.View style={[{ opacity: textDelayAnim }]}>
               <TouchableOpacity onPress={handleNext} activeOpacity={0.85}>
                 <ImageBackground
                   source={require('../assets/onboarding/button-bg-main.png')}
-                  // style={styles.welcomeTextContainer}
                   className="py-6 px-12 flex "
                   resizeMode="contain"
                 >
-                  <Text>MEET THE GUIDES</Text>
+                  <Text style={[GameFonts.button]}>MEET THE GUIDES</Text>
                 </ImageBackground>
               </TouchableOpacity>
             </Animated.View>
@@ -218,25 +254,27 @@ const GuideSelection = () => {
 
   const renderGuideSelection = () => (
     <View style={styles.container}>
-      <StatusBar hidden />
-      <ImageBackground source={{ uri: SELECTION_BACKGROUND }} style={styles.backgroundImage} resizeMode="cover">
+      <ImageBackground source={SELECTION_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
         <View style={styles.overlay2} />
-        <SafeAreaView style={styles.content}>
-          <View style={styles.selectionContainer}>
-            <Animated.View
-              style={[
-                styles.selectionHeader,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }],
-                },
-              ]}
-            >
-              {/* <Text style={styles.headerTitle}>Choose your guide</Text> */}
-            </Animated.View>
+        <SafeAreaView style={styles.safeArea}>
+          {shouldShowBackButton && <BackButton />}
+          <View style={styles.content}>
+            <View style={styles.selectionContainer}>
+              <Animated.View
+                style={[
+                  styles.selectionHeader,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                  },
+                ]}
+              >
+                {/* <Text style={styles.headerTitle}>Choose your guide</Text> */}
+              </Animated.View>
 
-            <View style={styles.carouselWrapper}>
-              <CharacterSelection />
+              <View style={styles.carouselWrapper}>
+                <CharacterSelection />
+              </View>
             </View>
           </View>
         </SafeAreaView>
@@ -247,11 +285,13 @@ const GuideSelection = () => {
   const renderPersonaScreen = () => {
     return (
       <View style={styles.container}>
-        <StatusBar hidden />
-        <ImageBackground source={{ uri: PERSONA_BACKGROUND }} style={styles.backgroundImage} resizeMode="cover">
+        <ImageBackground source={PERSONA_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
           <View style={styles.overlay3} />
-          <SafeAreaView style={styles.content}>
-            <PersonaSelectionScreen />
+          <SafeAreaView style={styles.safeArea}>
+            {shouldShowBackButton && <BackButton />}
+            <View style={styles.content}>
+              <PersonaSelectionScreen />
+            </View>
           </SafeAreaView>
         </ImageBackground>
       </View>
@@ -261,21 +301,50 @@ const GuideSelection = () => {
   const renderInputScreen = () => {
     return (
       <View style={styles.container}>
-        <StatusBar hidden />
-        <ImageBackground source={{ uri: PROFILE_BACKGROUND }} style={styles.backgroundImage} resizeMode="cover">
-          <View style={styles.overlay} />
-          <SafeAreaView style={styles.content}>
-            <Animated.View
-              style={[
-                styles.selectionHeader,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }],
-                },
-              ]}
-            />
-            <View style={styles.nameInputWrapper}>
-              <ChooseName />
+        <ImageBackground source={PRO_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
+          <View style={styles.overlay2} />
+          <SafeAreaView style={styles.safeArea}>
+            {shouldShowBackButton && <BackButton />}
+            <View style={styles.content}>
+              <Animated.View
+                style={[
+                  styles.selectionHeader,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                  },
+                ]}
+              />
+              <View style={styles.nameInputWrapper}>
+                <ChooseName />
+              </View>
+            </View>
+          </SafeAreaView>
+        </ImageBackground>
+      </View>
+    )
+  }
+
+  const renderMintProfile = () => {
+    return (
+      <View style={styles.container}>
+        <ImageBackground source={PRO_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
+          <View style={styles.overlay2} />
+          <SafeAreaView style={styles.safeArea}>
+            {shouldShowBackButton && <BackButton />}
+            <View style={styles.content}>
+              <Animated.View
+                style={[
+                  styles.selectionHeader,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                  },
+                ]}
+              />
+              <View style={styles.nameInputWrapper}>
+                <ProfileCreation />
+              </View>
             </View>
           </SafeAreaView>
         </ImageBackground>
@@ -284,30 +353,43 @@ const GuideSelection = () => {
   }
 
   const renderGameCardIntroScreen = () => {
-    return <View style={styles.container}>
-      <StatusBar hidden />
-      <ImageBackground source={{ uri: PROFILE_BACKGROUND }} style={styles.backgroundImage} resizeMode="cover">
-        <View style={styles.overlay} />
-        <SafeAreaView style={styles.content}>
-          <Animated.View
-            style={[
-              styles.selectionHeader,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          />
-          <View style={styles.nameInputWrapper}>
-            <GameCardIntro />
-          </View>
-        </SafeAreaView>
-      </ImageBackground>
-    </View>
+    return (
+      <View style={styles.container}>
+        <ImageBackground source={PROFILE_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
+          <View style={styles.overlay} />
+          <SafeAreaView style={styles.safeArea}>
+            {shouldShowBackButton && <BackButton />}
+            <View style={styles.content}>
+              <Animated.View
+                style={[
+                  styles.selectionHeader,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                  },
+                ]}
+              />
+              <View style={styles.nameInputWrapper}>
+                <GameCardIntro />
+              </View>
+            </View>
+          </SafeAreaView>
+        </ImageBackground>
+      </View>
+    )
   }
 
   const renderGameCardCarouselScreen = () => {
-    return <GameCardCarousel />
+    return (
+      <View style={styles.container}>
+        {shouldShowBackButton && (
+          <View style={styles.absoluteBackButton}>
+            <BackButton />
+          </View>
+        )}
+        <GameCardCarousel />
+      </View>
+    )
   }
 
   const renderWarriorProfileSetupScreen = () => {
@@ -317,11 +399,16 @@ const GuideSelection = () => {
           source={{
             uri: 'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeiaqhe26zritbjrhf7vaocixy22ep2ejxx6rawqlonjlqskywqcobu',
           }}
-          resizeMode="cover" // Changed to cover
+          resizeMode="cover"
           style={styles.backgroundImage}
         >
           <View style={styles.overlay} />
-          <WarriorProfileSetup />
+          <SafeAreaView style={styles.safeArea}>
+            {shouldShowBackButton && <BackButton />}
+            <View style={styles.content}>
+              <WarriorProfileSetup />
+            </View>
+          </SafeAreaView>
         </ImageBackground>
       </View>
     )
@@ -335,11 +422,13 @@ const GuideSelection = () => {
         ? renderPersonaScreen()
         : currentOnboardingScreen === 'name'
           ? renderInputScreen()
-          : currentOnboardingScreen === 'game-card-intro'
-            ? renderGameCardIntroScreen()
-            : currentOnboardingScreen === 'game-card-carousel'
-              ? renderGameCardCarouselScreen()
-              : renderWarriorProfileSetupScreen()
+          : currentOnboardingScreen === 'profile'
+            ? renderMintProfile()
+            : currentOnboardingScreen === 'game-card-intro'
+              ? renderGameCardIntroScreen()
+              : currentOnboardingScreen === 'game-card-carousel'
+                ? renderGameCardCarouselScreen()
+                : renderWarriorProfileSetupScreen()
 }
 
 const styles = StyleSheet.create({
@@ -358,15 +447,44 @@ const styles = StyleSheet.create({
   },
   overlay2: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
   overlay3: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.79)',
   },
+  safeArea: {
+    flex: 1,
+  },
   content: {
     flex: 1,
-    paddingHorizontal: IS_LANDSCAPE ? 40 : 20,
+    paddingHorizontal: 40,
+  },
+
+  backButton: {
+    position: 'absolute',
+    left: 9,
+    zIndex: 1000,
+  },
+  backButtonContainer: {
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  backButtonIcon: {
+    fontSize: 36,
+    color: '#cd7f32',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+
+  absoluteBackButton: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    zIndex: 100,
   },
 
   // Welcome Screen Styles
@@ -374,19 +492,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: IS_LANDSCAPE ? 10 : 40,
+    paddingVertical: 10,
   },
   welcomeContainer: {
     alignItems: 'center',
     paddingHorizontal: 15,
-    marginBottom: IS_LANDSCAPE ? 20 : 30,
+    marginBottom: 20,
   },
   titleContainer: {
-    marginBottom: IS_LANDSCAPE ? 12 : 20,
+    marginBottom: 12,
     alignItems: 'center',
   },
   welcomeTitle: {
-    fontSize: IS_LANDSCAPE ? 28 : 35,
+    fontSize: 28,
     color: '#cd7f32',
     textAlign: 'center',
     textShadowColor: '#000',
@@ -394,7 +512,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 6,
   },
   titleUnderline: {
-    width: SCREEN_WIDTH * (IS_LANDSCAPE ? 0.6 : 0.8),
+    width: SCREEN_WIDTH * 0.6,
     height: 3,
     backgroundColor: '#cd7f32',
     marginTop: 15,
@@ -406,13 +524,13 @@ const styles = StyleSheet.create({
   welcomeTextContainer: {
     alignItems: 'center',
     paddingHorizontal: 20,
-    maxWidth: IS_LANDSCAPE ? SCREEN_WIDTH * 0.7 : SCREEN_WIDTH * 0.9,
+    maxWidth: SCREEN_WIDTH * 0.7,
   },
   welcomeText: {
-    fontSize: IS_LANDSCAPE ? 12 : 16,
+    fontSize: 12,
     color: '#E0E0E0',
     textAlign: 'center',
-    lineHeight: IS_LANDSCAPE ? 20 : 24,
+    lineHeight: 20,
   },
 
   // Selection Screen Styles
@@ -422,29 +540,29 @@ const styles = StyleSheet.create({
   },
   selectionHeader: {
     alignItems: 'center',
-    paddingVertical: IS_LANDSCAPE ? 10 : 20,
+    // paddingVertical: 20,
   },
   headerTitle: {
-    fontSize: IS_LANDSCAPE ? 20 : 24,
+    fontSize: 24,
     color: '#E0E0E0',
     textAlign: 'center',
     fontWeight: 'bold',
   },
   carouselWrapper: {
     flex: 1,
-    justifyContent: 'center',
-    paddingVertical: IS_LANDSCAPE ? 10 : 20,
+    // justifyContent: 'center',
+    // paddingVertical: 2,
   },
   nameInputWrapper: {
     flex: 1,
     justifyContent: 'center',
-    paddingVertical: IS_LANDSCAPE ? 20 : 40,
+    paddingVertical: 40,
   },
   selectionContent: {
     flex: 1,
   },
   carouselContainer: {
-    height: IS_LANDSCAPE ? 150 : 200,
+    height: 200,
     marginBottom: 20,
   },
   carousel: {
@@ -454,23 +572,23 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: IS_LANDSCAPE ? 60 : 40,
+    paddingHorizontal: 40,
   },
   guideAvatar: {
-    width: IS_LANDSCAPE ? 100 : 120,
-    height: IS_LANDSCAPE ? 100 : 120,
-    borderRadius: IS_LANDSCAPE ? 50 : 60,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     borderWidth: 3,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    marginBottom: IS_LANDSCAPE ? 15 : 20,
+    marginBottom: 20,
   },
   guideInitial: {
-    fontSize: IS_LANDSCAPE ? 40 : 48,
+    fontSize: 48,
   },
   guideName: {
-    fontSize: IS_LANDSCAPE ? 16 : 18,
+    fontSize: 18,
     color: '#E0E0E0',
     textAlign: 'center',
   },
@@ -484,66 +602,66 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(205, 127, 50, 0.1)',
     borderWidth: 2,
     borderRadius: 15,
-    padding: IS_LANDSCAPE ? 15 : 20,
+    padding: 20,
     marginHorizontal: 10,
-    marginBottom: IS_LANDSCAPE ? 15 : 20,
+    marginBottom: 20,
   },
   detailsTitle: {
-    fontSize: IS_LANDSCAPE ? 18 : 20,
+    fontSize: 20,
     color: '#cd7f32',
     textAlign: 'center',
     marginBottom: 5,
   },
   detailsType: {
-    fontSize: IS_LANDSCAPE ? 14 : 16,
+    fontSize: 16,
     textAlign: 'center',
-    marginBottom: IS_LANDSCAPE ? 10 : 15,
+    marginBottom: 15,
   },
   detailsDescription: {
-    fontSize: IS_LANDSCAPE ? 12 : 14,
+    fontSize: 14,
     color: '#E0E0E0',
     textAlign: 'center',
-    lineHeight: IS_LANDSCAPE ? 16 : 20,
-    marginBottom: IS_LANDSCAPE ? 15 : 20,
+    lineHeight: 20,
+    marginBottom: 20,
     fontStyle: 'italic',
   },
   detailsLabel: {
-    fontSize: IS_LANDSCAPE ? 12 : 14,
+    fontSize: 14,
     color: '#cd7f32',
     marginBottom: 5,
   },
   detailsValue: {
-    fontSize: IS_LANDSCAPE ? 12 : 14,
+    fontSize: 14,
     color: '#C0C0C0',
-    lineHeight: IS_LANDSCAPE ? 16 : 18,
+    lineHeight: 18,
   },
 
   // Buttons
   buttonContainer: {
     alignItems: 'center',
-    paddingVertical: IS_LANDSCAPE ? 15 : 20,
+    paddingVertical: 20,
   },
   nextButton: {
     backgroundColor: '#121212',
-    paddingHorizontal: IS_LANDSCAPE ? 35 : 40,
-    paddingVertical: IS_LANDSCAPE ? 12 : 16,
+    paddingHorizontal: 40,
+    paddingVertical: 16,
     borderRadius: 25,
     borderWidth: 2,
     borderColor: '#cd7f32',
-    minWidth: IS_LANDSCAPE ? 180 : 200,
+    minWidth: 200,
     alignItems: 'center',
   },
   confirmButton: {
     backgroundColor: '#121212',
-    paddingHorizontal: IS_LANDSCAPE ? 35 : 40,
-    paddingVertical: IS_LANDSCAPE ? 12 : 16,
+    paddingHorizontal: 40,
+    paddingVertical: 16,
     borderRadius: 25,
     borderWidth: 2,
-    minWidth: IS_LANDSCAPE ? 180 : 200,
+    minWidth: 200,
     alignItems: 'center',
   },
   buttonText: {
-    fontSize: IS_LANDSCAPE ? 14 : 16,
+    fontSize: 16,
     color: '#cd7f32',
     textAlign: 'center',
     letterSpacing: 1,
