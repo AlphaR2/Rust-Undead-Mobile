@@ -57,7 +57,7 @@ const GameCardIntro = () => {
   const introMessage = useMemo(() => {
     const name = playerName || 'Warrior'
 
-    return `Welcome, ${name}. Before we begin, let me explain what lies ahead... Your journey begins with forging your first undead warrior from the essence of ancient powers. This cursed champion will embody your fighting spirit and supernatural gifts.`
+    return `Welcome, ${name}. Before we begin, let me explain what lies ahead... Your journey begins with forging your first warrior from the essence of ancient powers. This cursed champion will embody your fighting spirit and supernatural gifts.`
   }, [playerName, selectedGuide?.name])
 
   // Get the guide's first name for speaking
@@ -162,10 +162,10 @@ const GameCardIntro = () => {
                 <TouchableOpacity onPress={handleNext} className="ml-2">
                   <ImageBackground
                     source={require('../../assets/onboarding/button-bg-main.png')}
-                    className="flex items-center w-fit h-fit -right-[90px] -top-12 absolute justify-center py-2 px-8"
+                    className="flex items-center w-fit h-fit -right-[140px] -top-14 absolute justify-center py-2 px-24"
                     resizeMode="contain"
                   >
-                    <Text className="text-center font-bold text-xl text-black" style={[GameFonts.button]}>
+                    <Text className="text-center  font-bold text-2xl text-black" style={[GameFonts.button]}>
                       Next
                     </Text>
                   </ImageBackground>

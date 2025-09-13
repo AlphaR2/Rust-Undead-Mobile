@@ -1,7 +1,12 @@
 'use client'
 import { BN } from '@coral-xyz/anchor'
+import { usePrivy } from '@privy-io/expo'
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
+import { Buffer } from 'buffer'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+global.Buffer = Buffer
+
 import {
   createEphemeralProgram,
   useEphemeralProgram,
@@ -18,7 +23,6 @@ import {
   AnchorUndeadWarrior,
   AnchorUserProfile,
   BattleState,
-  convertBattleState,
   convertUserPersona,
   GameConfig,
   ProgramAccount,
@@ -26,10 +30,6 @@ import {
   Warrior,
 } from '../types/undead'
 
-// Program account types
-type UndeadWarriorProgramAccount = ProgramAccount<AnchorUndeadWarrior>
-
-//Battle room state types
 interface BattleRoomParticipant {
   publicKey: string
   warriorPda: string
@@ -46,29 +46,37 @@ export interface BattleRoomState {
   isReady: boolean
 }
 
-// Network info type
-type NetworkInfo = {
+interface NetworkInfo {
   name: string
   color: string
   bgColor: string
   borderColor: string
 }
 
-// Cache interface
 interface CacheEntry<T> {
   data: T
   timestamp: number
   expiresAt: number
 }
 
-// Rate limiter class
+interface FetchResult<T> {
+  success: boolean
+  data?: T
+  error?: string
+}
+
+const DEFAULT_CACHE_TTL = 60000
+const SHORT_CACHE_TTL = 30000
+const RATE_LIMIT_INTERVAL = 2500
+const CONNECTION_TIMEOUT = 60000
+
 class RateLimiter {
   private queue: Array<() => Promise<any>> = []
   private processing = false
   private lastRequestTime = 0
-  private minInterval: number
+  private readonly minInterval: number
 
-  constructor(minIntervalMs: number = 2000) {
+  constructor(minIntervalMs: number = RATE_LIMIT_INTERVAL) {
     this.minInterval = minIntervalMs
   }
 
@@ -86,41 +94,42 @@ class RateLimiter {
     })
   }
 
-  private async processQueue() {
+  private async processQueue(): Promise<void> {
     if (this.processing || this.queue.length === 0) return
 
     this.processing = true
 
-    while (this.queue.length > 0) {
-      const now = Date.now()
-      const timeSinceLastRequest = now - this.lastRequestTime
+    try {
+      while (this.queue.length > 0) {
+        const now = Date.now()
+        const timeSinceLastRequest = now - this.lastRequestTime
 
-      if (timeSinceLastRequest < this.minInterval) {
-        await new Promise((resolve) => setTimeout(resolve, this.minInterval - timeSinceLastRequest))
-      }
+        if (timeSinceLastRequest < this.minInterval) {
+          await new Promise((resolve) => setTimeout(resolve, this.minInterval - timeSinceLastRequest))
+        }
 
-      const fn = this.queue.shift()
-      if (fn) {
-        this.lastRequestTime = Date.now()
-        await fn()
+        const fn = this.queue.shift()
+        if (fn) {
+          this.lastRequestTime = Date.now()
+          await fn()
+        }
       }
+    } finally {
+      this.processing = false
     }
-
-    this.processing = false
   }
 }
 
-// Memory cache class
 class MemoryCache {
-  private cache = new Map<string, CacheEntry<any>>()
-  private defaultTtl: number
+  private readonly cache = new Map<string, CacheEntry<any>>()
+  private readonly defaultTtl: number
 
-  constructor(defaultTtlMs: number = 30000) {
+  constructor(defaultTtlMs: number = DEFAULT_CACHE_TTL) {
     this.defaultTtl = defaultTtlMs
   }
 
   set<T>(key: string, data: T, ttlMs?: number): void {
-    const ttl = ttlMs || this.defaultTtl
+    const ttl = ttlMs ?? this.defaultTtl
     const entry: CacheEntry<T> = {
       data,
       timestamp: Date.now(),
@@ -172,21 +181,18 @@ class MemoryCache {
 }
 
 const getRpcEndpoint = (): string => {
-  const envRpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL
+  const envRpc = process.env.EXPO_PUBLIC_SOLANA_RPC_URL
 
-  if (envRpc && envRpc.trim()) {
+  if (envRpc?.trim()) {
     try {
       new URL(envRpc)
       return envRpc
-    } catch (error) {
-      console.warn('Invalid RPC URL in environment variable, falling back to default:', error)
-    }
+    } catch (error) {}
   }
 
   return 'https://api.devnet.solana.com'
 }
 
-// Network detection function
 const getNetworkInfo = (rpcUrl: string): NetworkInfo => {
   const url = rpcUrl.toLowerCase()
 
@@ -234,65 +240,35 @@ const getNetworkInfo = (rpcUrl: string): NetworkInfo => {
   }
 }
 
-const RPC_ENDPOINT = getRpcEndpoint()
+const safeToNumber = (value: any): number => {
+  if (value === null || value === undefined) return 0
+  if (typeof value === 'number') return value
+  if (value?.toNumber) return value.toNumber()
+  return Number(value) || 0
+}
+
+const createConnectionWithTimeout = (endpoint: string): Connection => {
+  return new Connection(endpoint, {
+    commitment: 'confirmed',
+    confirmTransactionInitialTimeout: CONNECTION_TIMEOUT,
+    disableRetryOnRateLimit: false,
+  })
+}
 
 export const useGameData = () => {
-  // Replace Privy with Dynamic wallet system
-  const {
-    publicKey,
-    isConnected,
-    isAuthenticated,
-    address: userAddress,
-    name: walletName,
-    isLoading: walletLoading,
-    connection: walletConnection,
-  } = useWalletInfo()
+  const { isReady, user } = usePrivy()
+  const { publicKey, isConnected, walletType } = useWalletInfo()
+  const { program, isReady: programReady, error: programError } = useUndeadProgram()
+  const { configPda, profilePda, achievementsPda, getWarriorPda } = usePDAs(publicKey)
 
-  // Initialize rate limiter and cache - only once per hook instance
-  const rateLimiter = useRef(new RateLimiter(2500)) // 2.5 second intervals
-  const cache = useRef(new MemoryCache(60000)) // 1 minute default cache
-  const requestInProgress = useRef(new Set<string>()) // Track ongoing requests
+  const rateLimiter = useRef(new RateLimiter())
+  const cache = useRef(new MemoryCache())
+  const requestInProgress = useRef(new Set<string>())
+  const hasInitiallyLoaded = useRef(false)
+  const isCurrentlyLoading = useRef(false)
 
   const magicBlockProvider = useMagicBlockProvider()
   const ephemeralProgram = useEphemeralProgram(PROGRAM_ID)
-
-  // Memoize ephemeral program to prevent recreation
-  const ephemeralProgramToUse = useMemo(() => {
-    if (!magicBlockProvider) {
-      return null
-    }
-
-    if (ephemeralProgram) {
-      return ephemeralProgram
-    }
-
-    // console.log("🔧 Creating ephemeral program manually...");
-    return createEphemeralProgram(PROGRAM_ID, magicBlockProvider.wallet)
-  }, [ephemeralProgram, magicBlockProvider])
-
-  // Use wallet connection if available, otherwise fallback to default
-  const connection = useMemo(() => {
-    if (walletConnection) {
-      return walletConnection
-    }
-
-    return new Connection(RPC_ENDPOINT, {
-      commitment: 'confirmed',
-      confirmTransactionInitialTimeout: 60000,
-      disableRetryOnRateLimit: false,
-    })
-  }, [walletConnection])
-
-  // Memoize network info
-  const networkInfo = useMemo(() => {
-    if (walletConnection) {
-      return getNetworkInfo(walletConnection.rpcEndpoint)
-    }
-    return getNetworkInfo(RPC_ENDPOINT)
-  }, [walletConnection])
-
-  const program = useUndeadProgram()
-  const { configPda, profilePda, achievementsPda, getWarriorPda } = usePDAs(publicKey)
 
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
@@ -304,10 +280,15 @@ export const useGameData = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const hasInitiallyLoaded = useRef(false)
-  const isCurrentlyLoading = useRef(false)
+  const connection = useMemo(() => createConnectionWithTimeout(getRpcEndpoint()), [])
+  const networkInfo = useMemo(() => getNetworkInfo(getRpcEndpoint()), [])
 
-  // Clear cache when wallet changes
+  const ephemeralProgramToUse = useMemo(() => {
+    if (!magicBlockProvider) return null
+    if (ephemeralProgram) return ephemeralProgram
+    return createEphemeralProgram(PROGRAM_ID, magicBlockProvider.wallet)
+  }, [ephemeralProgram, magicBlockProvider])
+
   useEffect(() => {
     if (publicKey) {
       cache.current.invalidate()
@@ -315,8 +296,10 @@ export const useGameData = () => {
     }
   }, [publicKey?.toString()])
 
-  const fetchBalance = useCallback(async () => {
-    if (!connection || !publicKey || balanceLoading) return
+  const fetchBalance = useCallback(async (): Promise<void> => {
+    if (!connection || !publicKey || balanceLoading) {
+      return
+    }
 
     setBalanceLoading(true)
     setBalanceError(null)
@@ -326,19 +309,21 @@ export const useGameData = () => {
       const solBalance = lamports / LAMPORTS_PER_SOL
       setBalance(solBalance)
     } catch (error) {
-      console.error('Error fetching balance:', error)
-      setBalanceError('Failed to load balance')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load balance'
+      setBalanceError(errorMessage)
       setBalance(null)
     } finally {
       setBalanceLoading(false)
     }
   }, [connection, publicKey, balanceLoading])
 
-  const fetchGameConfig = useCallback(async () => {
-    if (!program.program || !configPda) return
+  const fetchGameConfig = useCallback(async (): Promise<void> => {
+    if (!program || !configPda) {
+      return
+    }
 
     try {
-      const config: AnchorGameConfig = await program.program.account.config.fetch(configPda)
+      const config: AnchorGameConfig = await program.account.config.fetch(configPda)
       setGameConfig({
         admin: config.admin,
         cooldownTime: config.cooldownTime,
@@ -347,17 +332,18 @@ export const useGameData = () => {
         totalBattles: config.totalBattles,
         isPaused: config.isPaused,
       })
-    } catch (error: any) {
-      // console.log("Game config not found (program not initialized)");
+    } catch (error) {
       setGameConfig(null)
     }
-  }, [program.program, configPda])
+  }, [program, configPda])
 
-  const fetchUserProfile = useCallback(async () => {
-    if (!program.program || !profilePda || !publicKey) return
+  const fetchUserProfile = useCallback(async (): Promise<void> => {
+    if (!program || !profilePda || !publicKey) {
+      return
+    }
 
     try {
-      const profile: AnchorUserProfile = await program.program.account.userProfile.fetch(profilePda)
+      const profile: AnchorUserProfile = await program.account.userProfile.fetch(profilePda)
       setUserProfile({
         owner: profile.owner,
         username: profile.username,
@@ -369,631 +355,302 @@ export const useGameData = () => {
         totalBattlesFought: profile.totalBattlesFought,
         joinDate: new BN(profile.joinDate),
       })
-    } catch (error: any) {
-      // console.log("User profile not found (not created yet)");
+    } catch (error) {
       setUserProfile(null)
     }
-  }, [program.program, profilePda, publicKey])
+  }, [program, profilePda, publicKey])
 
-  // get all warrior details
-  const getSingleWarriorDetails = async (warriorPda: PublicKey) => {
-    if (!program.program || !warriorPda) {
-      return
-    }
-    try {
-      const warrior = await program.program.account.undeadWarrior.fetch(warriorPda)
-      setSingleWarriorDetails({
-        name: warrior.name,
-        dna: warrior.dna,
-        owner: warrior.owner,
-        baseAttack: warrior.baseAttack,
-        baseDefense: warrior.baseDefense,
-        baseKnowledge: warrior.baseKnowledge,
-        currentHp: warrior.currentHp,
-        maxHp: warrior.maxHp,
-        warriorClass: warrior.warriorClass,
-        battlesWon: warrior.battlesWon,
-        battlesLost: warrior.battlesLost,
-        level: warrior.level,
-        lastBattleAt: warrior.lastBattleAt,
-        cooldownExpiresAt: warrior.cooldownExpiresAt,
-        createdAt: new BN(warrior.createdAt),
-        experiencePoints: new BN(warrior.experiencePoints.toNumber()),
-        address: warriorPda,
-        imageRarity: warrior.imageRarity,
-        imageIndex: warrior.imageIndex,
-        imageUri: warrior.imageUri,
-        isOnCooldown: warrior.cooldownExpiresAt.toNumber() > Date.now() / 1000,
-      })
-    } catch (error) {
-      console.warn('Could not fetch warrior details:', error)
-    }
-  }
-
-  const fetchUserWarriors = useCallback(async () => {
-    if (!program.program || !publicKey) {
+  const fetchUserWarriors = useCallback(async (): Promise<void> => {
+    if (!program || !publicKey) {
       setUserWarriors([])
       return
     }
 
     const cacheKey = `user-warriors-${publicKey.toString()}`
 
-    // Check cache first
     const cached = cache.current.get<Warrior[]>(cacheKey)
     if (cached) {
-      // console.log("📋 Using cached user warriors");
       setUserWarriors(cached)
       return
     }
 
-    // Check if request is  in progress
     if (requestInProgress.current.has(cacheKey)) {
-      // console.log("⏳ User warriors request already in progress");
       return
     }
 
     try {
       requestInProgress.current.add(cacheKey)
-
       const warriors = await rateLimiter.current.add(async () => {
-        // console.log("🔍 Fetching user warriors from blockchain...");
+        const allWarriorAccounts: ProgramAccount<AnchorUndeadWarrior>[] = await program.account.undeadWarrior.all()
 
-        // Get all program accounts that are warriors
-        const allWarriorAccounts: UndeadWarriorProgramAccount[] | undefined =
-          await program.program?.account.undeadWarrior.all()
+        const userWarriorAccounts = allWarriorAccounts.filter((account) => account.account.owner.equals(publicKey))
 
-        if (!allWarriorAccounts) {
-          return
-        }
-        // Filter by owner
-        const userWarriorAccounts = allWarriorAccounts.filter((account: UndeadWarriorProgramAccount) =>
-          account.account.owner.equals(publicKey),
+        return userWarriorAccounts.map(
+          (account): Warrior => ({
+            name: account.account.name,
+            dna: account.account.dna,
+            owner: account.account.owner,
+            baseAttack: account.account.baseAttack,
+            baseDefense: account.account.baseDefense,
+            baseKnowledge: account.account.baseKnowledge,
+            currentHp: account.account.currentHp,
+            maxHp: account.account.maxHp,
+            warriorClass: account.account.warriorClass,
+            battlesWon: account.account.battlesWon,
+            battlesLost: account.account.battlesLost,
+            level: account.account.level,
+            lastBattleAt: account.account.lastBattleAt,
+            cooldownExpiresAt: account.account.cooldownExpiresAt,
+            createdAt: safeToNumber(account.account.createdAt),
+            experiencePoints: safeToNumber(account.account.experiencePoints),
+            address: account.publicKey,
+            imageRarity: account.account.imageRarity,
+            imageIndex: account.account.imageIndex,
+            imageUri: account.account.imageUri,
+            isOnCooldown: safeToNumber(account.account.cooldownExpiresAt) > Date.now() / 1000,
+          }),
         )
-
-        // Transform raw Anchor types to clean frontend types
-        const warriors: Warrior[] = userWarriorAccounts.map((account: UndeadWarriorProgramAccount) => ({
-          name: account.account.name,
-          dna: account.account.dna,
-          owner: account.account.owner,
-          baseAttack: account.account.baseAttack,
-          baseDefense: account.account.baseDefense,
-          baseKnowledge: account.account.baseKnowledge,
-          currentHp: account.account.currentHp,
-          maxHp: account.account.maxHp,
-          warriorClass: account.account.warriorClass,
-          battlesWon: account.account.battlesWon,
-          battlesLost: account.account.battlesLost,
-          level: account.account.level,
-          lastBattleAt: account.account.lastBattleAt,
-          cooldownExpiresAt: account.account.cooldownExpiresAt,
-          createdAt: account.account.createdAt.toNumber(),
-          experiencePoints: account.account.experiencePoints.toNumber(),
-          address: account.publicKey,
-          imageRarity: account.account.imageRarity,
-          imageIndex: account.account.imageIndex,
-          imageUri: account.account.imageUri,
-          isOnCooldown: account.account.cooldownExpiresAt.toNumber() > Date.now() / 1000,
-        }))
-
-        return warriors
       })
 
-      // Cache the result
-      cache.current.set(cacheKey, warriors, 30000) // 30 second cache for user warriors
-
-      if (!warriors) {
-        return
-      }
+      cache.current.set(cacheKey, warriors, SHORT_CACHE_TTL)
       setUserWarriors(warriors)
-    } catch (error: any) {
-      console.error('Error fetching user warriors:', error)
+    } catch (error) {
       setError('Failed to fetch warriors')
       setUserWarriors([])
     } finally {
       requestInProgress.current.delete(cacheKey)
     }
-  }, [program.program, publicKey])
+  }, [program, publicKey])
 
-  /**
-   * Fetch delegated warriors owned by Magic Block delegation program
-   * These are warriors currently delegated to Ephemeral Rollup
-   */
+  const getSingleWarriorDetails = useCallback(
+    async (warriorPda: PublicKey): Promise<void> => {
+      if (!program || !warriorPda) {
+        return
+      }
+
+      try {
+        const warrior = await program.account.undeadWarrior.fetch(warriorPda)
+        setSingleWarriorDetails({
+          name: warrior.name,
+          dna: warrior.dna,
+          owner: warrior.owner,
+          baseAttack: warrior.baseAttack,
+          baseDefense: warrior.baseDefense,
+          baseKnowledge: warrior.baseKnowledge,
+          currentHp: warrior.currentHp,
+          maxHp: warrior.maxHp,
+          warriorClass: warrior.warriorClass,
+          battlesWon: warrior.battlesWon,
+          battlesLost: warrior.battlesLost,
+          level: warrior.level,
+          lastBattleAt: warrior.lastBattleAt,
+          cooldownExpiresAt: warrior.cooldownExpiresAt,
+          createdAt: new BN(warrior.createdAt),
+          experiencePoints: new BN(safeToNumber(warrior.experiencePoints)),
+          address: warriorPda,
+          imageRarity: warrior.imageRarity,
+          imageIndex: warrior.imageIndex,
+          imageUri: warrior.imageUri,
+          isOnCooldown: safeToNumber(warrior.cooldownExpiresAt) > Date.now() / 1000,
+        })
+      } catch (error) {}
+    },
+    [program],
+  )
+
   const fetchDelegatedWarriors = useCallback(
-    async (
-      playerPubkey: PublicKey,
-    ): Promise<{
-      success: boolean
-      warriors: Warrior[]
-      error?: string
-    }> => {
-      if (!program.program || !connection) {
-        return {
-          success: false,
-          warriors: [],
-          error: 'Program or connection not available',
-        }
+    async (playerPubkey: PublicKey): Promise<FetchResult<Warrior[]>> => {
+      if (!program || !connection) {
+        return { success: false, error: 'Program or connection not available' }
       }
 
       const cacheKey = `delegated-warriors-${playerPubkey.toString()}`
 
-      // Check cache first
-      const cached = cache.current.get<{
-        success: boolean
-        warriors: Warrior[]
-        error?: string
-      }>(cacheKey)
+      const cached = cache.current.get<FetchResult<Warrior[]>>(cacheKey)
       if (cached) {
         return cached
       }
 
-      // Check if request is already in progress
       if (requestInProgress.current.has(cacheKey)) {
-        // console.log("⏳ Delegated warriors request already in progress");
-        return { success: false, warriors: [], error: 'Request in progress' }
+        return { success: false, error: 'Request in progress' }
       }
 
       try {
         requestInProgress.current.add(cacheKey)
-
         const result = await rateLimiter.current.add(async () => {
-          // Get warriors owned by the DELEGATION PROGRAM, not the player
-          const delegationProgramId = new PublicKey('DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh')
-
-          // Get ALL warrior accounts
-
-          const delegatedAccounts = await ephemeralProgramToUse?.account.undeadWarrior.all()
-
-          if (!delegatedAccounts || delegatedAccounts.length === 0) {
-            console.warn('No delegated warrior accounts found')
-            return {
-              success: true,
-              warriors: [],
-            }
+          if (!ephemeralProgramToUse) {
+            throw new Error('Ephemeral program not available')
           }
 
-          // console.log(`📊 Found ${delegatedAccounts} total warrior accounts`);
+          const delegationProgramId = new PublicKey('DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh')
+          const delegatedAccounts = await ephemeralProgramToUse.account.undeadWarrior.all()
+
+          if (!delegatedAccounts?.length) {
+            return { success: true, warriors: [] }
+          }
 
           const playerDelegatedWarriors: Warrior[] = []
 
-          // Process accounts to find delegated warriors
           for (const { account: warrior, publicKey: accountPubkey } of delegatedAccounts) {
             try {
-              // Check if this account is currently owned by delegation program
               const currentAccountInfo = await connection.getAccountInfo(accountPubkey)
 
-              if (currentAccountInfo && currentAccountInfo.owner.equals(delegationProgramId)) {
-                // Check if the ORIGINAL owner (stored in data) is the player
-                if (warrior.owner.equals(playerPubkey)) {
-                  const delegatedWarrior: Warrior = {
-                    name: warrior.name,
-                    owner: warrior.owner, // This is the original owner (player)
-                    baseAttack: warrior.baseAttack,
-                    baseDefense: warrior.baseDefense,
-                    baseKnowledge: warrior.baseKnowledge,
-                    dna: warrior.dna,
-                    createdAt: warrior.createdAt.toNumber(),
-                    lastBattleAt: warrior.lastBattleAt,
-                    cooldownExpiresAt: warrior.cooldownExpiresAt,
-                    address: accountPubkey,
-                    currentHp: warrior.currentHp,
-                    maxHp: warrior.maxHp,
-                    warriorClass: warrior.warriorClass,
-                    battlesWon: warrior.battlesWon,
-                    battlesLost: warrior.battlesLost,
-                    level: warrior.level,
-                    experiencePoints: warrior.experiencePoints.toNumber(),
-                    imageUri: warrior.imageUri,
-                    imageRarity: warrior.imageRarity,
-                    imageIndex: warrior.imageIndex,
-                    isOnCooldown: warrior.cooldownExpiresAt.toNumber() > Date.now() / 1000,
-                  }
-
-                  playerDelegatedWarriors.push(delegatedWarrior)
+              if (currentAccountInfo?.owner.equals(delegationProgramId) && warrior.owner.equals(playerPubkey)) {
+                const delegatedWarrior: Warrior = {
+                  name: warrior.name,
+                  owner: warrior.owner,
+                  baseAttack: warrior.baseAttack,
+                  baseDefense: warrior.baseDefense,
+                  baseKnowledge: warrior.baseKnowledge,
+                  dna: warrior.dna,
+                  createdAt: safeToNumber(warrior.createdAt),
+                  lastBattleAt: warrior.lastBattleAt,
+                  cooldownExpiresAt: warrior.cooldownExpiresAt,
+                  address: accountPubkey,
+                  currentHp: warrior.currentHp,
+                  maxHp: warrior.maxHp,
+                  warriorClass: warrior.warriorClass,
+                  battlesWon: warrior.battlesWon,
+                  battlesLost: warrior.battlesLost,
+                  level: warrior.level,
+                  experiencePoints: safeToNumber(warrior.experiencePoints),
+                  imageUri: warrior.imageUri,
+                  imageRarity: warrior.imageRarity,
+                  imageIndex: warrior.imageIndex,
+                  isOnCooldown: safeToNumber(warrior.cooldownExpiresAt) > Date.now() / 1000,
                 }
+                playerDelegatedWarriors.push(delegatedWarrior)
               }
-            } catch (error) {
-              console.warn(`Failed to process warrior account ${accountPubkey.toString()}:`, error)
-            }
+            } catch (error) {}
           }
 
-          return {
-            success: true,
-            warriors: playerDelegatedWarriors,
-          }
+          return { success: true, warriors: playerDelegatedWarriors }
         })
 
-        // Cache the result for 2 minutes
         cache.current.set(cacheKey, result, 120000)
-
         return result
-      } catch (error: any) {
-        console.error('❌ Error fetching delegated warriors:', error)
-
+      } catch (error) {
         const errorResult = {
           success: false,
           warriors: [],
-          error: error.message || 'Failed to fetch delegated warriors',
+          error: error instanceof Error ? error.message : 'Failed to fetch delegated warriors',
         }
-
-        // Cache error result for shorter time (30 seconds)
-        cache.current.set(cacheKey, errorResult, 30000)
-
+        cache.current.set(cacheKey, errorResult, SHORT_CACHE_TTL)
         return errorResult
       } finally {
         requestInProgress.current.delete(cacheKey)
       }
     },
-    [program.program, connection, ephemeralProgramToUse],
+    [program, connection, ephemeralProgramToUse],
   )
 
-  /// fetch battle room state
-
-  // Add this to your useGameData hook
-  const checkBattleProgress = useCallback(
-    async (
-      battleRoomPda: string,
-    ): Promise<{
-      success: boolean
-      battleState?: BattleState | any
-      battleStarted?: boolean
-      error?: string
-    }> => {
-      if (!program.program || !battleRoomPda) {
-        return { success: false, error: 'Program or battle room PDA required' }
-      }
-
-      const cacheKey = `battle-progress-${battleRoomPda}`
-
+  const decodeRoomId = useCallback(
+    (displayId: string): { roomIdBytes: Uint8Array; battleRoomPda: PublicKey } => {
       try {
-        const result = await rateLimiter.current.add(async () => {
-          try {
-            const battleRoomAccount = await program.program?.account.battleRoom.fetch(new PublicKey(battleRoomPda))
-
-            // Check if battle is in progress
-            if (!battleRoomAccount) {
-              return {
-                success: false,
-                error: 'Battle room account not found',
-              }
-            }
-
-            const convertedState = convertBattleState(battleRoomAccount.state)
-            const battleStarted = convertedState === BattleState.InProgress
-
-            return {
-              success: true,
-              battleState: battleRoomAccount.state,
-              battleStarted,
-              currentQuestion: battleRoomAccount.currentQuestion,
-              battleStartTime: battleRoomAccount.battleStartTime?.toNumber() || 0,
-            }
-          } catch (fetchError: any) {
-            console.error('Error fetching battle room account:', fetchError)
-            return {
-              success: false,
-              error: `Failed to fetch battle room: ${fetchError.message || 'Unknown error'}`,
-            }
-          }
-        })
-
-        // Handle the case where result might be undefined
-        if (!result) {
-          return {
-            success: false,
-            error: 'Failed to process battle room data',
-          }
+        let base64 = displayId.replace(/[-_]/g, (c) => (c === '-' ? '+' : '/'))
+        while (base64.length % 4) {
+          base64 += '='
         }
 
-        // Cache for short time (5 seconds)
-        cache.current.set(cacheKey, result, 5000)
-
-        return result
-      } catch (error: any) {
-        console.error('❌ Error checking battle progress:', error)
-        return {
-          success: false,
-          error: error.message || 'Failed to check battle progress',
+        const binaryString = atob(base64)
+        const bytes = []
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes.push(binaryString.charCodeAt(i))
         }
+
+        if (bytes.length !== 32) {
+          throw new Error('Invalid room code length')
+        }
+
+        const roomIdBytes = new Uint8Array(bytes)
+        if (!program?.programId) {
+          throw new Error('Program not initialized')
+        }
+
+        const pdaroomid = Array.from(roomIdBytes)
+        const [battleRoomPda] = PublicKey.findProgramAddressSync(
+          [Buffer.from('battleroom'), Buffer.from(pdaroomid)],
+          program.programId,
+        )
+
+        return { roomIdBytes, battleRoomPda }
+      } catch (error) {
+        throw new Error('Invalid room code format')
       }
     },
-    [program.program],
+    [program],
   )
 
   const fetchBattleRoomState = useCallback(
     async (battleRoomPda: string): Promise<{ state: BattleRoomState } | null> => {
-      if (!program.program || !publicKey) {
-        console.error('Program or publicKey not available')
+      if (!program || !publicKey) {
         return null
       }
 
       const cacheKey = `battle-room-${battleRoomPda}`
-
-      // Check cache first
       const cached = cache.current.get<{ state: BattleRoomState }>(cacheKey)
       if (cached) {
-        // console.log("📋 Using cached battle room state");
         return cached
       }
 
       try {
-        if (!ephemeralProgramToUse) {
-          return null // Ensure ephemeral program is available
-        }
-
         const result = await rateLimiter.current.add(async () => {
-          try {
-            const battleRoomAccount = await ephemeralProgramToUse.account.battleRoom.fetch(new PublicKey(battleRoomPda))
+          const battleRoomAccount = await program.account.battleRoom.fetch(new PublicKey(battleRoomPda))
 
-            // Check if battleRoomAccount exists
-            if (!battleRoomAccount) {
-              throw new Error('Battle room account not found in ER')
+          const getWarriorDetails = async (warriorPda: PublicKey): Promise<{ name: string } | null> => {
+            try {
+              const warrior = await program.account.undeadWarrior.fetch(warriorPda)
+              return { name: warrior.name }
+            } catch (error) {
+              return { name: 'Unknown Warrior' }
             }
-
-            // Helper function to get warrior details
-            const getWarriorDetails = async (warriorPda: PublicKey): Promise<{ name: string } | null> => {
-              try {
-                const warrior = await ephemeralProgramToUse.account.undeadWarrior.fetch(warriorPda)
-                return { name: warrior?.name || 'Unknown Warrior' }
-              } catch (error) {
-                console.warn('Could not fetch warrior details:', error)
-                return { name: 'Unknown Warrior' }
-              }
-            }
-
-            // Get creator info (Player A)
-            let creator: BattleRoomParticipant | null = null
-            if (battleRoomAccount.playerA && battleRoomAccount.warriorA) {
-              const warriorDetails = await getWarriorDetails(battleRoomAccount.warriorA)
-              creator = {
-                publicKey: battleRoomAccount.playerA.toString(),
-                warriorPda: battleRoomAccount.warriorA.toString(),
-                warriorName: warriorDetails?.name || 'Unknown Warrior',
-                isCreator: true,
-              }
-            }
-
-            // Get joiner info (Player B)
-            let joiner: BattleRoomParticipant | null = null
-            if (battleRoomAccount.playerB && battleRoomAccount.warriorB) {
-              const warriorDetails = await getWarriorDetails(battleRoomAccount.warriorB)
-              joiner = {
-                publicKey: battleRoomAccount.playerB.toString(),
-                warriorPda: battleRoomAccount.warriorB.toString(),
-                warriorName: warriorDetails?.name || 'Unknown Warrior',
-                isCreator: false,
-              }
-            }
-
-            const battleRoomState: BattleRoomState = {
-              roomId: battleRoomAccount.roomId.toString(),
-              creator,
-              joiner,
-              state: battleRoomAccount,
-              battleStatus: battleRoomAccount.state,
-              isReady: battleRoomAccount.playerAReady && battleRoomAccount.playerBReady,
-            }
-
-            return { state: battleRoomState }
-          } catch (fetchError: any) {
-            console.error('Error fetching battle room state in ER:', fetchError)
-            throw fetchError
           }
+
+          let creator: BattleRoomParticipant | null = null
+          if (battleRoomAccount.playerA && battleRoomAccount.warriorA) {
+            const warriorDetails = await getWarriorDetails(battleRoomAccount.warriorA)
+            creator = {
+              publicKey: battleRoomAccount.playerA.toString(),
+              warriorPda: battleRoomAccount.warriorA.toString(),
+              warriorName: warriorDetails?.name || 'Unknown Warrior',
+              isCreator: true,
+            }
+          }
+
+          let joiner: BattleRoomParticipant | null = null
+          if (battleRoomAccount.playerB && battleRoomAccount.warriorB) {
+            const warriorDetails = await getWarriorDetails(battleRoomAccount.warriorB)
+            joiner = {
+              publicKey: battleRoomAccount.playerB.toString(),
+              warriorPda: battleRoomAccount.warriorB.toString(),
+              warriorName: warriorDetails?.name || 'Unknown Warrior',
+              isCreator: false,
+            }
+          }
+
+          const battleRoomState: BattleRoomState = {
+            roomId: battleRoomAccount.roomId.toString(),
+            creator,
+            joiner,
+            state: battleRoomAccount,
+            battleStatus: battleRoomAccount.state,
+            isReady: battleRoomAccount.playerAReady && battleRoomAccount.playerBReady,
+          }
+
+          return { state: battleRoomState }
         })
 
-        // Handle the case where result might be undefined
-        if (!result) {
-          console.error('Failed to process battle room state in ER')
-          return null
-        }
-
-        // Cache for 10 seconds (battle room state changes frequently)
         cache.current.set(cacheKey, result, 10000)
-
         return result
       } catch (error: any) {
-        console.error('❌ Error fetching battle room state in ER:', error)
         return null
       }
     },
-    [program.program, publicKey, ephemeralProgramToUse],
+    [program, publicKey],
   )
 
-  //fetch battle room state in ER
-  const fetchBattleRoomStateInER = useCallback(
-    async (battleRoomPda: string): Promise<{ state: BattleRoomState } | null> => {
-      if (!program.program || !publicKey) {
-        console.error('Program or publicKey not available')
-        return null
-      }
-
-      const cacheKey = `battle-room-er-${battleRoomPda}`
-
-      // Check cache first
-      const cached = cache.current.get<{ state: BattleRoomState }>(cacheKey)
-      if (cached) {
-        // console.log("📋 Using cached battle room state");
-        return cached
-      }
-
-      try {
-        // console.log("🔍 Fetching battle room state for:", battleRoomPda);
-
-        const result = await rateLimiter.current.add(async () => {
-          try {
-            const battleRoomAccount = await program.program?.account.battleRoom.fetch(new PublicKey(battleRoomPda))
-
-            // Check if battleRoomAccount exists
-            if (!battleRoomAccount) {
-              throw new Error('Battle room account not found')
-            }
-
-            // Helper function to get warrior details
-            const getWarriorDetails = async (warriorPda: PublicKey): Promise<{ name: string } | null> => {
-              try {
-                const warrior = await program.program?.account.undeadWarrior.fetch(warriorPda)
-                return { name: warrior?.name || 'Unknown Warrior' }
-              } catch (error) {
-                console.warn('Could not fetch warrior details:', error)
-                return { name: 'Unknown Warrior' }
-              }
-            }
-
-            // Get creator info (Player A)
-            let creator: BattleRoomParticipant | null = null
-            if (battleRoomAccount.playerA && battleRoomAccount.warriorA) {
-              const warriorDetails = await getWarriorDetails(battleRoomAccount.warriorA)
-              creator = {
-                publicKey: battleRoomAccount.playerA.toString(),
-                warriorPda: battleRoomAccount.warriorA.toString(),
-                warriorName: warriorDetails?.name || 'Unknown Warrior',
-                isCreator: true,
-              }
-            }
-
-            // Get joiner info (Player B)
-            let joiner: BattleRoomParticipant | null = null
-            if (battleRoomAccount.playerB && battleRoomAccount.warriorB) {
-              const warriorDetails = await getWarriorDetails(battleRoomAccount.warriorB)
-              joiner = {
-                publicKey: battleRoomAccount.playerB.toString(),
-                warriorPda: battleRoomAccount.warriorB.toString(),
-                warriorName: warriorDetails?.name || 'Unknown Warrior',
-                isCreator: false,
-              }
-            }
-
-            const battleRoomState: BattleRoomState = {
-              roomId: battleRoomAccount.roomId.toString(),
-              creator,
-              joiner,
-              state: battleRoomAccount,
-              battleStatus: battleRoomAccount.state,
-              isReady: battleRoomAccount.playerAReady && battleRoomAccount.playerBReady,
-            }
-
-            return { state: battleRoomState }
-          } catch (fetchError: any) {
-            console.error('Error fetching battle room state:', fetchError)
-            throw fetchError
-          }
-        })
-
-        // Handle the case where result might be undefined
-        if (!result) {
-          console.error('Failed to process battle room state')
-          return null
-        }
-
-        // Cache for 10 seconds (battle room state changes frequently)
-        cache.current.set(cacheKey, result, 10000)
-
-        return result
-      } catch (error: any) {
-        console.error('❌ Error fetching battle room state:', error)
-        return null
-      }
-    },
-    [program.program, publicKey],
-  )
-
-  //Get opponent info for current user
-  const getOpponentInfo = useCallback(
-    (battleRoomState: BattleRoomState | null): BattleRoomParticipant | null => {
-      if (!battleRoomState || !publicKey) return null
-
-      const currentUserKey = publicKey.toString()
-
-      // If current user is the creator, return joiner as opponent
-      if (battleRoomState.creator?.publicKey === currentUserKey) {
-        return battleRoomState.joiner
-      }
-
-      // If current user is the joiner, return creator as opponent
-      if (battleRoomState.joiner?.publicKey === currentUserKey) {
-        return battleRoomState.creator
-      }
-
-      // User is not in this battle room
-      return null
-    },
-    [publicKey],
-  )
-
-  const decodeRoomId = (displayId: string): { roomIdBytes: Uint8Array; battleRoomPda: PublicKey } => {
-    try {
-      // Restore base64 format
-      let base64 = displayId.replace(/[-_]/g, (c) => (c === '-' ? '+' : '/'))
-
-      // Add padding if needed
-      while (base64.length % 4) {
-        base64 += '='
-      }
-
-      // Decode base64 to bytes
-      const binaryString = atob(base64)
-      const bytes = []
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes.push(binaryString.charCodeAt(i))
-      }
-
-      if (bytes.length !== 32) {
-        throw new Error('Invalid room code length')
-      }
-
-      const roomIdBytes = new Uint8Array(bytes)
-
-      if (!program.program?.programId) {
-        throw new Error('Program not initialized')
-      }
-
-      const pdaroomid = Array.from(roomIdBytes)
-      const [battleRoomPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from('battleroom'), Buffer.from(pdaroomid)],
-        program.program.programId,
-      )
-
-      return { roomIdBytes, battleRoomPda }
-    } catch (error) {
-      throw new Error('Invalid room code format')
-    }
-  }
-
-  //Check if current user is in the battle room
-  const isUserInBattleRoom = useCallback(
-    (battleRoomState: BattleRoomState | null): boolean => {
-      if (!battleRoomState || !publicKey) return false
-
-      const currentUserKey = publicKey.toString()
-      return (
-        battleRoomState.creator?.publicKey === currentUserKey || battleRoomState.joiner?.publicKey === currentUserKey
-      )
-    },
-    [publicKey],
-  )
-
-  //Get current user's role in battle room
-  const getUserRoleInBattleRoom = useCallback(
-    (battleRoomState: BattleRoomState | null): 'creator' | 'joiner' | null => {
-      if (!battleRoomState || !publicKey) return null
-
-      const currentUserKey = publicKey.toString()
-
-      if (battleRoomState.creator?.publicKey === currentUserKey) {
-        return 'creator'
-      }
-
-      if (battleRoomState.joiner?.publicKey === currentUserKey) {
-        return 'joiner'
-      }
-
-      return null
-    },
-    [publicKey],
-  )
-
-  // Memoize the load function to prevent dependency changes
-  const loadAllData = useCallback(async () => {
-    if (!program.isReady || !publicKey || !isConnected || isCurrentlyLoading.current) {
+  const loadAllData = useCallback(async (): Promise<void> => {
+    if (!program || !publicKey || !isConnected || isCurrentlyLoading.current) {
       return
     }
 
@@ -1015,51 +672,45 @@ export const useGameData = () => {
 
       hasInitiallyLoaded.current = true
     } catch (error: any) {
-      console.error('Error loading data:', error)
       setError('Failed to load data')
     } finally {
       setLoading(false)
       isCurrentlyLoading.current = false
     }
-  }, [program.isReady, publicKey, isConnected, fetchGameConfig, fetchBalance, fetchUserProfile, fetchUserWarriors])
+  }, [program, publicKey, isConnected, fetchBalance, fetchGameConfig, fetchUserProfile, fetchUserWarriors])
 
-  const refreshData = useCallback(async () => {
-    if (!program.isReady || !publicKey || !isConnected) return
+  const refreshData = useCallback(async (): Promise<void> => {
+    if (!program || !publicKey || !isConnected) {
+      return
+    }
 
-    // Clear cache for this user
     cache.current.invalidate()
     hasInitiallyLoaded.current = false
     await loadAllData()
-  }, [program.isReady, publicKey, isConnected, loadAllData])
+  }, [program, publicKey, isConnected, loadAllData])
 
-  // Memoize the stable values to prevent unnecessary re-renders
   const stableValues = useMemo(
     () => ({
+      isReady,
       isConnected,
-      isAuthenticated,
       publicKeyString: publicKey?.toString() || null,
-      hasProgram: program.isReady,
-      walletLoading,
+      hasProgram: !!program,
     }),
-    [isConnected, isAuthenticated, publicKey, program.isReady, walletLoading],
+    [isReady, isConnected, publicKey, program],
   )
 
-  // Main effect with stable dependencies
   useEffect(() => {
     if (
+      stableValues.isReady &&
       stableValues.isConnected &&
-      stableValues.isAuthenticated &&
       stableValues.hasProgram &&
       stableValues.publicKeyString &&
-      !stableValues.walletLoading &&
       !hasInitiallyLoaded.current &&
       !isCurrentlyLoading.current
     ) {
-      // Small delay to ensure everything is ready
       const timeoutId = setTimeout(() => {
         loadAllData()
       }, 200)
-
       return () => clearTimeout(timeoutId)
     }
   }, [stableValues, loadAllData])
@@ -1077,7 +728,6 @@ export const useGameData = () => {
     }
   }, [isConnected])
 
-  // Handle public key changes - separate effect
   const previousPublicKey = useRef<string | null>(null)
   useEffect(() => {
     const currentKey = publicKey?.toString() || null
@@ -1086,7 +736,6 @@ export const useGameData = () => {
       isCurrentlyLoading.current = false
       previousPublicKey.current = currentKey
 
-      // Clear old data when switching wallets
       if (currentKey !== previousPublicKey.current) {
         setGameConfig(null)
         setUserProfile(null)
@@ -1099,26 +748,10 @@ export const useGameData = () => {
   }, [publicKey])
 
   const hasWarriors = userWarriors.length > 0
-
-  // Create a user object compatible with existing code
-  const user = useMemo(() => {
-    if (!isConnected || !publicKey) return null
-
-    return {
-      id: publicKey.toString(),
-      wallet: {
-        address: userAddress,
-        walletClientType: walletName,
-      },
-      // Add other properties as needed for compatibility
-    }
-  }, [isConnected, publicKey, userAddress, walletName])
+  const userAddress = publicKey?.toString() || null
 
   return {
-    // Dynamic wallet equivalents
-    ready: !walletLoading && program.isReady,
-    authenticated: isAuthenticated,
-    isConnected,
+    isReady,
     user,
     userAddress,
     publicKey,
@@ -1133,22 +766,13 @@ export const useGameData = () => {
     singleWarriorDetails,
     hasWarriors,
     loading,
-    fetchBalance,
     error,
-    refreshData,
     pdas: { configPda, profilePda, achievementsPda },
-
-    getSingleWarriorDetails,
-    // delegated warriors
-    fetchDelegatedWarriors,
-    checkBattleProgress,
-    // Battle room functions
-    fetchBattleRoomState,
-    fetchBattleRoomStateInER,
     decodeRoomId,
-    getOpponentInfo,
-    isUserInBattleRoom,
-    getUserRoleInBattleRoom,
+    fetchBalance,
+    refreshData,
+    getSingleWarriorDetails,
+    fetchDelegatedWarriors,
     getWarriorPda,
   }
 }

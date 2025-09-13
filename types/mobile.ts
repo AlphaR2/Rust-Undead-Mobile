@@ -38,7 +38,7 @@ export interface ContextTypes {
     selectedGuide: Guide | null
     setSelectedGuide: React.Dispatch<React.SetStateAction<Guide | null>>
 
-    // Warrior Type selection - NEW
+    // Warrior Type selection
     selectedWarriorType: WarriorType | null
     setSelectedWarriorType: React.Dispatch<React.SetStateAction<WarriorType | null>>
 

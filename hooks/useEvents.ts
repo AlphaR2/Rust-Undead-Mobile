@@ -1,10 +1,11 @@
+
+import { useEffect, useRef, useState, useCallback } from "react";
 import SolanaEventListener from "@/services/EventListener";
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  EventHistoryItem,
+  GameEventHandlers,
   EventListenerConfig,
   EventListenerStatus,
-  GameEventHandlers,
+  EventHistoryItem,
 } from "../types/events";
 
 interface UseSolanaEventsOptions extends Partial<EventListenerConfig> {

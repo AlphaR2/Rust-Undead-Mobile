@@ -1,12 +1,18 @@
 import { authority } from '@/config/program'
 import { RustUndead as UndeadTypes } from '@/types/idlTypes'
-import { ImageRarity, UserPersona, Warrior, WarriorClass } from '@/types/undead'
+import { BattleState, ImageRarity, UserPersona, Warrior, WarriorClass } from '@/types/undead'
 import { Program } from '@coral-xyz/anchor'
-import { LAMPORTS_PER_SOL, PublicKey, SendTransactionError, SystemProgram } from '@solana/web3.js'
-import { sendERTransaction } from './useUndeadProgram'
+
+// import { SessionWalletInterface } from '@magicblock-labs/gum-react-sdk'
+import { ComputeBudgetProgram, LAMPORTS_PER_SOL, PublicKey, SendTransactionError, SystemProgram } from '@solana/web3.js'
+import bs58 from 'bs58'
+import { executeWithDeduplication, hashTxContent, useWalletInfo } from './useUndeadProgram'
+
+// ============ TYPE DEFINITIONS ============
 
 type UndeadProgram = Program<UndeadTypes>
 
+// ============ INTERFACE DEFINITIONS ============
 export interface CreateWarriorParams {
   program: UndeadProgram
   userPublicKey: PublicKey
@@ -17,7 +23,76 @@ export interface CreateWarriorParams {
   profilePda: PublicKey
   userAchievementsPda: PublicKey
   warriorClass: WarriorClass
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
   onProgress?: (stage: VRFStage, message: string) => void
+}
+
+export interface JoinBattleRoomParams {
+  program: UndeadProgram
+  playerPublicKey: PublicKey
+  warriorPda: PublicKey
+  battleRoomPda: PublicKey
+  roomId: Uint8Array
+  warriorName: string
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+}
+
+export interface BattleRoomResult {
+  success: boolean
+  signature?: string
+  error?: string
+  commitmentSignature?: string // For ER transactions
+}
+
+export interface CreateBattleRoomParams {
+  program: UndeadProgram
+  playerPublicKey: PublicKey
+  warriorPda: PublicKey
+  battleRoomPda: PublicKey
+  roomId: Uint8Array // [u8; 32]
+  warriorName: string
+  sessionToken?: string | null
+  selectedConcepts: number[]
+  selectedTopics: number[]
+  selectedQuestions: number[]
+  correctAnswers: boolean[]
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+}
+
+export interface CreateUserProfileParams {
+  program: UndeadProgram
+  userPublicKey: PublicKey
+  username: string
+  userPersona: UserPersona
+  profilePda: PublicKey
+  userRegistryPda: PublicKey
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+}
+
+export interface UserProfileResult {
+  success: boolean
+  signature?: string
+  error?: string
 }
 
 export interface VRFStage {
@@ -32,7 +107,208 @@ export interface WarriorCreationResult {
   warrior?: Warrior | null
 }
 
+export interface SignalReadyParams {
+  program: UndeadProgram
+  playerPublicKey: PublicKey
+  warriorPda: PublicKey
+  battleRoomPda: PublicKey
+  warriorAPda: PublicKey
+  warriorBPda: PublicKey
+  roomId: Uint8Array
+  warriorName: string
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+}
+
+export interface DelegateBattleParams {
+  program: UndeadProgram
+  signerPublicKey: PublicKey
+  battleRoomPda: PublicKey
+  warriorAPda: PublicKey
+  warriorBPda: PublicKey
+  roomId: Uint8Array
+  playerAPublicKey: PublicKey
+  warriorAName: string
+  playerBPublicKey: PublicKey
+  warriorBName: string
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+  // sessionWallet?: SessionWalletInterface
+}
+
+export interface StartBattleParams {
+  ephemeralProgram: UndeadProgram
+  signerPublicKey: PublicKey
+  battleRoomPda: PublicKey
+  warriorAPda: PublicKey
+  warriorBPda: PublicKey
+  roomId: Uint8Array
+  magicBlockProvider: any
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+  // sessionWallet?: SessionWalletInterface
+}
+
+export interface AnswerQuestionERParams {
+  ephemeralProgram: UndeadProgram
+  playerPublicKey: PublicKey
+  battleRoomPda: PublicKey
+  attackerWarriorPda: PublicKey
+  defenderWarriorPda: PublicKey
+  roomId: Uint8Array
+  answer: boolean
+  clientSeed?: number
+  magicBlockProvider: any
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+  // sessionWallet?: SessionWalletInterface
+}
+
+export interface SettleBattleERParams {
+  ephemeralProgram: UndeadProgram
+  signerPublicKey: PublicKey
+  battleRoomPda: PublicKey
+  warriorAPda: PublicKey
+  warriorBPda: PublicKey
+  roomId: Uint8Array
+  magicBlockProvider: any
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+  // sessionWallet?: SessionWalletInterface
+}
+
+export interface UpdateFinalStateParams {
+  program: UndeadProgram
+  signerPublicKey: PublicKey
+  authorityPublicKey: PublicKey
+  battleRoomPda: PublicKey
+  warriorAPda: PublicKey
+  warriorBPda: PublicKey
+  profileAPda: PublicKey
+  profileBPda: PublicKey
+  achievementsAPda: PublicKey
+  achievementsBPda: PublicKey
+  configPda: PublicKey
+  leaderboardPda: PublicKey
+  roomId: Uint8Array
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+  // sessionWallet?: SessionWalletInterface
+}
+
+export interface JoinBattleParams {
+  program: UndeadProgram
+  ephemeralProgram: UndeadProgram
+  playerPublicKey: PublicKey
+  warriorPda: PublicKey
+  battleRoomPda: PublicKey
+  roomId: Uint8Array
+  warriorName: string
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+}
+
+export interface StartBattleActionParams {
+  program: UndeadProgram
+  ephemeralProgram: UndeadProgram
+  signerPublicKey: PublicKey
+  battleRoomPda: PublicKey
+  warriorAPda: PublicKey
+  warriorBPda: PublicKey
+  roomId: Uint8Array
+  playerAPublicKey: PublicKey
+  warriorAName: string
+  playerBPublicKey: PublicKey
+  warriorBName: string
+  magicBlockProvider: any
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+  // sessionWallet?: SessionWalletInterface
+}
+
+export interface SubmitAnswerParams {
+  ephemeralProgram: UndeadProgram
+  playerPublicKey: PublicKey
+  battleRoomPda: PublicKey
+  attackerWarriorPda: PublicKey
+  defenderWarriorPda: PublicKey
+  roomId: Uint8Array
+  answer: boolean
+  questionIndex?: number
+  magicBlockProvider: any
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+}
+
+export interface EndBattleParams {
+  program: UndeadProgram
+  ephemeralProgram: UndeadProgram
+  signerPublicKey: PublicKey
+  battleRoomPda: PublicKey
+  warriorAPda: PublicKey
+  warriorBPda: PublicKey
+  profileAPda: PublicKey
+  profileBPda: PublicKey
+  achievementsAPda: PublicKey
+  achievementsBPda: PublicKey
+  configPda: PublicKey
+  leaderboardPda: PublicKey
+  roomId: Uint8Array
+  magicBlockProvider: any
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+  // sessionWallet?: SessionWalletInterface
+}
+
+// ============ STATE MANAGEMENT ============
+
 let isCreatingWarrior = false
+let isCreatingUserProfile = false
+let isCreatingBattleRoom = false
+let isJoiningBattleRoom = false
+let isSignalingReady = false
+let isDelegatingBattle = false
+let isUpdatingFinalState = false
 
 export const createWarriorWithVRF = async ({
   program,
@@ -44,6 +320,7 @@ export const createWarriorWithVRF = async ({
   configPda,
   userAchievementsPda,
   warriorClass,
+  sessionInfo,
   onProgress,
 }: CreateWarriorParams): Promise<WarriorCreationResult> => {
   if (!program) {
@@ -93,14 +370,22 @@ export const createWarriorWithVRF = async ({
       // console.log("Warrior PDA check: No existing account found");
     }
 
-    // Check player balance
-    const playerBalance = await program.provider.connection.getBalance(userPublicKey)
-    const minimumBalance = 0.002 * LAMPORTS_PER_SOL // Estimate for fees + rent
-    if (playerBalance < minimumBalance) {
+    // Determine payer and session usage
+    const hasActiveSession = !!sessionInfo
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+
+    // console.log("SESSION_INFO", sessionInfo);
+    // console.log("PAYER_PUBLIC_KEY", payerPublicKey.toString());
+    // console.log("HAS_ACTIVE_SESSION", hasActiveSession);
+
+    // Check payer balance
+    const payerBalance = await program.provider.connection.getBalance(payerPublicKey)
+    const minimumBalance = 0.002 * LAMPORTS_PER_SOL
+    if (payerBalance < minimumBalance) {
       return {
         success: false,
-        error: `Insufficient funds in player wallet (${
-          playerBalance / LAMPORTS_PER_SOL
+        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
+          payerBalance / LAMPORTS_PER_SOL
         } SOL). Need ~0.002 SOL for transaction.`,
       }
     }
@@ -117,54 +402,78 @@ export const createWarriorWithVRF = async ({
     const classVariant = getWarriorClassVariant(warriorClass)
     const clientSeed = Math.floor(Math.random() * 256)
 
-    // Create transaction
+    // console.log("🔍 createWarrior accounts:", {
+    //   signer: payerPublicKey.toString(),
+    //   player: userPublicKey.toString(),
+    //   authority: authority.toString(),
+    //   warrior: warriorPda.toString(),
+    //   userProfile: profilePda.toString(),
+    //   userAchievements: userAchievementsPda.toString(),
+    //   config: configPda.toString(),
+    //   sessionToken: hasActiveSession
+    //     ? sessionInfo.sessionToken.toString()
+    //     : "null",
+    // });
+
+    // Create transaction with session-aware accounts
     const transaction = await program.methods
       .createWarrior(name.trim(), dnaBytes, classVariant, clientSeed)
       .accountsPartial({
+        signer: payerPublicKey,
         player: userPublicKey,
-        authority,
+        authority: authority,
         warrior: warriorPda,
         userProfile: profilePda,
         userAchievements: userAchievementsPda,
         config: configPda,
+        sessionToken: hasActiveSession ? sessionInfo.sessionToken : null,
         systemProgram: SystemProgram.programId,
       })
       .transaction()
 
-    // Fetch fresh blockhash
+    // Fetch fresh blockhash before hashing
     const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash('confirmed')
     transaction.recentBlockhash = blockhash
-    transaction.feePayer = userPublicKey
+    transaction.feePayer = payerPublicKey
 
-    // Simulate transaction
-    const simulation = await program.provider.connection.simulateTransaction(transaction)
-    if (simulation.value.err) {
-      console.error('Transaction simulation failed:', simulation.value.err)
-      console.error('Simulation logs:', simulation.value.logs)
-      return {
-        success: false,
-        error: `Simulation failed: ${simulation.value.err}`,
-      }
-    }
+    const txHash = await hashTxContent(transaction)
+    const operationKey = `createWarrior_${payerPublicKey.toString()}_${txHash}`
 
-    // Send and confirm transaction
+    signature = await executeWithDeduplication(
+      async () => {
+        const { blockhash: newBlockhash, lastValidBlockHeight: newHeight } =
+          await program.provider.connection.getLatestBlockhash('confirmed')
+        transaction.recentBlockhash = newBlockhash
 
-    if (program.provider.sendAndConfirm) {
-      signature = await program.provider.sendAndConfirm(transaction, [], {
-        commitment: 'confirmed',
-        preflightCommitment: 'confirmed',
-        skipPreflight: false,
-      })
-    } else if (program.provider.wallet) {
-      // Fallback: Manually sign and send
-      const signedTx = await program.provider.wallet.signTransaction(transaction)
-      const serializedTx = signedTx.serialize()
-      signature = await program.provider.connection.sendRawTransaction(serializedTx, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      })
-      await program.provider.connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
-    }
+        let sig: string | undefined
+        if (program.provider.sendAndConfirm) {
+          sig = await program.provider.sendAndConfirm(transaction, [], {
+            commitment: 'confirmed',
+            preflightCommitment: 'confirmed',
+            skipPreflight: true,
+          })
+        } else if (program.provider.wallet) {
+          const signedTx = await program.provider.wallet.signTransaction(transaction)
+          const serializedTx = signedTx.serialize()
+          sig = await program.provider.connection.sendRawTransaction(serializedTx, {
+            skipPreflight: true,
+            preflightCommitment: 'confirmed',
+          })
+          await program.provider.connection.confirmTransaction(
+            {
+              signature: sig,
+              blockhash: newBlockhash,
+              lastValidBlockHeight: newHeight,
+            },
+            'confirmed',
+          )
+        }
+        return sig
+      },
+      operationKey,
+      60000,
+      true,
+    )
 
     onProgress?.({ stage: 'waiting_vrf', progress: 40 }, '🎲 Transaction confirmed! Waiting for ancient magic (VRF)...')
 
@@ -195,6 +504,7 @@ export const createWarriorWithVRF = async ({
 
       try {
         const warriorAccount = await program.account.undeadWarrior.fetch(warriorPda)
+
         if (
           warriorAccount.baseAttack > 0 &&
           warriorAccount.baseDefense > 0 &&
@@ -242,7 +552,6 @@ export const createWarriorWithVRF = async ({
       }
     }
 
-    // VRF timeout handling
     onProgress?.({ stage: 'error', progress: 90 }, '⚠️ VRF timeout - warrior created but stats pending...')
 
     try {
@@ -293,14 +602,17 @@ export const createWarriorWithVRF = async ({
   } catch (error: any) {
     if (error instanceof SendTransactionError) {
       console.error('SendTransactionError details:', error.message)
-      console.error('Transaction logs:', await error.getLogs(program.provider.connection))
+      const logs = await error.getLogs(program.provider.connection)
+      console.error('SendTransactionError details:', error.message, logs)
     }
     console.error('Error creating warrior:', error)
 
     onProgress?.({ stage: 'error', progress: 0 }, `❌ Creation failed: ${error.message}`)
 
     let errorMessage = error.message || 'Unknown error occurred'
-    if (error.message.includes('insufficient funds')) {
+    if (error.message.includes('unknown signer')) {
+      errorMessage = 'Session authentication failed. Please try again or connect your wallet directly.'
+    } else if (error.message.includes('insufficient funds')) {
       errorMessage = 'Insufficient SOL balance for transaction or rent'
     } else if (error.message.includes('blockhash not found')) {
       errorMessage = 'Network congestion - please try again'
@@ -309,7 +621,40 @@ export const createWarriorWithVRF = async ({
     } else if (error.message.includes('User rejected')) {
       errorMessage = 'Transaction cancelled by user'
     } else if (error.message.includes('already processed')) {
-      errorMessage = 'Transaction already processed - please try again'
+      try {
+        const warriorAccount = await program.account.undeadWarrior.fetch(warriorPda)
+        if (warriorAccount) {
+          return {
+            success: true,
+            signature,
+            warrior: {
+              name: warriorAccount.name,
+              address: warriorAccount.address,
+              owner: warriorAccount.owner,
+              dna: warriorAccount.dna,
+              createdAt: warriorAccount.createdAt,
+              currentHp: warriorAccount.currentHp,
+              baseAttack: warriorAccount.baseAttack,
+              baseDefense: warriorAccount.baseDefense,
+              baseKnowledge: warriorAccount.baseKnowledge,
+              maxHp: warriorAccount.maxHp,
+              battlesWon: warriorAccount.battlesWon,
+              battlesLost: warriorAccount.battlesLost,
+              experiencePoints: warriorAccount.experiencePoints,
+              level: warriorAccount.level,
+              lastBattleAt: warriorAccount.lastBattleAt,
+              cooldownExpiresAt: warriorAccount.cooldownExpiresAt,
+              imageIndex: warriorAccount.imageIndex,
+              isOnCooldown: warriorAccount.cooldownExpiresAt.toNumber() > Date.now() / 1000,
+              imageUri: warriorAccount.imageUri,
+              imageRarity: getImageRarityName(warriorAccount.imageRarity),
+              warriorClass,
+            },
+          }
+        }
+      } catch (fetchError) {
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
     }
 
     return { success: false, error: errorMessage }
@@ -319,24 +664,6 @@ export const createWarriorWithVRF = async ({
 }
 
 // ============ USER PROFILE ACTIONS ============
-
-export interface CreateUserProfileParams {
-  program: UndeadProgram
-  userPublicKey: PublicKey
-  username: string
-  userPersona: UserPersona
-  profilePda: PublicKey
-  userRegistryPda: PublicKey
-}
-
-export interface UserProfileResult {
-  success: boolean
-  signature?: string
-  error?: string
-}
-
-let isCreatingUserProfile = false
-
 export const createUserProfile = async ({
   program,
   userPublicKey,
@@ -344,6 +671,7 @@ export const createUserProfile = async ({
   userPersona,
   profilePda,
   userRegistryPda,
+  sessionInfo,
 }: CreateUserProfileParams): Promise<UserProfileResult> => {
   if (!program || !userPublicKey) {
     return { success: false, error: 'Program or user public key required' }
@@ -374,17 +702,21 @@ export const createUserProfile = async ({
         return { success: false, error: 'User profile already exists' }
       }
     } catch {
-      // console.log("User profile PDA check: No existing account found");
+      // Profile doesn't exist, continue
     }
 
-    // Check player balance
-    const playerBalance = await program.provider.connection.getBalance(userPublicKey)
-    const minimumBalance = 0.002 * LAMPORTS_PER_SOL // Estimate for fees + rent
-    if (playerBalance < minimumBalance) {
+    // Determine the signing strategy based on session info
+    const hasActiveSession = !!sessionInfo
+    const signerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+
+    // Check signer balance
+    const signerBalance = await program.provider.connection.getBalance(signerPublicKey)
+    const minimumBalance = 0.002 * LAMPORTS_PER_SOL
+    if (signerBalance < minimumBalance) {
       return {
         success: false,
-        error: `Insufficient funds in player wallet (${
-          playerBalance / LAMPORTS_PER_SOL
+        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
+          signerBalance / LAMPORTS_PER_SOL
         } SOL). Need ~0.002 SOL for transaction.`,
       }
     }
@@ -392,52 +724,26 @@ export const createUserProfile = async ({
     // Convert persona to program format
     const personaVariant = getUserPersonaVariant(userPersona)
 
-    // Create transaction
-    const transaction = await program.methods
+    console.log("🔍 Creating user profile transaction...")
+    console.log("signer:", signerPublicKey.toString())
+    console.log("player:", userPublicKey.toString())
+    console.log("userProfile:", profilePda.toString())
+    console.log("userRegistry:", userRegistryPda.toString())
+    console.log("sessionToken:", hasActiveSession ? sessionInfo.sessionToken.toString() : "null")
+
+    const signature = await program.methods
       .userdata(username, personaVariant)
       .accountsPartial({
+        signer: signerPublicKey,
         player: userPublicKey,
-        userProfile: profilePda,
         userRegistry: userRegistryPda,
+        userProfile: profilePda,
+        sessionToken: hasActiveSession ? sessionInfo.sessionToken : null,
         systemProgram: SystemProgram.programId,
       })
-      .transaction()
+      .rpc()
 
-    // Fetch fresh blockhash
-    const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash('confirmed')
-    transaction.recentBlockhash = blockhash
-    transaction.feePayer = userPublicKey
-
-    // Simulate transaction
-    const simulation = await program.provider.connection.simulateTransaction(transaction)
-    if (simulation.value.err) {
-      console.error('Transaction simulation failed:', simulation.value.err)
-      console.error('Simulation logs:', simulation.value.logs)
-      return {
-        success: false,
-        error: `Simulation failed: ${simulation.value.err}`,
-      }
-    }
-
-    // Send and confirm transaction
-    let signature: string | undefined
-    if (program.provider.sendAndConfirm) {
-      signature = await program.provider.sendAndConfirm(transaction, [], {
-        commitment: 'confirmed',
-        preflightCommitment: 'confirmed',
-        skipPreflight: false,
-      })
-    } else if (program.provider.wallet) {
-      // Fallback: Manually sign and send
-      const signedTx = await program.provider.wallet.signTransaction(transaction)
-      const serializedTx = signedTx.serialize()
-      signature = await program.provider.connection.sendRawTransaction(serializedTx, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      })
-      await program.provider.connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
-    }
-
+    console.log('✅ User profile created successfully:', signature)
     return { success: true, signature }
   } catch (error: any) {
     if (error instanceof SendTransactionError) {
@@ -447,7 +753,11 @@ export const createUserProfile = async ({
     console.error('Error creating user profile:', error)
 
     let errorMessage = error.message || 'Failed to create user profile'
-    if (error.message.includes('insufficient funds')) {
+    
+    // Standardized error handling
+    if (error.message.includes('unknown signer')) {
+      errorMessage = 'Session authentication failed. Please try again or connect your wallet directly.'
+    } else if (error.message.includes('insufficient funds')) {
       errorMessage = 'Insufficient SOL balance for transaction or rent'
     } else if (error.message.includes('blockhash not found')) {
       errorMessage = 'Network congestion - please try again'
@@ -456,7 +766,15 @@ export const createUserProfile = async ({
     } else if (error.message.includes('User rejected')) {
       errorMessage = 'Transaction cancelled by user'
     } else if (error.message.includes('already processed')) {
-      errorMessage = 'Transaction already processed - please try again'
+      // Handle idempotency - check if profile was actually created
+      try {
+        const userProfile = await program.account.userProfile.fetch(profilePda)
+        if (userProfile.username && userProfile.username.length > 0) {
+          return { success: true }
+        }
+      } catch (fetchError) {
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
     }
 
     return { success: false, error: errorMessage }
@@ -464,31 +782,7 @@ export const createUserProfile = async ({
     isCreatingUserProfile = false
   }
 }
-
 // ============ BATTLE ROOM ACTIONS ============
-
-export interface BattleRoomResult {
-  success: boolean
-  signature?: string
-  error?: string
-  commitmentSignature?: string // For ER transactions
-}
-
-export interface CreateBattleRoomParams {
-  program: UndeadProgram
-  playerPublicKey: PublicKey
-  warriorPda: PublicKey
-  battleRoomPda: PublicKey
-  roomId: Uint8Array // [u8; 32]
-  warriorName: string
-  selectedConcepts: number[]
-  selectedTopics: number[]
-  selectedQuestions: number[]
-  correctAnswers: boolean[]
-}
-
-let isCreatingBattleRoom = false
-
 export const createBattleRoom = async ({
   program,
   playerPublicKey,
@@ -500,6 +794,7 @@ export const createBattleRoom = async ({
   selectedTopics,
   selectedQuestions,
   correctAnswers,
+  sessionInfo,
 }: CreateBattleRoomParams): Promise<BattleRoomResult> => {
   if (!program || !playerPublicKey) {
     return { success: false, error: 'Program or player public key required' }
@@ -519,11 +814,6 @@ export const createBattleRoom = async ({
   isCreatingBattleRoom = true
 
   try {
-    // console.log(
-    //   "🏛️ Preparing to create battle room with ID:",
-    //   Array.from(roomId)
-    // );
-
     // Check if battleRoomPda already exists
     try {
       const accountInfo = await program.provider.connection.getAccountInfo(battleRoomPda)
@@ -537,6 +827,10 @@ export const createBattleRoom = async ({
       // console.log("Battle room PDA check: No existing account found");
     }
 
+    const hasActiveSession = !!sessionInfo
+
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : playerPublicKey
+
     // Check player balance
     const playerBalance = await program.provider.connection.getBalance(playerPublicKey)
     const minimumBalance = 0.002 * LAMPORTS_PER_SOL // Estimate for fees + rent
@@ -549,6 +843,8 @@ export const createBattleRoom = async ({
       }
     }
 
+    // console.log("sessioninfo:", sessionInfo);
+
     // Create transaction
     const transaction = await program.methods
       .createBattleRoom(
@@ -560,49 +856,69 @@ export const createBattleRoom = async ({
         correctAnswers,
       )
       .accountsPartial({
+        signer: payerPublicKey,
         playerA: playerPublicKey,
         warriorA: warriorPda,
         battleRoom: battleRoomPda,
+        sessionToken: hasActiveSession ? sessionInfo.sessionToken : null,
         systemProgram: SystemProgram.programId,
       })
       .transaction()
 
-    // Fetch fresh blockhash
+    // Fetch fresh blockhash before hashing
     const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash('confirmed')
     transaction.recentBlockhash = blockhash
-    transaction.feePayer = playerPublicKey
+    transaction.feePayer = payerPublicKey
 
-    // Simulate transaction
-    const simulation = await program.provider.connection.simulateTransaction(transaction)
-    if (simulation.value.err) {
-      console.error('Transaction simulation failed:', simulation.value.err)
-      console.error('Simulation logs:', simulation.value.logs)
-      return {
-        success: false,
-        error: `Simulation failed: ${simulation.value.err}`,
-      }
-    }
+    const txHash = await hashTxContent(transaction)
+    const operationKey = `createBattleRoom_${playerPublicKey.toString()}_${txHash}`
 
-    // Send and confirm transaction
-    let signature: string | undefined
-    if (program.provider.sendAndConfirm) {
-      signature = await program.provider.sendAndConfirm(transaction, [], {
-        commitment: 'confirmed',
-        preflightCommitment: 'confirmed',
-        skipPreflight: false,
-      })
-    } else if (program.provider.wallet) {
-      // Fallback: Manually sign and send
-      const signedTx = await program.provider.wallet.signTransaction(transaction)
-      const serializedTx = signedTx.serialize()
-      signature = await program.provider.connection.sendRawTransaction(serializedTx, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      })
-      await program.provider.connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
-    }
+    let signature: string | undefined = await executeWithDeduplication(
+      async () => {
+        // Re-fetch blockhash to ensure freshness
+        const { blockhash: newBlockhash, lastValidBlockHeight: newHeight } =
+          await program.provider.connection.getLatestBlockhash('confirmed')
+        transaction.recentBlockhash = newBlockhash
 
-    // console.log(`✅ Battle Room created: ${signature}`);
+        // Check signature status before sending
+        if (transaction.signature) {
+          const sig = bs58.encode(transaction.signature)
+          const status = await program.provider.connection.getSignatureStatus(sig)
+          if (status.value?.confirmationStatus === 'confirmed' || status.value?.confirmationStatus === 'finalized') {
+            // console.log("Transaction already processed:", sig);
+            return sig
+          }
+        }
+
+        let sig: string | undefined
+        if (program.provider.sendAndConfirm) {
+          sig = await program.provider.sendAndConfirm(transaction, [], {
+            commitment: 'confirmed',
+            preflightCommitment: 'confirmed',
+            skipPreflight: true,
+          })
+        } else if (program.provider.wallet) {
+          const signedTx = await program.provider.wallet.signTransaction(transaction)
+          const serializedTx = signedTx.serialize()
+          sig = await program.provider.connection.sendRawTransaction(serializedTx, {
+            skipPreflight: true,
+            preflightCommitment: 'confirmed',
+          })
+          await program.provider.connection.confirmTransaction(
+            {
+              signature: sig,
+              blockhash: newBlockhash,
+              lastValidBlockHeight: newHeight,
+            },
+            'confirmed',
+          )
+        }
+        return sig
+      },
+      operationKey,
+      60000,
+      true,
+    )
 
     return { success: true, signature }
   } catch (error: any) {
@@ -622,7 +938,14 @@ export const createBattleRoom = async ({
     } else if (error.message.includes('User rejected')) {
       errorMessage = 'Transaction cancelled by user'
     } else if (error.message.includes('already processed')) {
-      errorMessage = 'Transaction already processed - please try again'
+      try {
+        const accountInfo = await program.provider.connection.getAccountInfo(battleRoomPda)
+        if (accountInfo) {
+          return { success: true }
+        }
+      } catch (fetchError) {
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
     }
 
     return { success: false, error: errorMessage }
@@ -631,17 +954,6 @@ export const createBattleRoom = async ({
   }
 }
 
-export interface JoinBattleRoomParams {
-  program: UndeadProgram
-  playerPublicKey: PublicKey
-  warriorPda: PublicKey
-  battleRoomPda: PublicKey
-  roomId: Uint8Array
-  warriorName: string
-}
-
-let isJoiningBattleRoom = false
-
 export const joinBattleRoom = async ({
   program,
   playerPublicKey,
@@ -649,6 +961,7 @@ export const joinBattleRoom = async ({
   battleRoomPda,
   roomId,
   warriorName,
+  sessionInfo,
 }: JoinBattleRoomParams): Promise<BattleRoomResult> => {
   if (!program || !playerPublicKey) {
     return { success: false, error: 'Program or player public key required' }
@@ -670,6 +983,10 @@ export const joinBattleRoom = async ({
 
     // Check player balance
     const playerBalance = await program.provider.connection.getBalance(playerPublicKey)
+
+    const hasActiveSession = !!sessionInfo
+
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : playerPublicKey
     const minimumBalance = 0.001 * LAMPORTS_PER_SOL // Lower estimate since no account creation
     if (playerBalance < minimumBalance) {
       return {
@@ -686,48 +1003,69 @@ export const joinBattleRoom = async ({
     const transaction = await program.methods
       .joinBattleRoom(roomIdArray, warriorName)
       .accountsPartial({
+        signer: payerPublicKey,
         playerB: playerPublicKey,
         warriorB: warriorPda,
         battleRoom: battleRoomPda,
+        sessionToken: hasActiveSession ? sessionInfo.sessionToken : null,
       })
       .transaction()
 
-    // Fetch fresh blockhash
+    // Fetch fresh blockhash before hashing
     const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash('confirmed')
     transaction.recentBlockhash = blockhash
-    transaction.feePayer = playerPublicKey
+    transaction.feePayer = payerPublicKey
 
-    // Simulate transaction
-    const simulation = await program.provider.connection.simulateTransaction(transaction)
-    if (simulation.value.err) {
-      console.error('Transaction simulation failed:', simulation.value.err)
-      console.error('Simulation logs:', simulation.value.logs)
-      return {
-        success: false,
-        error: `Simulation failed: ${simulation.value.err}`,
-      }
-    }
+    const txHash = await hashTxContent(transaction)
+    const operationKey = `joinBattleRoom_${playerPublicKey.toString()}_${txHash}`
 
-    // Send and confirm transaction
-    let signature: string | undefined
-    if (program.provider.sendAndConfirm) {
-      signature = await program.provider.sendAndConfirm(transaction, [], {
-        commitment: 'confirmed',
-        preflightCommitment: 'confirmed',
-        skipPreflight: false,
-      })
-    } else if (program.provider.wallet) {
-      // Fallback: Manually sign and send
-      const signedTx = await program.provider.wallet.signTransaction(transaction)
-      const serializedTx = signedTx.serialize()
-      signature = await program.provider.connection.sendRawTransaction(serializedTx, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      })
-      await program.provider.connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
-    }
+    let signature: string | undefined = await executeWithDeduplication(
+      async () => {
+        // Re-fetch blockhash to ensure freshness
+        const { blockhash: newBlockhash, lastValidBlockHeight: newHeight } =
+          await program.provider.connection.getLatestBlockhash('confirmed')
+        transaction.recentBlockhash = newBlockhash
 
-    // console.log("✅ Player B joined battle room: ", signature);
+        // Check signature status before sending
+        if (transaction.signature) {
+          const sig = bs58.encode(transaction.signature)
+          const status = await program.provider.connection.getSignatureStatus(sig)
+          if (status.value?.confirmationStatus === 'confirmed' || status.value?.confirmationStatus === 'finalized') {
+            // console.log("Transaction already processed:", sig);
+            return sig
+          }
+        }
+
+        let sig: string | undefined
+        if (program.provider.sendAndConfirm) {
+          sig = await program.provider.sendAndConfirm(transaction, [], {
+            commitment: 'confirmed',
+            preflightCommitment: 'confirmed',
+            skipPreflight: true,
+          })
+        } else if (program.provider.wallet) {
+          const signedTx = await program.provider.wallet.signTransaction(transaction)
+          const serializedTx = signedTx.serialize()
+          sig = await program.provider.connection.sendRawTransaction(serializedTx, {
+            skipPreflight: true,
+            preflightCommitment: 'confirmed',
+          })
+          await program.provider.connection.confirmTransaction(
+            {
+              signature: sig,
+              blockhash: newBlockhash,
+              lastValidBlockHeight: newHeight,
+            },
+            'confirmed',
+          )
+        }
+        return sig
+      },
+      operationKey,
+      60000,
+      true,
+    )
+
     return { success: true, signature }
   } catch (error: any) {
     if (error instanceof SendTransactionError) {
@@ -746,7 +1084,14 @@ export const joinBattleRoom = async ({
     } else if (error.message.includes('User rejected')) {
       errorMessage = 'Transaction cancelled by user'
     } else if (error.message.includes('already processed')) {
-      errorMessage = 'Transaction already processed - please try again'
+      try {
+        const battleRoom = await program.account.battleRoom.fetch(battleRoomPda)
+        if (battleRoom.playerB && battleRoom.playerB.equals(playerPublicKey)) {
+          return { success: true }
+        }
+      } catch (fetchError) {
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
     }
 
     return { success: false, error: errorMessage }
@@ -764,10 +1109,13 @@ export interface SignalReadyParams {
   warriorBPda: PublicKey
   roomId: Uint8Array
   warriorName: string
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
 }
-
-let isSignalingReady = false
-
 export const signalReady = async ({
   program,
   playerPublicKey,
@@ -777,6 +1125,7 @@ export const signalReady = async ({
   warriorBPda,
   roomId,
   warriorName,
+  sessionInfo,
 }: SignalReadyParams): Promise<BattleRoomResult> => {
   if (!program || !playerPublicKey) {
     return { success: false, error: 'Program or player public key required' }
@@ -796,68 +1145,114 @@ export const signalReady = async ({
       return { success: false, error: 'Battle room does not exist' }
     }
 
-    // Check player balance
-    const playerBalance = await program.provider.connection.getBalance(playerPublicKey)
-    const minimumBalance = 0.001 * LAMPORTS_PER_SOL // Lower estimate since no account creation
+    // Determine payer and session usage
+    const hasActiveSession = !!sessionInfo
+    const payerPublicKey = hasActiveSession ? sessionInfo!.sessionSigner.publicKey : playerPublicKey
+
+    // console.log("SESSION_INFO:", sessionInfo);
+    // console.log("PAYER_PUBLIC_KEY:", payerPublicKey.toString());
+    // console.log("HAS_ACTIVE_SESSION:", hasActiveSession);
+
+    // Check payer balance
+    const playerBalance = await program.provider.connection.getBalance(payerPublicKey)
+    const minimumBalance = 0.001 * LAMPORTS_PER_SOL
     if (playerBalance < minimumBalance) {
       return {
         success: false,
-        error: `Insufficient funds in player wallet (${
+        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
           playerBalance / LAMPORTS_PER_SOL
         } SOL). Need ~0.001 SOL for transaction.`,
       }
     }
 
     const roomIdArray = Array.from(roomId)
+    // console.log("SignalReady Transaction Accounts:", {
+    //   signer: payerPublicKey.toString(),
+    //   player: playerPublicKey.toString(),
+    //   warrior: warriorPda.toString(),
+    //   battleRoom: battleRoomPda.toString(),
+    //   warriorA: warriorAPda.toString(),
+    //   warriorB: warriorBPda.toString(),
+    //   sessionToken: hasActiveSession
+    //     ? sessionInfo!.sessionToken.toString()
+    //     : "null",
+    // });
 
     // Create transaction
     const transaction = await program.methods
       .signalReady(roomIdArray, warriorName)
       .accountsPartial({
+        signer: payerPublicKey,
         player: playerPublicKey,
         warrior: warriorPda,
         battleRoom: battleRoomPda,
         warriorA: warriorAPda,
         warriorB: warriorBPda,
+        sessionToken: hasActiveSession ? sessionInfo!.sessionToken : null,
       })
       .transaction()
 
-    // Fetch fresh blockhash
+    // Fetch fresh blockhash before hashing
     const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash('confirmed')
     transaction.recentBlockhash = blockhash
-    transaction.feePayer = playerPublicKey
+    transaction.feePayer = payerPublicKey
 
-    // Simulate transaction
-    const simulation = await program.provider.connection.simulateTransaction(transaction)
-    if (simulation.value.err) {
-      console.error('Transaction simulation failed:', simulation.value.err)
-      console.error('Simulation logs:', simulation.value.logs)
-      return {
-        success: false,
-        error: `Simulation failed: ${simulation.value.err}`,
-      }
-    }
+    const txHash = await hashTxContent(transaction)
+    const operationKey = `signalReady_${payerPublicKey.toString()}_${txHash}`
 
-    // Send and confirm transaction
-    let signature: string | undefined
-    if (program.provider.sendAndConfirm) {
-      signature = await program.provider.sendAndConfirm(transaction, [], {
-        commitment: 'confirmed',
-        preflightCommitment: 'confirmed',
-        skipPreflight: false,
-      })
-    } else if (program.provider.wallet) {
-      // Fallback: Manually sign and send
-      const signedTx = await program.provider.wallet.signTransaction(transaction)
-      const serializedTx = signedTx.serialize()
-      signature = await program.provider.connection.sendRawTransaction(serializedTx, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      })
-      await program.provider.connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
-    }
+    let signature: string | undefined = await executeWithDeduplication(
+      async () => {
+        // Re-fetch blockhash to ensure freshness
+        const { blockhash: newBlockhash, lastValidBlockHeight: newHeight } =
+          await program.provider.connection.getLatestBlockhash('confirmed')
+        transaction.recentBlockhash = newBlockhash
 
-    // console.log("✅ Player signaled ready: ", signature);
+        // Check signature status before sending
+        if (transaction.signature) {
+          const sig = bs58.encode(transaction.signature)
+          const status = await program.provider.connection.getSignatureStatus(sig)
+          if (status.value?.confirmationStatus === 'confirmed' || status.value?.confirmationStatus === 'finalized') {
+            // console.log("Transaction already processed:", sig);
+            return sig
+          }
+        }
+
+        let sig: string | undefined
+        if (program.provider.sendAndConfirm) {
+          // console.log(
+          //   `Attempting ${
+          //     hasActiveSession ? "session-based" : "direct wallet"
+          //   } signing with:`,
+          //   payerPublicKey.toString()
+          // );
+          sig = await program.provider.sendAndConfirm(transaction, [], {
+            commitment: 'confirmed',
+            preflightCommitment: 'confirmed',
+            skipPreflight: true,
+          })
+        } else if (program.provider.wallet) {
+          const signedTx = await program.provider.wallet.signTransaction(transaction)
+          const serializedTx = signedTx.serialize()
+          sig = await program.provider.connection.sendRawTransaction(serializedTx, {
+            skipPreflight: true,
+            preflightCommitment: 'confirmed',
+          })
+          await program.provider.connection.confirmTransaction(
+            {
+              signature: sig,
+              blockhash: newBlockhash,
+              lastValidBlockHeight: newHeight,
+            },
+            'confirmed',
+          )
+        }
+        return sig
+      },
+      operationKey,
+      60000,
+      true,
+    )
+
     return { success: true, signature }
   } catch (error: any) {
     if (error instanceof SendTransactionError) {
@@ -867,7 +1262,9 @@ export const signalReady = async ({
     console.error('Error signaling ready:', error)
 
     let errorMessage = error.message || 'Failed to signal ready'
-    if (error.message.includes('insufficient funds')) {
+    if (error.message.includes('unknown signer')) {
+      errorMessage = 'Invalid session signer. Please reconnect wallet or create a new session.'
+    } else if (error.message.includes('insufficient funds')) {
       errorMessage = 'Insufficient SOL balance for transaction'
     } else if (error.message.includes('blockhash not found')) {
       errorMessage = 'Network congestion - please try again'
@@ -876,7 +1273,14 @@ export const signalReady = async ({
     } else if (error.message.includes('User rejected')) {
       errorMessage = 'Transaction cancelled by user'
     } else if (error.message.includes('already processed')) {
-      errorMessage = 'Transaction already processed - please try again'
+      try {
+        const battleRoom = await program.account.battleRoom.fetch(battleRoomPda)
+        if (battleRoom.playerAReady || battleRoom.playerBReady) {
+          return { success: true }
+        }
+      } catch (fetchError) {
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
     }
 
     return { success: false, error: errorMessage }
@@ -898,9 +1302,210 @@ export interface DelegateBattleParams {
   warriorAName: string
   playerBPublicKey: PublicKey
   warriorBName: string
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
 }
 
-let isDelegatingBattle = false
+// trying  magic router
+// export const delegateBattle = async ({
+//   program,
+//   signerPublicKey,
+//   battleRoomPda,
+//   warriorAPda,
+//   warriorBPda,
+//   roomId,
+//   playerAPublicKey,
+//   warriorAName,
+//   playerBPublicKey,
+//   warriorBName,
+//   sessionInfo,
+//   sessionWallet,
+// }: DelegateBattleParams): Promise<BattleRoomResult> => {
+//   if (!program || !signerPublicKey) {
+//     return { success: false, error: "Program or signer public key required" };
+//   }
+
+//   if (isDelegatingBattle) {
+//     return { success: false, error: "Battle delegation already in progress" };
+//   }
+
+//   isDelegatingBattle = true;
+
+//   // Use Magic Router connection
+//   const connection = new Connection(
+//     "https://devnet-router.magicblock.app",
+//     "confirmed"
+//   );
+
+//   try {
+//     // Verify battle room exists
+//     try {
+//       await program.account.battleRoom.fetch(battleRoomPda);
+//     } catch (fetchError) {
+//       return { success: false, error: "Battle room does not exist" };
+//     }
+
+//     // Determine signing approach based on session availability
+//     // const hasActiveSession = !!sessionInfo?.sessionSigner?.publicKey;
+//     // const payerPublicKey = hasActiveSession
+//     //   ? sessionInfo.sessionSigner.publicKey
+//     //   : signerPublicKey;
+
+//     const hasActiveSession = !!sessionWallet?.publicKey;
+//     const payerPublicKey = hasActiveSession
+//       ? sessionWallet.publicKey
+//       : signerPublicKey;
+
+//     console.log("SESSION_INFO", sessionInfo);
+//     console.log("PAYER_PUBLIC_KEY", payerPublicKey?.toString());
+//     console.log("HAS_ACTIVE_SESSION", hasActiveSession);
+
+//     const roomIdArray = Array.from(roomId);
+
+//     console.log("🔍 delegateBattle accounts:", {
+//       signer: payerPublicKey?.toString(),
+//       battleRoom: battleRoomPda.toString(),
+//       warriorA: warriorAPda.toString(),
+//       warriorB: warriorBPda.toString(),
+//     });
+//     if (!payerPublicKey) {
+//       return { success: false, error: "payer does not exist" };
+//     }
+//     console.log("stuff passed:", {
+//       signer: payerPublicKey,
+//       battleRoom: battleRoomPda,
+//       warriorA: warriorAPda,
+//       warriorB: warriorBPda,
+//       sessionToken: null, //for some reason, not passing the check sneaked in a new session key and now it is going to return invalid session token if we pass a session token here. instead we need to fix it on program level
+//     });
+
+//     // Build transaction
+//     const transaction = await program.methods
+//       .delegateBattle(
+//         roomIdArray,
+//         playerAPublicKey,
+//         warriorAName,
+//         playerBPublicKey,
+//         warriorBName
+//       )
+//       .accountsPartial({
+//         signer: payerPublicKey,
+//         battleRoom: battleRoomPda,
+//         warriorA: warriorAPda,
+//         warriorB: warriorBPda,
+//         sessionToken: hasActiveSession ? sessionWallet.sessionToken : null,
+//       })
+//       .transaction();
+
+//     let signature: string;
+
+//     if (hasActiveSession && sessionWallet) {
+//       // Use session wallet's signing with Magic Router preparation
+//       console.log("Using session-based signing with Magic Router");
+
+//       const preparedTransaction = await prepareMagicTransaction(
+//         connection,
+//         transaction
+//       );
+
+//       // Use session wallet's signAndSendTransaction method
+//       if (sessionWallet.signAndSendTransaction) {
+//         const signatures = await sessionWallet.signAndSendTransaction(
+//           preparedTransaction,
+//           connection
+//         );
+//         console.log("trxxx0", signatures);
+//         signature = signatures[0];
+//         console.log("trxxx1", signature);
+//       } else if (sessionWallet.sendTransaction) {
+//         signature = await sessionWallet.sendTransaction(
+//           preparedTransaction,
+//           connection
+//         );
+//         console.log("trxxx0", signature);
+//       } else {
+//         throw new Error("Session wallet does not support transaction sending");
+//       }
+//     } else {
+//       // Use Magic Router's prepareMagicTransaction for browser wallets
+//       console.log("Using browser wallet signing with Magic Router");
+
+//       const preparedTransaction = await prepareMagicTransaction(
+//         connection,
+//         transaction
+//       );
+//       if (program.provider.wallet) {
+//         const signedTx = await program.provider.wallet.signTransaction(
+//           preparedTransaction
+//         );
+//         const serializedTx = signedTx.serialize();
+
+//         signature = await connection.sendRawTransaction(serializedTx, {
+//           skipPreflight: true,
+//           preflightCommitment: "confirmed",
+//         });
+
+//         console.log("trxxx0", signature);
+
+//         // Confirm transaction
+//         const { blockhash, lastValidBlockHeight } =
+//           await connection.getLatestBlockhash("confirmed");
+//         await connection.confirmTransaction(
+//           {
+//             signature,
+//             blockhash,
+//             lastValidBlockHeight,
+//           },
+//           "confirmed"
+//         );
+
+//         console.log("trxxx0", signature);
+//       } else {
+//         throw new Error("No wallet provider available");
+//       }
+//     }
+
+//     // Wait for delegation to complete
+//     await new Promise((resolve) => setTimeout(resolve, 5000));
+
+//     return { success: true, signature };
+//   } catch (error: any) {
+//     console.error("Error delegating battle:", error);
+
+//     let errorMessage = error.message || "Failed to delegate battle";
+//     if (error.message.includes("unknown signer")) {
+//       errorMessage =
+//         "Session authentication failed. Please try again or connect your wallet directly.";
+//     } else if (error.message.includes("insufficient funds")) {
+//       errorMessage = "Insufficient SOL balance for transaction or rent";
+//     } else if (error.message.includes("blockhash not found")) {
+//       errorMessage = "Network congestion - please try again";
+//     } else if (error.message.includes("already in use")) {
+//       errorMessage = "Battle already delegated";
+//     } else if (error.message.includes("User rejected")) {
+//       errorMessage = "Transaction cancelled by user";
+//     } else if (error.message.includes("already processed")) {
+//       try {
+//         const battleRoom = await program.account.battleRoom.fetch(
+//           battleRoomPda
+//         );
+//         if (battleRoom.state === BattleState.InProgress) {
+//           return { success: true };
+//         }
+//       } catch (fetchError) {
+//         errorMessage = "Transaction already processed - please check wallet";
+//       }
+//     }
+
+//     return { success: false, error: errorMessage };
+//   } finally {
+//     isDelegatingBattle = false;
+//   }
+// };
 
 export const delegateBattle = async ({
   program,
@@ -913,6 +1518,7 @@ export const delegateBattle = async ({
   warriorAName,
   playerBPublicKey,
   warriorBName,
+  sessionInfo,
 }: DelegateBattleParams): Promise<BattleRoomResult> => {
   if (!program || !signerPublicKey) {
     return { success: false, error: 'Program or signer public key required' }
@@ -925,8 +1531,6 @@ export const delegateBattle = async ({
   isDelegatingBattle = true
 
   try {
-    // console.log("🚀 Preparing to delegate battle to Ephemeral Rollup...");
-
     // Check if battleRoomPda exists
     try {
       await program.account.battleRoom.fetch(battleRoomPda)
@@ -934,67 +1538,107 @@ export const delegateBattle = async ({
       return { success: false, error: 'Battle room does not exist' }
     }
 
-    // Check signer balance
-    const signerBalance = await program.provider.connection.getBalance(signerPublicKey)
-    const minimumBalance = 0.001 * LAMPORTS_PER_SOL // Lower estimate since no account creation
-    if (signerBalance < minimumBalance) {
+    // Determine payer and session usage
+    const hasActiveSession = !!sessionInfo
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : signerPublicKey
+
+    // console.log("SESSION_INFO", sessionInfo);
+    // console.log("PAYER_PUBLIC_KEY", payerPublicKey.toString());
+    // console.log("HAS_ACTIVE_SESSION", hasActiveSession);
+    // console.log("SIGNER_PUBLIC_KEY", signerPublicKey.toString());
+
+    // Check payer balance
+    const payerBalance = await program.provider.connection.getBalance(payerPublicKey)
+    const minimumBalance = 0.001 * LAMPORTS_PER_SOL
+    if (payerBalance < minimumBalance) {
       return {
         success: false,
-        error: `Insufficient funds in signer wallet (${
-          signerBalance / LAMPORTS_PER_SOL
+        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'signer'} wallet (${
+          payerBalance / LAMPORTS_PER_SOL
         } SOL). Need ~0.001 SOL for transaction.`,
       }
     }
 
     const roomIdArray = Array.from(roomId)
 
-    // Create transaction
+    // console.log("🔍 delegateBattle accounts:", {
+    //   signer: payerPublicKey.toString(),
+    //   battleRoom: battleRoomPda.toString(),
+    //   warriorA: warriorAPda.toString(),
+    //   warriorB: warriorBPda.toString(),
+    //   sessionToken: hasActiveSession ? sessionInfo.sessionToken : null,
+    // });
+
+    // Create transaction with session-aware accounts
     const transaction = await program.methods
       .delegateBattle(roomIdArray, playerAPublicKey, warriorAName, playerBPublicKey, warriorBName)
       .accountsPartial({
-        signer: signerPublicKey,
+        signer: payerPublicKey,
         battleRoom: battleRoomPda,
         warriorA: warriorAPda,
         warriorB: warriorBPda,
+        sessionToken: null,
       })
       .transaction()
 
-    // Fetch fresh blockhash
+    // Fetch fresh blockhash before hashing
     const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash('confirmed')
     transaction.recentBlockhash = blockhash
-    transaction.feePayer = signerPublicKey
+    transaction.feePayer = payerPublicKey
 
-    // Simulate transaction
-    const simulation = await program.provider.connection.simulateTransaction(transaction)
-    if (simulation.value.err) {
-      console.error('Transaction simulation failed:', simulation.value.err)
-      console.error('Simulation logs:', simulation.value.logs)
-      return {
-        success: false,
-        error: `Simulation failed: ${simulation.value.err}`,
-      }
-    }
+    transaction.add(
+      ComputeBudgetProgram.setComputeUnitLimit({
+        units: 600000, // Set to 600,000 CUs
+      }),
+    )
 
-    // Send and confirm transaction
-    let signature: string | undefined
-    if (program.provider.sendAndConfirm) {
-      signature = await program.provider.sendAndConfirm(transaction, [], {
-        commitment: 'confirmed',
-        preflightCommitment: 'confirmed',
-        skipPreflight: false,
-      })
-    } else if (program.provider.wallet) {
-      // Fallback: Manually sign and send
-      const signedTx = await program.provider.wallet.signTransaction(transaction)
-      const serializedTx = signedTx.serialize()
-      signature = await program.provider.connection.sendRawTransaction(serializedTx, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      })
-      await program.provider.connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
-    }
+    const txHash = await hashTxContent(transaction)
+    const operationKey = `delegateBattle_${payerPublicKey.toString()}_${txHash}`
 
-    // console.log("✅ Battle Room delegation tx:", signature);
+    let signature: string | undefined = await executeWithDeduplication(
+      async () => {
+        // Re-fetch blockhash to ensure freshness
+        const { blockhash: newBlockhash, lastValidBlockHeight: newHeight } =
+          await program.provider.connection.getLatestBlockhash('confirmed')
+        transaction.recentBlockhash = newBlockhash
+
+        let sig: string | undefined
+
+        // Let the wallet adapter handle signing (session or regular)
+        if (program.provider.sendAndConfirm) {
+          // console.log(
+          //   `Attempting ${
+          //     hasActiveSession ? "session-based" : "direct wallet"
+          //   } signing with:`,
+          //   payerPublicKey.toString()
+          // );
+          sig = await program.provider.sendAndConfirm(transaction, [], {
+            commitment: 'confirmed',
+            preflightCommitment: 'confirmed',
+            skipPreflight: true,
+          })
+        } else if (program.provider.wallet) {
+          const signedTx = await program.provider.wallet.signTransaction(transaction)
+          const serializedTx = signedTx.serialize()
+          sig = await program.provider.connection.sendRawTransaction(serializedTx, {
+            skipPreflight: true,
+            preflightCommitment: 'confirmed',
+          })
+          await program.provider.connection.confirmTransaction(
+            {
+              signature: sig,
+              blockhash: newBlockhash,
+              lastValidBlockHeight: newHeight,
+            },
+            'confirmed',
+          )
+        }
+        return sig
+      },
+      operationKey,
+      60000,
+      true,
+    )
 
     // Wait for delegation to complete
     await new Promise((resolve) => setTimeout(resolve, 5000))
@@ -1008,8 +1652,10 @@ export const delegateBattle = async ({
     console.error('Error delegating battle:', error)
 
     let errorMessage = error.message || 'Failed to delegate battle'
-    if (error.message.includes('insufficient funds')) {
-      errorMessage = 'Insufficient SOL balance for transaction'
+    if (error.message.includes('unknown signer')) {
+      errorMessage = 'Session authentication failed. Please try again or connect your wallet directly.'
+    } else if (error.message.includes('insufficient funds')) {
+      errorMessage = 'Insufficient SOL balance for transaction or rent'
     } else if (error.message.includes('blockhash not found')) {
       errorMessage = 'Network congestion - please try again'
     } else if (error.message.includes('already in use')) {
@@ -1017,7 +1663,14 @@ export const delegateBattle = async ({
     } else if (error.message.includes('User rejected')) {
       errorMessage = 'Transaction cancelled by user'
     } else if (error.message.includes('already processed')) {
-      errorMessage = 'Transaction already processed - please try again'
+      try {
+        const battleRoom = await program.account.battleRoom.fetch(battleRoomPda)
+        if (battleRoom.state === BattleState.InProgress) {
+          return { success: true }
+        }
+      } catch (fetchError) {
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
     }
 
     return { success: false, error: errorMessage }
@@ -1026,7 +1679,8 @@ export const delegateBattle = async ({
   }
 }
 
-//  Battle on ER - now accepts provider as parameter
+//  Battle on ER
+
 export interface StartBattleParams {
   ephemeralProgram: UndeadProgram
   signerPublicKey: PublicKey
@@ -1034,8 +1688,198 @@ export interface StartBattleParams {
   warriorAPda: PublicKey
   warriorBPda: PublicKey
   roomId: Uint8Array
-  magicBlockProvider: any // Added provider parameter
+  magicBlockProvider: any
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
 }
+
+let isStartingBattle = false
+
+// export const startBattleOnER = async ({
+//   ephemeralProgram,
+//   signerPublicKey,
+//   battleRoomPda,
+//   warriorAPda,
+//   warriorBPda,
+//   roomId,
+//   magicBlockProvider,
+//   sessionInfo,
+//   sessionWallet,
+// }: StartBattleParams): Promise<BattleRoomResult> => {
+//   if (!ephemeralProgram || !signerPublicKey) {
+//     console.error("❌ Missing ephemeralProgram or signerPublicKey");
+//     return { success: false, error: "Program or signer public key required" };
+//   }
+
+//   if (isStartingBattle) {
+//     return { success: false, error: "Battle start already in progress" };
+//   }
+
+//   isStartingBattle = true;
+
+//   // Use Magic Router connection for ER transactions
+//   const connection = new Connection(
+//     "https://devnet-router.magicblock.app",
+//     "confirmed"
+//   );
+
+//   try {
+//     const hasActiveSession = !!sessionInfo?.sessionSigner?.publicKey;
+//     const payerPublicKey = hasActiveSession
+//       ? sessionInfo.sessionSigner?.publicKey
+//       : signerPublicKey;
+
+//     const roomIdArray = Array.from(roomId);
+
+//     console.log("🔍 Transaction accounts:", {
+//       signer: payerPublicKey?.toString(),
+//       battleRoom: battleRoomPda.toString(),
+//       warriorA: warriorAPda.toString(),
+//       warriorB: warriorBPda.toString(),
+//       sessionToken: hasActiveSession ? sessionInfo.sessionToken : null,
+//     });
+
+//     // Create transaction
+//     console.log("📝 Creating startBattle transaction...");
+//     const transaction = await ephemeralProgram.methods
+//       .startBattle(roomIdArray)
+//       .accountsPartial({
+//         signer: payerPublicKey!,
+//         battleRoom: battleRoomPda,
+//         warriorA: warriorAPda,
+//         warriorB: warriorBPda,
+//         sessionToken: hasActiveSession ? sessionInfo.sessionToken : null,
+//       })
+//       .transaction();
+
+//     console.log("📝 Transaction created successfully");
+
+//     let signature: string;
+
+//     if (hasActiveSession && sessionWallet) {
+//       // Use session wallet's signing with Magic Router preparation
+//       console.log("✍️ Using session-based signing with Magic Router");
+
+//       const preparedTransaction = await prepareMagicTransaction(
+//         connection,
+//         transaction
+//       );
+
+//       // Use session wallet's signAndSendTransaction method
+//       if (sessionWallet.signAndSendTransaction) {
+//         const signatures = await sessionWallet.signAndSendTransaction(
+//           preparedTransaction,
+//           connection
+//         );
+//         console.log("trxxx0", signatures);
+//         signature = signatures[0];
+//         console.log("trxxx1", signature);
+//       } else if (sessionWallet.sendTransaction) {
+//         signature = await sessionWallet.sendTransaction(
+//           preparedTransaction,
+//           connection
+//         );
+//         console.log("trxxx2", signature);
+//       } else {
+//         throw new Error("Session wallet does not support transaction sending");
+//       }
+//     } else {
+//       // Use Magic Router's prepareMagicTransaction for browser wallets
+//       console.log("✍️ Using browser wallet signing with Magic Router");
+
+//       const preparedTransaction = await prepareMagicTransaction(
+//         connection,
+//         transaction
+//       );
+
+//       if (magicBlockProvider?.wallet?.signTransaction) {
+//         const signedTx = await magicBlockProvider.wallet.signTransaction(
+//           preparedTransaction
+//         );
+//         const serializedTx = signedTx.serialize();
+
+//         signature = await connection.sendRawTransaction(serializedTx, {
+//           skipPreflight: true,
+//           preflightCommitment: "confirmed",
+//         });
+
+//         // Confirm transaction
+//         const { blockhash, lastValidBlockHeight } =
+//           await connection.getLatestBlockhash("confirmed");
+//         await connection.confirmTransaction(
+//           {
+//             signature,
+//             blockhash,
+//             lastValidBlockHeight,
+//           },
+//           "confirmed"
+//         );
+//         console.log("trxxx-last", signature);
+//       } else {
+//         throw new Error("No wallet provider available");
+//       }
+//     }
+
+//     console.log("✅ Transaction execution completed, signature:", signature);
+
+//     // Wait for transaction to settle
+//     console.log("⏳ Waiting 5 seconds for transaction to settle...");
+//     await new Promise((resolve) => setTimeout(resolve, 5000));
+
+//     console.log("🎉 startBattleOnER completed successfully");
+//     return {
+//       success: true,
+//       signature,
+//       commitmentSignature: signature,
+//     };
+//   } catch (error: any) {
+//     console.error("❌ startBattleOnER failed with error:");
+//     console.error("Error type:", error.constructor.name);
+//     console.error("Error message:", error.message);
+//     console.error("Error stack:", error.stack);
+
+//     let errorMessage = error.message || "Failed to start battle on ER";
+//     if (error.message.includes("unknown signer")) {
+//       errorMessage =
+//         "Session authentication failed. Please try again or connect your wallet directly.";
+//     } else if (error.message.includes("insufficient funds")) {
+//       errorMessage = "Insufficient SOL balance for transaction or rent";
+//     } else if (error.message.includes("blockhash not found")) {
+//       errorMessage = "Network congestion - please try again";
+//     } else if (error.message.includes("already in use")) {
+//       errorMessage = "Battle already started";
+//     } else if (error.message.includes("User rejected")) {
+//       errorMessage = "Transaction cancelled by user";
+//     } else if (error.message.includes("already processed")) {
+//       try {
+//         const battleRoom = await ephemeralProgram.account.battleRoom.fetch(
+//           battleRoomPda
+//         );
+//         if (battleRoom.state === BattleState.InProgress) {
+//           console.log(
+//             "✅ Battle was already started (recovered from 'already processed' error)"
+//           );
+//           return { success: true };
+//         }
+//       } catch (fetchError) {
+//         console.error(
+//           "❌ Failed to fetch battle room after 'already processed' error:",
+//           fetchError
+//         );
+//         errorMessage = "Transaction already processed - please check wallet";
+//       }
+//     }
+
+//     return { success: false, error: errorMessage };
+//   } finally {
+//     console.log("🔄 Setting isStartingBattle to false");
+//     isStartingBattle = false;
+//   }
+// };
 
 export const startBattleOnER = async ({
   ephemeralProgram,
@@ -1045,50 +1889,178 @@ export const startBattleOnER = async ({
   warriorBPda,
   roomId,
   magicBlockProvider,
+  sessionInfo,
 }: StartBattleParams): Promise<BattleRoomResult> => {
   if (!ephemeralProgram || !signerPublicKey) {
+    console.error('❌ Missing ephemeralProgram or signerPublicKey')
     return { success: false, error: 'Program or signer public key required' }
   }
 
   if (!magicBlockProvider) {
+    console.error('❌ Missing magicBlockProvider')
     return { success: false, error: 'Magic Block provider required' }
   }
 
+  isStartingBattle = true
+
   try {
-    // console.log("⚔️ Starting battle on Ephemeral Rollup...");
+    const hasActiveSession = !!sessionInfo
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : signerPublicKey
 
     const roomIdArray = Array.from(roomId)
 
-    const commitmentSignature = await sendERTransaction(
-      ephemeralProgram,
-      ephemeralProgram.methods.startBattle(roomIdArray).accountsPartial({
-        signer: signerPublicKey,
+    console.log('🔍 Transaction accounts:', {
+      signer: payerPublicKey.toString(),
+      battleRoom: battleRoomPda.toString(),
+      warriorA: warriorAPda.toString(),
+      warriorB: warriorBPda.toString(),
+      sessionToken: null,
+    })
+
+    // Create transaction
+    // console.log("📝 Creating startBattle transaction...");
+
+    const transaction = await ephemeralProgram.methods
+      .startBattle(roomIdArray)
+      .accountsPartial({
+        signer: payerPublicKey,
         battleRoom: battleRoomPda,
         warriorA: warriorAPda,
         warriorB: warriorBPda,
-      }),
-      signerPublicKey,
-      magicBlockProvider,
-      'Start Battle',
+        sessionToken: null,
+      })
+      .transaction()
+
+    console.log('📝 Transaction created successfully')
+
+    // Fetch fresh blockhash
+    // console.log("🔗 Fetching fresh blockhash...");
+    const { blockhash, lastValidBlockHeight } =
+      await ephemeralProgram.provider.connection.getLatestBlockhash('confirmed')
+
+    transaction.recentBlockhash = blockhash
+    transaction.feePayer = payerPublicKey
+
+    // console.log("🔗 Blockhash set:", {
+    //   blockhash,
+    //   lastValidBlockHeight,
+    //   feePayer: payerPublicKey.toString(),
+    // });
+
+    const txHash = await hashTxContent(transaction)
+    const operationKey = `startBattle_${payerPublicKey.toString()}_${txHash}`
+
+    // console.log(
+    //   "🔄 Starting transaction execution with deduplication key:",
+    //   operationKey
+    // );
+
+    let commitmentSignature: string | undefined = await executeWithDeduplication(
+      async () => {
+        // Re-fetch blockhash to ensure freshness
+        const { blockhash: newBlockhash, lastValidBlockHeight: newHeight } =
+          await ephemeralProgram.provider.connection.getLatestBlockhash('confirmed')
+        transaction.recentBlockhash = newBlockhash
+
+        // Sign the transaction using magicBlockProvider
+        // console.log("✍️ Signing transaction with magicBlockProvider...");
+        const signedTx = await magicBlockProvider.wallet.signTransaction(transaction)
+        // console.log("✅ Transaction signed successfully");
+
+        const serializedTx = signedTx.serialize()
+        // console.log("✅ Transaction serialized, size:", serializedTx.length);
+
+        // console.log("📡 Sending raw transaction to Magic Block...");
+        const sig = await ephemeralProgram.provider.connection.sendRawTransaction(serializedTx, {
+          skipPreflight: true,
+          preflightCommitment: 'confirmed',
+        })
+        // console.log("✅ Raw transaction sent, signature:", sig);
+
+        // console.log("⏳ Confirming transaction...");
+        await ephemeralProgram.provider.connection.confirmTransaction(
+          {
+            signature: sig,
+            blockhash: newBlockhash,
+            lastValidBlockHeight: newHeight,
+          },
+          'confirmed',
+        )
+        console.log('✅ Transaction confirmed')
+
+        return sig
+      },
+      operationKey,
+      60000,
+      true,
     )
 
-    // console.log("Battle started successfully on Ephemeral Rollup");
+    // console.log(
+    //   "✅ Transaction execution completed, signature:",
+    //   commitmentSignature
+    // );
 
+    // Wait for transaction to settle
+    // console.log("⏳ Waiting 5 seconds for transaction to settle...");
+    await new Promise((resolve) => setTimeout(resolve, 5000))
+
+    // console.log("🎉 startBattleOnER completed successfully");
     return {
       success: true,
       signature: commitmentSignature,
       commitmentSignature,
     }
   } catch (error: any) {
-    console.error('Error starting battle on ER:', error)
-    return {
-      success: false,
-      error: error.message || 'Failed to start battle on ER',
+    console.error('❌ startBattleOnER failed with error:')
+    console.error('Error type:', error.constructor.name)
+    console.error('Error message:', error.message)
+    console.error('Error stack:', error.stack)
+
+    if (error instanceof SendTransactionError) {
+      console.error('📋 SendTransactionError details:', error.message)
+      try {
+        const logs = await error.getLogs(ephemeralProgram.provider.connection)
+        console.error('📋 Transaction logs:', logs)
+      } catch (logError) {
+        console.error('❌ Failed to get transaction logs:', logError)
+      }
     }
+
+    let errorMessage = error.message || 'Failed to start battle on ER'
+    if (error.message.includes('unknown signer')) {
+      errorMessage = 'Session authentication failed. Please try again or connect your wallet directly.'
+    } else if (error.message.includes('insufficient funds')) {
+      errorMessage = 'Insufficient SOL balance for transaction or rent'
+    } else if (error.message.includes('blockhash not found')) {
+      errorMessage = 'Network congestion - please try again'
+    } else if (error.message.includes('already in use')) {
+      errorMessage = 'Battle already started'
+    } else if (error.message.includes('User rejected')) {
+      errorMessage = 'Transaction cancelled by user'
+    } else if (error.message.includes('already processed')) {
+      try {
+        const battleRoom = await ephemeralProgram.account.battleRoom.fetch(battleRoomPda)
+        if (battleRoom.state === BattleState.InProgress) {
+          // console.log(
+          //   "✅ Battle was already started (recovered from 'already processed' error)"
+          // );
+          return { success: true }
+        }
+      } catch (fetchError) {
+        console.error("❌ Failed to fetch battle room after 'already processed' error:", fetchError)
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
+    }
+
+    return { success: false, error: errorMessage }
+  } finally {
+    // console.log("🔄 Setting isStartingBattle to false");
+    isStartingBattle = false
   }
 }
 
-// Answer Question on ER - now accepts provider as parameter
+// Answer Question on ER - no changes needed
+
 export interface AnswerQuestionERParams {
   ephemeralProgram: UndeadProgram
   playerPublicKey: PublicKey
@@ -1098,9 +2070,36 @@ export interface AnswerQuestionERParams {
   roomId: Uint8Array
   answer: boolean
   clientSeed?: number
-  magicBlockProvider: any // Added provider parameter
+  magicBlockProvider: any
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
 }
 
+// Settle Battle on ER - no changes needed
+export interface SettleBattleERParams {
+  ephemeralProgram: UndeadProgram
+  signerPublicKey: PublicKey
+  battleRoomPda: PublicKey
+  warriorAPda: PublicKey
+  warriorBPda: PublicKey
+  roomId: Uint8Array
+  magicBlockProvider: any
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+}
+
+let isAnsweringQuestion = false
+let isSettlingBattle = false
+
+// Answer Question on ER
 export const answerQuestionOnER = async ({
   ephemeralProgram,
   playerPublicKey,
@@ -1110,7 +2109,8 @@ export const answerQuestionOnER = async ({
   roomId,
   answer,
   clientSeed,
-  magicBlockProvider, // Use parameter instead of top-level variable
+  magicBlockProvider,
+  sessionInfo,
 }: AnswerQuestionERParams): Promise<BattleRoomResult> => {
   if (!ephemeralProgram || !playerPublicKey) {
     return { success: false, error: 'Program or player public key required' }
@@ -1120,24 +2120,110 @@ export const answerQuestionOnER = async ({
     return { success: false, error: 'Magic Block provider required' }
   }
 
+  if (isAnsweringQuestion) {
+    return { success: false, error: 'Answer question already in progress' }
+  }
+
+  isAnsweringQuestion = true
+
   try {
+    // Check if battleRoomPda exists
+    try {
+      await ephemeralProgram.account.battleRoom.fetch(battleRoomPda)
+    } catch (fetchError) {
+      return { success: false, error: 'Battle room does not exist' }
+    }
+
+    // Determine payer and session usage
+    const hasActiveSession = !!sessionInfo
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : playerPublicKey
+
+    // console.log("SESSION_INFO", sessionInfo);
+    // console.log("PAYER_PUBLIC_KEY", payerPublicKey.toString());
+    // console.log("HAS_ACTIVE_SESSION", hasActiveSession);
+    // console.log("PLAYER_PUBLIC_KEY", playerPublicKey.toString());
+
     const roomIdArray = Array.from(roomId)
     const seed = clientSeed ?? Math.floor(Math.random() * 256)
 
-    // console.log(`🎯 Player answering question: ${answer ? "TRUE" : "FALSE"}`);
+    // console.log("🔍 answerQuestionOnER accounts:", {
+    //   signer: payerPublicKey.toString(),
+    //   player: playerPublicKey.toString(),
+    //   battleRoom: battleRoomPda.toString(),
+    //   attackerWarrior: attackerWarriorPda.toString(),
+    //   defenderWarrior: defenderWarriorPda.toString(),
+    //   sessionToken: null,
+    // });
 
-    const commitmentSignature = await sendERTransaction(
-      ephemeralProgram,
-      ephemeralProgram.methods.answerQuestion(roomIdArray, answer, seed).accountsPartial({
+    // Create transaction with session-aware accounts
+    const transaction = await ephemeralProgram.methods
+      .answerQuestion(roomIdArray, answer, seed)
+      .accountsPartial({
+        signer: payerPublicKey,
         player: playerPublicKey,
         battleRoom: battleRoomPda,
         attackerWarrior: attackerWarriorPda,
         defenderWarrior: defenderWarriorPda,
-      }),
-      playerPublicKey,
-      magicBlockProvider, // Use the passed provider
-      `Answer Question: ${answer ? 'TRUE' : 'FALSE'}`,
+        sessionToken: null,
+      })
+      .transaction()
+
+    // Fetch fresh blockhash
+    const { blockhash, lastValidBlockHeight } =
+      await ephemeralProgram.provider.connection.getLatestBlockhash('confirmed')
+    transaction.recentBlockhash = blockhash
+    transaction.feePayer = payerPublicKey
+
+    const txHash = await hashTxContent(transaction)
+    const operationKey = `answerQuestion_${payerPublicKey.toString()}_${txHash}`
+
+    let commitmentSignature: string | undefined = await executeWithDeduplication(
+      async () => {
+        // Re-fetch blockhash to ensure freshness
+        const { blockhash: newBlockhash, lastValidBlockHeight: newHeight } =
+          await ephemeralProgram.provider.connection.getLatestBlockhash('confirmed')
+        transaction.recentBlockhash = newBlockhash
+
+        let sig: string | undefined
+
+        // Handle signing with Magic Block provider
+        if (magicBlockProvider.sendAndConfirm) {
+          // console.log(
+          //   `Attempting ${
+          //     hasActiveSession ? "session-based" : "direct wallet"
+          //   } signing with:`,
+          //   payerPublicKey.toString()
+          // );
+          sig = await magicBlockProvider.sendAndConfirm(transaction, [], {
+            commitment: 'confirmed',
+            preflightCommitment: 'confirmed',
+            skipPreflight: true,
+          })
+        } else if (magicBlockProvider.wallet) {
+          const signedTx = await magicBlockProvider.wallet.signTransaction(transaction)
+          const serializedTx = signedTx.serialize()
+          sig = await ephemeralProgram.provider.connection.sendRawTransaction(serializedTx, {
+            skipPreflight: true,
+            preflightCommitment: 'confirmed',
+          })
+          await ephemeralProgram.provider.connection.confirmTransaction(
+            {
+              signature: sig,
+              blockhash: newBlockhash,
+              lastValidBlockHeight: newHeight,
+            },
+            'confirmed',
+          )
+        }
+        return sig
+      },
+      operationKey,
+      60000,
+      true,
     )
+
+    // Wait for transaction to settle
+    await new Promise((resolve) => setTimeout(resolve, 5000))
 
     return {
       success: true,
@@ -1145,25 +2231,41 @@ export const answerQuestionOnER = async ({
       commitmentSignature,
     }
   } catch (error: any) {
-    console.error('Error answering question on ER:', error)
-    return {
-      success: false,
-      error: error.message || 'Failed to answer question on ER',
+    if (error instanceof SendTransactionError) {
+      console.error('SendTransactionError details:', error.message)
+      console.error('Transaction logs:', await error.getLogs(ephemeralProgram.provider.connection))
     }
+    console.error('Error answering question on ER:', error)
+
+    let errorMessage = error.message || 'Failed to answer question on ER'
+    if (error.message.includes('unknown signer')) {
+      errorMessage = 'Session authentication failed. Please try again or connect your wallet directly.'
+    } else if (error.message.includes('insufficient funds')) {
+      errorMessage = 'Insufficient SOL balance for transaction or rent'
+    } else if (error.message.includes('blockhash not found')) {
+      errorMessage = 'Network congestion - please try again'
+    } else if (error.message.includes('already in use')) {
+      errorMessage = 'Question already answered'
+    } else if (error.message.includes('User rejected')) {
+      errorMessage = 'Transaction cancelled by user'
+    } else if (error.message.includes('already processed')) {
+      try {
+        const battleRoom = await ephemeralProgram.account.battleRoom.fetch(battleRoomPda)
+        if (battleRoom.state === BattleState.InProgress) {
+          return { success: true }
+        }
+      } catch (fetchError) {
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
+    }
+
+    return { success: false, error: errorMessage }
+  } finally {
+    isAnsweringQuestion = false
   }
 }
 
-//Settle Battle on ER - now accepts provider as parameter
-export interface SettleBattleERParams {
-  ephemeralProgram: UndeadProgram
-  signerPublicKey: PublicKey
-  battleRoomPda: PublicKey
-  warriorAPda: PublicKey
-  warriorBPda: PublicKey
-  roomId: Uint8Array
-  magicBlockProvider: any // Added provider parameter
-}
-
+// Settle Battle on ER
 export const settleBattleRoomOnER = async ({
   ephemeralProgram,
   signerPublicKey,
@@ -1171,7 +2273,8 @@ export const settleBattleRoomOnER = async ({
   warriorAPda,
   warriorBPda,
   roomId,
-  magicBlockProvider, // Use parameter instead of top-level variable
+  magicBlockProvider,
+  sessionInfo,
 }: SettleBattleERParams): Promise<BattleRoomResult> => {
   if (!ephemeralProgram || !signerPublicKey) {
     return { success: false, error: 'Program or signer public key required' }
@@ -1181,36 +2284,145 @@ export const settleBattleRoomOnER = async ({
     return { success: false, error: 'Magic Block provider required' }
   }
 
+  if (isSettlingBattle) {
+    return { success: false, error: 'Battle settlement already in progress' }
+  }
+
+  isSettlingBattle = true
+
   try {
-    // console.log("💎 Settling battle with XP rewards on Ephemeral Rollup...");
+    // Check if battleRoomPda exists
+    try {
+      await ephemeralProgram.account.battleRoom.fetch(battleRoomPda)
+    } catch (fetchError) {
+      return { success: false, error: 'Battle room does not exist' }
+    }
+
+    // Determine payer and session usage
+    const hasActiveSession = !!sessionInfo
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : signerPublicKey
+
+    // console.log("SESSION_INFO", sessionInfo);
+    // console.log("PAYER_PUBLIC_KEY", payerPublicKey.toString());
+    // console.log("HAS_ACTIVE_SESSION", hasActiveSession);
+    // console.log("SIGNER_PUBLIC_KEY", signerPublicKey.toString());
 
     const roomIdArray = Array.from(roomId)
 
-    const commitmentSignature = await sendERTransaction(
-      ephemeralProgram,
-      ephemeralProgram.methods.settleBattleRoom(roomIdArray).accountsPartial({
-        signer: signerPublicKey,
+    // console.log("🔍 settleBattleRoomOnER accounts:", {
+    //   signer: payerPublicKey.toString(),
+    //   battleRoom: battleRoomPda.toString(),
+    //   warriorA: warriorAPda.toString(),
+    //   warriorB: warriorBPda.toString(),
+    //   sessionToken: hasActiveSession ? sessionInfo.sessionToken : null,
+    // });
+
+    // Create transaction with session-aware accounts
+    const transaction = await ephemeralProgram.methods
+      .settleBattleRoom(roomIdArray)
+      .accountsPartial({
+        signer: payerPublicKey,
         battleRoom: battleRoomPda,
         warriorA: warriorAPda,
         warriorB: warriorBPda,
-      }),
-      signerPublicKey,
-      magicBlockProvider, // Use the passed provider
-      'Settle Battle with XP',
+        sessionToken: null,
+      })
+      .transaction()
+
+    // Fetch fresh blockhash
+    const { blockhash, lastValidBlockHeight } =
+      await ephemeralProgram.provider.connection.getLatestBlockhash('confirmed')
+    transaction.recentBlockhash = blockhash
+    transaction.feePayer = payerPublicKey
+
+    const txHash = await hashTxContent(transaction)
+    const operationKey = `settleBattle_${payerPublicKey.toString()}_${txHash}`
+
+    let commitmentSignature: string | undefined = await executeWithDeduplication(
+      async () => {
+        // Re-fetch blockhash to ensure freshness
+        const { blockhash: newBlockhash, lastValidBlockHeight: newHeight } =
+          await ephemeralProgram.provider.connection.getLatestBlockhash('confirmed')
+        transaction.recentBlockhash = newBlockhash
+
+        let sig: string | undefined
+
+        // Handle signing with Magic Block provider
+        if (magicBlockProvider.sendAndConfirm) {
+          // console.log(
+          //   `Attempting ${
+          //     hasActiveSession ? "session-based" : "direct wallet"
+          //   } signing with:`,
+          //   payerPublicKey.toString()
+          // );
+          sig = await magicBlockProvider.sendAndConfirm(transaction, [], {
+            commitment: 'confirmed',
+            preflightCommitment: 'confirmed',
+            skipPreflight: true,
+          })
+        } else if (magicBlockProvider.wallet) {
+          const signedTx = await magicBlockProvider.wallet.signTransaction(transaction)
+          const serializedTx = signedTx.serialize()
+          sig = await ephemeralProgram.provider.connection.sendRawTransaction(serializedTx, {
+            skipPreflight: true,
+            preflightCommitment: 'confirmed',
+          })
+          await ephemeralProgram.provider.connection.confirmTransaction(
+            {
+              signature: sig,
+              blockhash: newBlockhash,
+              lastValidBlockHeight: newHeight,
+            },
+            'confirmed',
+          )
+        }
+        return sig
+      },
+      operationKey,
+      60000,
+      true,
     )
 
-    // console.log("✅ Battle settled with XP rewards");
+    // Wait for transaction to settle
+    await new Promise((resolve) => setTimeout(resolve, 5000))
+
     return {
       success: true,
       signature: commitmentSignature,
       commitmentSignature,
     }
   } catch (error: any) {
-    console.error('Error settling battle with XP:', error)
-    return {
-      success: false,
-      error: error.message || 'Failed to settle battle',
+    if (error instanceof SendTransactionError) {
+      console.error('SendTransactionError details:', error.message)
+      console.error('Transaction logs:', await error.getLogs(ephemeralProgram.provider.connection))
     }
+    console.error('Error settling battle on ER:', error)
+
+    let errorMessage = error.message || 'Failed to settle battle on ER'
+    if (error.message.includes('unknown signer')) {
+      errorMessage = 'Session authentication failed. Please try again or connect your wallet directly.'
+    } else if (error.message.includes('insufficient funds')) {
+      errorMessage = 'Insufficient SOL balance for transaction or rent'
+    } else if (error.message.includes('blockhash not found')) {
+      errorMessage = 'Network congestion - please try again'
+    } else if (error.message.includes('already in use')) {
+      errorMessage = 'Battle already settled'
+    } else if (error.message.includes('User rejected')) {
+      errorMessage = 'Transaction cancelled by user'
+    } else if (error.message.includes('already processed')) {
+      try {
+        const battleRoom = await ephemeralProgram.account.battleRoom.fetch(battleRoomPda)
+        if (battleRoom.state === BattleState.Completed) {
+          return { success: true }
+        }
+      } catch (fetchError) {
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
+    }
+
+    return { success: false, error: errorMessage }
+  } finally {
+    isSettlingBattle = false
   }
 }
 
@@ -1230,9 +2442,13 @@ export interface UpdateFinalStateParams {
   configPda: PublicKey
   leaderboardPda: PublicKey
   roomId: Uint8Array
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
 }
-
-let isUpdatingFinalState = false
 
 export const updateFinalState = async ({
   program,
@@ -1248,6 +2464,7 @@ export const updateFinalState = async ({
   configPda,
   leaderboardPda,
   roomId,
+  sessionInfo,
 }: UpdateFinalStateParams): Promise<BattleRoomResult> => {
   if (!program || !signerPublicKey) {
     return { success: false, error: 'Program or signer public key required' }
@@ -1260,14 +2477,16 @@ export const updateFinalState = async ({
   isUpdatingFinalState = true
 
   try {
-    // console.log("📊 Preparing to update final state...");
-
     // Check if battleRoomPda exists
     try {
       await program.account.battleRoom.fetch(battleRoomPda)
     } catch (fetchError) {
       return { success: false, error: 'Battle room does not exist' }
     }
+
+    const hasActiveSession = !!sessionInfo
+
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : signerPublicKey
 
     // Check signer balance
     const signerBalance = await program.provider.connection.getBalance(signerPublicKey)
@@ -1287,7 +2506,7 @@ export const updateFinalState = async ({
     const transaction = await program.methods
       .updateFinalState(roomIdArray)
       .accountsPartial({
-        signer: signerPublicKey,
+        signer: payerPublicKey,
         authority: authorityPublicKey,
         battleRoom: battleRoomPda,
         warriorA: warriorAPda,
@@ -1298,45 +2517,65 @@ export const updateFinalState = async ({
         achievementsB: achievementsBPda,
         config: configPda,
         leaderboard: leaderboardPda,
+        sessionToken: null,
       })
       .transaction()
 
-    // Fetch fresh blockhash
+    // Fetch fresh blockhash before hashing
     const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash('confirmed')
     transaction.recentBlockhash = blockhash
-    transaction.feePayer = signerPublicKey
+    transaction.feePayer = payerPublicKey
 
-    // Simulate transaction
-    const simulation = await program.provider.connection.simulateTransaction(transaction)
-    if (simulation.value.err) {
-      console.error('Transaction simulation failed:', simulation.value.err)
-      console.error('Simulation logs:', simulation.value.logs)
-      return {
-        success: false,
-        error: `Simulation failed: ${simulation.value.err}`,
-      }
-    }
+    const txHash = await hashTxContent(transaction)
+    const operationKey = `updateFinalState_${signerPublicKey.toString()}_${txHash}`
 
-    // Send and confirm transaction
-    let signature: string | undefined
-    if (program.provider.sendAndConfirm) {
-      signature = await program.provider.sendAndConfirm(transaction, [], {
-        commitment: 'confirmed',
-        preflightCommitment: 'confirmed',
-        skipPreflight: false,
-      })
-    } else if (program.provider.wallet) {
-      // Fallback: Manually sign and send
-      const signedTx = await program.provider.wallet.signTransaction(transaction)
-      const serializedTx = signedTx.serialize()
-      signature = await program.provider.connection.sendRawTransaction(serializedTx, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      })
-      await program.provider.connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
-    }
+    let signature: string | undefined = await executeWithDeduplication(
+      async () => {
+        // Re-fetch blockhash to ensure freshness
+        const { blockhash: newBlockhash, lastValidBlockHeight: newHeight } =
+          await program.provider.connection.getLatestBlockhash('confirmed')
+        transaction.recentBlockhash = newBlockhash
 
-    // console.log("✅ Final state updated successfully: ", signature);/
+        // Check signature status before sending
+        if (transaction.signature) {
+          const sig = bs58.encode(transaction.signature)
+          const status = await program.provider.connection.getSignatureStatus(sig)
+          if (status.value?.confirmationStatus === 'confirmed' || status.value?.confirmationStatus === 'finalized') {
+            // console.log("Transaction already processed:", sig);
+            return sig
+          }
+        }
+
+        let sig: string | undefined
+        if (program.provider.sendAndConfirm) {
+          sig = await program.provider.sendAndConfirm(transaction, [], {
+            commitment: 'confirmed',
+            preflightCommitment: 'confirmed',
+            skipPreflight: true,
+          })
+        } else if (program.provider.wallet) {
+          const signedTx = await program.provider.wallet.signTransaction(transaction)
+          const serializedTx = signedTx.serialize()
+          sig = await program.provider.connection.sendRawTransaction(serializedTx, {
+            skipPreflight: true,
+            preflightCommitment: 'confirmed',
+          })
+          await program.provider.connection.confirmTransaction(
+            {
+              signature: sig,
+              blockhash: newBlockhash,
+              lastValidBlockHeight: newHeight,
+            },
+            'confirmed',
+          )
+        }
+        return sig
+      },
+      operationKey,
+      60000,
+      true,
+    )
+
     return { success: true, signature }
   } catch (error: any) {
     if (error instanceof SendTransactionError) {
@@ -1355,7 +2594,14 @@ export const updateFinalState = async ({
     } else if (error.message.includes('User rejected')) {
       errorMessage = 'Transaction cancelled by user'
     } else if (error.message.includes('already processed')) {
-      errorMessage = 'Transaction already processed - please try again'
+      try {
+        const battleRoom = await program.account.battleRoom.fetch(battleRoomPda)
+        if (battleRoom.state.finalized) {
+          return { success: true }
+        }
+      } catch (fetchError) {
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
     }
 
     return { success: false, error: errorMessage }
@@ -1374,6 +2620,12 @@ export interface JoinBattleParams {
   battleRoomPda: PublicKey
   roomId: Uint8Array
   warriorName: string
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
 }
 
 export const joinBattle = async ({
@@ -1384,9 +2636,9 @@ export const joinBattle = async ({
   battleRoomPda,
   roomId,
   warriorName,
+  sessionInfo,
 }: JoinBattleParams): Promise<BattleRoomResult> => {
   try {
-    // First join on base layer
     const joinResult = await joinBattleRoom({
       program,
       playerPublicKey,
@@ -1400,7 +2652,6 @@ export const joinBattle = async ({
       return joinResult
     }
 
-    // console.log("✅ Successfully joined battle room");
     return joinResult
   } catch (error: any) {
     console.error('Error joining battle:', error)
@@ -1420,8 +2671,10 @@ export const signalBattleReady = async ({
   warriorBPda,
   roomId,
   warriorName,
+  sessionInfo,
 }: SignalReadyParams): Promise<BattleRoomResult> => {
   try {
+    // console.log("signalBattleReady: Passing sessionInfo:", sessionInfo);
     const readyResult = await signalReady({
       program,
       playerPublicKey,
@@ -1431,16 +2684,16 @@ export const signalBattleReady = async ({
       warriorBPda,
       roomId,
       warriorName,
+      sessionInfo,
     })
 
     if (!readyResult.success) {
       return readyResult
     }
 
-    // console.log("✅ Successfully signaled ready");
     return readyResult
   } catch (error: any) {
-    console.error('Error signaling ready:', error)
+    console.error('Error signaling ready in signalBattleReady:', error)
     return {
       success: false,
       error: error.message || 'Failed to signal ready',
@@ -1448,7 +2701,6 @@ export const signalBattleReady = async ({
   }
 }
 
-//Start battle action - now accepts provider as parameter
 export interface StartBattleActionParams {
   program: UndeadProgram
   ephemeralProgram: UndeadProgram
@@ -1476,11 +2728,9 @@ export const startBattleAction = async ({
   warriorAName,
   playerBPublicKey,
   warriorBName,
-  magicBlockProvider, // Use parameter
+  magicBlockProvider,
 }: StartBattleActionParams): Promise<BattleRoomResult> => {
   try {
-    // Step 1: Delegate battle to ER
-    // console.log("🚀 Delegating battle to Ephemeral Rollup...");
     const delegateResult = await delegateBattle({
       program,
       signerPublicKey,
@@ -1498,11 +2748,8 @@ export const startBattleAction = async ({
       return delegateResult
     }
 
-    // Wait for delegation
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
-    // Step 2: Start battle on ER
-    // console.log("⚔️ Starting battle on Ephemeral Rollup...");
     const startResult = await startBattleOnER({
       ephemeralProgram,
       signerPublicKey,
@@ -1510,14 +2757,13 @@ export const startBattleAction = async ({
       warriorAPda,
       warriorBPda,
       roomId,
-      magicBlockProvider, // Pass provider
+      magicBlockProvider,
     })
 
     if (!startResult.success) {
       return startResult
     }
 
-    // console.log("✅ Battle started successfully!");
     return startResult
   } catch (error: any) {
     console.error('Error starting battle:', error)
@@ -1528,7 +2774,6 @@ export const startBattleAction = async ({
   }
 }
 
-//Submit answer - now accepts provider as parameter
 export interface SubmitAnswerParams {
   ephemeralProgram: UndeadProgram
   playerPublicKey: PublicKey
@@ -1538,7 +2783,7 @@ export interface SubmitAnswerParams {
   roomId: Uint8Array
   answer: boolean
   questionIndex?: number
-  magicBlockProvider: any // Added provider parameter
+  magicBlockProvider: any
 }
 
 export const submitAnswer = async ({
@@ -1550,15 +2795,9 @@ export const submitAnswer = async ({
   roomId,
   answer,
   questionIndex,
-  magicBlockProvider, // Use parameter
+  magicBlockProvider,
 }: SubmitAnswerParams): Promise<BattleRoomResult> => {
   try {
-    // console.log(
-    //   `🎯 Submitting answer for question ${questionIndex ?? "current"}: ${
-    //     answer ? "TRUE" : "FALSE"
-    //   }`
-    // );
-
     const answerResult = await answerQuestionOnER({
       ephemeralProgram,
       playerPublicKey,
@@ -1567,14 +2806,13 @@ export const submitAnswer = async ({
       defenderWarriorPda,
       roomId,
       answer,
-      magicBlockProvider, // Pass provider
+      magicBlockProvider,
     })
 
     if (!answerResult.success) {
       return answerResult
     }
 
-    // console.log("✅ Answer submitted successfully");
     return answerResult
   } catch (error: any) {
     console.error('Error submitting answer:', error)
@@ -1585,7 +2823,6 @@ export const submitAnswer = async ({
   }
 }
 
-//End battle - now accepts provider as parameter
 export interface EndBattleParams {
   program: UndeadProgram
   ephemeralProgram: UndeadProgram
@@ -1600,7 +2837,7 @@ export interface EndBattleParams {
   configPda: PublicKey
   leaderboardPda: PublicKey
   roomId: Uint8Array
-  magicBlockProvider: any // Added provider parameter
+  magicBlockProvider: any
 }
 
 export const endBattle = async ({
@@ -1617,11 +2854,9 @@ export const endBattle = async ({
   configPda,
   leaderboardPda,
   roomId,
-  magicBlockProvider, // Use parameter
+  magicBlockProvider,
 }: EndBattleParams): Promise<BattleRoomResult> => {
   try {
-    // Step 1: Settle battle on ER
-    // console.log("💎 Settling battle on Ephemeral Rollup...");
     const settleResult = await settleBattleRoomOnER({
       ephemeralProgram,
       signerPublicKey,
@@ -1629,18 +2864,11 @@ export const endBattle = async ({
       warriorAPda,
       warriorBPda,
       roomId,
-      magicBlockProvider, // Pass provider
+      magicBlockProvider,
     })
 
-    // if (!settleResult.success) {
-    //   // console.log("⚠️ Settlement failed, continuing to final state update...");
-    // }
-
-    // Wait for settlement
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
-    // Step 2: Update final state on base layer
-    // console.log("📊 Updating final state on base layer...");
     const finalResult = await updateFinalState({
       program,
       signerPublicKey,
@@ -1658,11 +2886,9 @@ export const endBattle = async ({
     })
 
     if (!finalResult.success) {
-      // console.log("⚠️ Final state update failed");
       return finalResult
     }
 
-    // console.log("✅ Battle ended and final state updated successfully!");
     return finalResult
   } catch (error: any) {
     console.error('Error ending battle:', error)
@@ -1675,7 +2901,6 @@ export const endBattle = async ({
 
 // ============ UTILITY FUNCTIONS ============
 
-// Helper function to convert WarriorClass to program format
 const getWarriorClassVariant = (warriorClass: WarriorClass) => {
   switch (warriorClass) {
     case WarriorClass.Validator:
@@ -1687,11 +2912,10 @@ const getWarriorClassVariant = (warriorClass: WarriorClass) => {
     case WarriorClass.Daemon:
       return { daemon: {} }
     default:
-      return { validator: {} } // fallback
+      return { validator: {} }
   }
 }
 
-// Helper function to convert user persona to program format
 const getUserPersonaVariant = (persona: UserPersona) => {
   switch (persona) {
     case UserPersona.BoneSmith:
@@ -1713,11 +2937,10 @@ const getUserPersonaVariant = (persona: UserPersona) => {
     case UserPersona.SeerOfAsh:
       return { seerOfAsh: {} }
     default:
-      return { boneSmith: {} } // fallback
+      return { boneSmith: {} }
   }
 }
 
-// Helper function to get human-readable image rarity name
 const getImageRarityName = (imageRarity: ImageRarity | any): any => {
   if (typeof imageRarity === 'object') {
     const key = Object.keys(imageRarity)[0]
@@ -1726,7 +2949,6 @@ const getImageRarityName = (imageRarity: ImageRarity | any): any => {
   return imageRarity || 'Common'
 }
 
-// Keep the simple DNA generator
 export const generateRandomDNA = (): string => {
   const chars = '0123456789ABCDEF'
   let result = ''
@@ -1736,19 +2958,16 @@ export const generateRandomDNA = (): string => {
   return result
 }
 
-// Generate random room ID (32 bytes)
 export const generateRoomId = (): Uint8Array => {
   return crypto.getRandomValues(new Uint8Array(32))
 }
 
-// Convert room ID to hex string for display
 export const roomIdToHex = (roomId: Uint8Array): string => {
   return Array.from(roomId)
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
 }
 
-// Convert hex string back to room ID
 export const hexToRoomId = (hex: string): Uint8Array => {
   if (hex.length !== 64) {
     throw new Error('Hex string must be exactly 64 characters (32 bytes)')
@@ -1762,49 +2981,8 @@ export const hexToRoomId = (hex: string): Uint8Array => {
   return new Uint8Array(bytes)
 }
 
-// Warrior class information for UI
-export const WARRIOR_CLASS_INFO = {
-  [WarriorClass.Validator]: {
-    title: 'Validator',
-    icon: '⚖️',
-    description: 'The undead Warrior of network consensus',
-    traits: 'Well-rounded combat capabilities',
-    statDistribution: 'Balanced ATK/DEF/KNOW',
-    specialAbility: 'Consensus Strike - Balanced damage output',
-    lore: 'Masters of network validation and Byzantine fault tolerance',
-  },
-  [WarriorClass.Oracle]: {
-    title: 'Oracle',
-    icon: '🔮',
-    description: 'Mystical warrior with a Mega brain, lineage of Satoshi',
-    traits: 'High knowledge, moderate combat skills',
-    statDistribution: 'High KNOW, Moderate ATK/DEF',
-    specialAbility: 'Data Feed - Enhanced knowledge-based attacks and defense',
-    lore: 'These warriors knew about the birth of blockchain and cryptography',
-  },
-  [WarriorClass.Guardian]: {
-    title: 'Guardian',
-    icon: '🛡️',
-    description: 'Stalwart defenders of the blockchain realm',
-    traits: 'Exceptional defense, moderate attack',
-    statDistribution: 'High DEF, Moderate ATK/KNOW',
-    specialAbility: 'Shield Wall - Superior defensive capabilities',
-    lore: 'Protectors who secure the network from all threats and hacks',
-  },
-  [WarriorClass.Daemon]: {
-    title: 'Daemon',
-    icon: '⚡',
-    description: 'Aggressive background processes of destruction',
-    traits: 'High attack, low defense - glass cannon',
-    statDistribution: 'High ATK, Low DEF, Moderate KNOW',
-    specialAbility: 'Process Kill - Devastating but risky attacks',
-    lore: 'Relentless background warriors optimized for raw damage',
-  },
-}
-
 export { PERSONA_INFO as USER_PERSONA_INFO } from '@/types/undead'
 
-// Utility function to check transaction status
 export const checkTransactionStatus = async (
   connection: any,
   signature: string,
@@ -1820,7 +2998,6 @@ export const checkTransactionStatus = async (
   }
 }
 
-// Battle state checker
 export const getBattleRoomState = async (
   program: UndeadProgram,
   battleRoomPda: PublicKey,
@@ -1833,7 +3010,6 @@ export const getBattleRoomState = async (
   }
 }
 
-// Warrior stats checker
 export const getWarriorStats = async (
   program: UndeadProgram,
   warriorPda: PublicKey,
@@ -1846,7 +3022,6 @@ export const getWarriorStats = async (
   }
 }
 
-// User profile checker
 export const getUserProfile = async (
   program: UndeadProgram,
   profilePda: PublicKey,
