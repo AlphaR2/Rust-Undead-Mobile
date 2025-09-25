@@ -207,6 +207,7 @@ const ProfileCreation = () => {
 
   // Handle profile creation
   const handleForgeProfile = async () => {
+    console.log("popular")
     // Skip creation if user already has a profile
     if (userProfile?.username) {
       console.log(
@@ -310,6 +311,7 @@ const ProfileCreation = () => {
     }
   }
 
+  console.log(isMinting || !isConnected)
   return (
     <View className="flex-1 h-full w-full flex justify-end items-end">
       <View className="flex-1 justify-end" style={{ width: '85%' }}>
@@ -355,10 +357,10 @@ const ProfileCreation = () => {
 
             {showMintButton && (
               <View className="flex flex-row items-center mt-2">
-                <TouchableOpacity onPress={handleForgeProfile} disabled={isMinting || !isConnected} className="ml-2">
+                <TouchableOpacity onPress={()=> {handleForgeProfile()}} disabled={isMinting || !isConnected} className="ml-2   block w-full">
                   <ImageBackground
                     source={require('../assets/onboarding/button-bg-main.png')}
-                    className="flex items-center w-fit h-fit left-[360px] -top-4 absolute justify-center py-3 px-8"
+                    className="flex items-center w-fit h-fit ml-[170px] -top-4 absolute justify-center py-3 px-8"
                     resizeMode="contain"
                   >
                     <Text

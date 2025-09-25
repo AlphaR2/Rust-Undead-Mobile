@@ -14,7 +14,16 @@ import guide4 from '../../assets/images/guides/guide-daemon.png'
 import guide3 from '../../assets/images/guides/guide-guard.png'
 import guide2 from '../../assets/images/guides/guide-oracle.png'
 import guide1 from '../../assets/images/guides/guide-val.png'
-import buttonBg from '../../assets/onboarding/button-bg-main.png'
+import menuBg from '../../assets/dashboard/menu-bg.png'
+import menuBg2 from '../../assets/dashboard/menu-bg2.png'
+import warriorStatsIcon from '../../assets/dashboard/warrior-stats.png'
+import victoryStatsIcon from '../../assets/dashboard/victory-stats.png'
+import chaptersStatsIcon from '../../assets/dashboard/chapters-stats.png'
+
+import profileBackground from '../../assets/dashboard/profile-bg.png'
+import resourceBg from '../../assets/dashboard/resources-bg.png'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
+import Octicons from '@expo/vector-icons/Octicons'
 
 const Index = () => {
   const router = useRouter()
@@ -93,6 +102,7 @@ const Index = () => {
     }
   }
 
+  console.log(userProfile)
   return (
     <ImageBackground source={DASHBOARD_BACKGROUND} style={{ flex: 1 }} resizeMode="cover">
       <View
@@ -102,108 +112,115 @@ const Index = () => {
         }}
       />
 
-      <View className="flex-1 flex-col justify-center p-4">
+      <View className="flex-1 flex-col justify-center px-4">
         {/* Top Section with User Data */}
-        <View className="w-full flex flex-row justify-between items-start px-4 mb-6">
+        <View className="w-full flex flex-row justify-between items-center px-4  ">
           {/* Left: User Profile Card */}
-          <View className="bg-gradient-to-r from-orange-900/40 to-red-900/40 border border-orange-500/30 rounded-lg p-3 min-w-[280px]">
-            {/* Profile Header */}
-            <View className="flex flex-row items-center mb-2">
-              <View className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center mr-3">
-                <MaterialIcons name="person" size={20} color="white" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-white font-bold text-base">{userProfile?.username || 'Harrison'}</Text>
-                <View className="flex flex-row items-center mt-1">
-                  <MaterialIcons name="account-balance-wallet" size={12} color="#9CA3AF" />
-                  <Text className="text-gray-400 text-xs ml-1">{formatAddress(userAddress)}</Text>
-                  <TouchableOpacity className="ml-2">
-                    <MaterialIcons name="content-copy" size={10} color="#9CA3AF" />
-                  </TouchableOpacity>
+          <View className="  min-w-[280px]">
+            <ImageBackground source={profileBackground} className="w-full h-20" resizeMode="contain">
+              <View className="flex flex-row items-start mb-2">
+                <View className="w-[65px] h-[65px] bg-[#C87423]  rounded-full flex items-center justify-center right-8">
+                  <MaterialIcons name="person" size={40} color="white" />
+                </View>
+                <View className="flex flex-col py-3 items-start">
+                  <Text className="text-white font-bold text-sm">{userProfile?.username || 'Harrison'}</Text>
+                  <View className="flex flex-row items-center mt-1">
+                    <MaterialIcons name="account-balance-wallet" size={12} color="#9CA3AF" />
+                    <Text className="text-gray-400 text-xs ml-1">{formatAddress(userAddress)}</Text>
+                    <TouchableOpacity className="ml-2">
+                      <MaterialIcons name="content-copy" size={10} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  </View>
+                  {/* Balance */}
+                  <View className="flex flex-row items-center">
+                    <MaterialIcons name="account-balance-wallet" size={16} color="white" />
+                    <Text className="text-white text-xs font-medium ml-2">{formatBalance(balance)} SOL</Text>
+                    <View className="ml-2 bg-red-600/20 px-2 py-0.5 rounded">
+                      <MaterialIcons name="warning" size={12} color="#EF4444" />
+                    </View>
+                  </View>
                 </View>
               </View>
-            </View>
-
-            {/* Balance */}
-            <View className="flex flex-row items-center">
-              <MaterialIcons name="account-balance-wallet" size={16} color="white" />
-              <Text className="text-white text-sm font-medium ml-2">{formatBalance(balance)} SOL</Text>
-              <View className="ml-2 bg-red-600/20 px-2 py-0.5 rounded">
-                <MaterialIcons name="warning" size={12} color="#EF4444" />
-              </View>
-            </View>
+            </ImageBackground>
+            {/* Profile Header */}
           </View>
 
           {/* Center: Game Stats */}
-          <View className="flex flex-row gap-x-4">
-            {/* Gold/Points */}
-            <View className="bg-yellow-600/20 border border-yellow-500/30 rounded-lg px-3 py-2 flex flex-row items-center">
-              <MaterialIcons name="monetization-on" size={16} color="#EAB308" />
-              <Text className="text-yellow-400 font-bold ml-2">{userProfile?.totalPoints?.toString() || '6,840'}</Text>
-            </View>
+          <ImageBackground source={resourceBg} className="w-[30%] flex items-center justify-center">
+            <View className="flex flex-row gap-x-4">
+              {/* Gold/Points */}
+              <View className=" border-yellow-500/30 rounded-lg px-3 py-2 flex flex-row items-center">
+                <MaterialIcons name="monetization-on" size={16} color="#EAB308" />
+                <Text className="text-yellow-400 font-bold ml-2">
+                  {userProfile?.totalPoints?.toString() || '6,840'}
+                </Text>
+              </View>
 
-            {/* XP/Level */}
-            <View className="bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex flex-row items-center">
-              <MaterialIcons name="trending-up" size={16} color="#3B82F6" />
-              <Text className="text-blue-400 font-bold ml-2">
-                {userProfile ? `${userProfile.totalBattlesWon * 100}` : '13,671'}
-              </Text>
+              {/* XP/Level */}
+              <View className=" border-blue-500/30 rounded-lg px-3 py-2 flex flex-row items-center">
+                <MaterialIcons name="trending-up" size={16} color="#3B82F6" />
+                <Text className="text-blue-400 font-bold ml-2">
+                  {userProfile ? `${userProfile.totalBattlesWon * 100}` : '13,671'}
+                </Text>
+              </View>
             </View>
-          </View>
+          </ImageBackground>
 
           {/* Right: Action Icons & Achievements */}
-          <View className="flex flex-row items-center gap-x-3">
-            {/* Achievement Icons */}
-
-            <View className="flex flex-col gap-y-2">
-              <TouchableOpacity
-                className="bg-orange-600/20 border border-orange-500/30 rounded-full p-2"
-                onPress={() => router.push('/')}
-              >
-                <AntDesign name="wallet" size={20} color="orange" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="bg-red-600/20 border border-red-500/30 rounded-full p-2"
-                onPress={handleLogout}
-              >
-                <Feather name="log-out" size={20} color="#EF4444" />
-              </TouchableOpacity>
-            </View>
+          <View className="flex items-center flex-row gap-x-6">
+            <MaterialCommunityIcons name="police-badge-outline" size={20} color="#CEA858" className="font-thin" />
+            <Octicons name="unmute" size={20} color="#CEA858" />
+            <MaterialCommunityIcons name="logout" size={20} color="#CEA858" />
           </View>
         </View>
 
         {/* Main Content */}
-        <View className="flex-row items-center justify-between h-[75%]">
+        <View className="flex-row items-center h-[75%] justify-between">
           {/* Left Menu */}
-          <View className="flex flex-col gap-y-4 w-[25%]">
-            <ImageBackground source={buttonBg} className="w-full h-16" resizeMode="contain">
-              <TouchableOpacity className="flex items-center justify-center h-full" onPress={() => router.push('/')}>
-                <Text className="text-center font-bold text-lg text-black">Home</Text>
-              </TouchableOpacity>
-            </ImageBackground>
-            <ImageBackground source={buttonBg} className="w-full h-16" resizeMode="contain">
+          <View className="flex flex-col w-[45%] ">
+            <ImageBackground source={menuBg} className="w-full h-32" resizeMode="contain">
               <TouchableOpacity
-                className="flex items-center justify-center h-full"
-                onPress={() => router.push('/dashboard/battle-arena')}
+                className="flex items-start justify-center h-full left-[18%] text-wrap"
+                onPress={() => router.push('/')}
               >
-                <Text className="text-center font-bold text-lg text-black">Battle Arena</Text>
+                <Text className="text-start font-bold text-lg text-white font-li">Story Mode</Text>
+                <Text className="text-start  text-xs text-wrap text-white font-light">
+                  Learn all about Solana while having fun and
+                </Text>
+                <Text className="text-start font-light text-xs text-wrap text-white">winning points</Text>
               </TouchableOpacity>
             </ImageBackground>
-            <ImageBackground source={buttonBg} className="w-full h-16" resizeMode="contain">
-              <TouchableOpacity className="flex items-center justify-center h-full" onPress={() => router.push('/')}>
-                <Text className="text-center font-bold text-lg text-black">Story</Text>
-              </TouchableOpacity>
-            </ImageBackground>
-            <ImageBackground source={buttonBg} className="w-full h-16" resizeMode="contain">
-              <TouchableOpacity className="flex items-center justify-center h-full" onPress={() => router.push('/')}>
-                <Text className="text-center font-bold text-lg text-black">Continue</Text>
+            <ImageBackground source={menuBg2} className="w-full h-32" resizeMode="contain">
+              <TouchableOpacity
+                className="flex items-start justify-center h-full left-[18%] text-wrap"
+                onPress={() => router.push('/')}
+              >
+                <Text className="text-start font-bold text-lg text-white">Battle Arena</Text>
+                <Text className="text-start  text-xs text-wrap text-white font-light">Coming soon</Text>
               </TouchableOpacity>
             </ImageBackground>
           </View>
 
           {/* Right Guide Image with Badges */}
-          <View className="flex flex-col items-center w-[70%] relative left-28">
-            <Image source={guideImage} className="w-[300px] h-[500px]" resizeMode="contain" />
+          <Image source={guideImage} className="w-[300px] h-[500px] " resizeMode="contain" />
+          <View className="flex flex-row items-center relative z-20">
+            <View className="flex flex-col gap-y-2 ">
+              <View className="flex items-center">
+                <Image className="w-[40px] h-[40px]" resizeMode="contain" source={chaptersStatsIcon} />
+                <Text className="text-white text-sm font-light">Chapters</Text>
+                <Text className="text-white font-bold text-lg">4</Text>
+              </View>
+              <View className="flex items-center">
+                <Image className="w-[40px] h-[40px]" resizeMode="contain" source={warriorStatsIcon} />
+                <Text className="text-white text-sm font-light">Warriors</Text>
+                <Text className="text-white font-bold text-lg">4</Text>
+              </View>
+              <View className="flex items-center">
+                <Image className="w-[40px] h-[40px]" resizeMode="contain" source={victoryStatsIcon} />
+                <Text className="text-white text-sm font-light">Victories</Text>
+                <Text className="text-white font-bold text-lg">4</Text>
+              </View>
+            </View>
           </View>
         </View>
       </View>
