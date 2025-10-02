@@ -157,9 +157,9 @@ const GameCardIntro = () => {
 
             {/* Continue Button Section - Only show after typewriter completes */}
             {showNextButton && (
-              <View className="flex flex-row items-center mt-2">
+              <View className="flex flex-row items-center mt-2 ">
                 {/* Continue Button */}
-                <TouchableOpacity onPress={handleNext} className="ml-2">
+                <TouchableOpacity onPress={handleNext} className="  ml-auto">
                   <ImageBackground
                     source={require('../../assets/onboarding/button-bg-main.png')}
                     className="flex items-center w-fit h-fit -right-[140px] -top-14 absolute justify-center py-2 px-24"

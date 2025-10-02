@@ -181,7 +181,7 @@ const Index = () => {
             <ImageBackground source={menuBg} className="w-full h-32" resizeMode="contain">
               <TouchableOpacity
                 className="flex items-start justify-center h-full left-[18%] text-wrap"
-                onPress={() => router.push('/')}
+                onPress={() => router.push('/dashboard/story-mode')}
               >
                 <Text className="text-start font-bold text-lg text-white font-li">Story Mode</Text>
                 <Text className="text-start  text-xs text-wrap text-white font-light">
