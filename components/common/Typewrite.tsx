@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Text, View, StyleSheet } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 interface TypewriterTextProps {
   text: string
@@ -15,6 +15,11 @@ interface TypewriterTextProps {
   skipAnimation?: boolean
   autoStart?: boolean
 }
+
+const PUNCTUATION_PAUSE_FULL = ['.', '!', '?', ';', ':']
+const PUNCTUATION_PAUSE_HALF = [',']
+const CURSOR_BLINK_INTERVAL = 500
+const CURSOR_HIDE_DELAY = 2000
 
 const TypewriterText: React.FC<TypewriterTextProps> = ({
   text,
@@ -33,25 +38,23 @@ const TypewriterText: React.FC<TypewriterTextProps> = ({
   const [displayedText, setDisplayedText] = useState('')
   const [isComplete, setIsComplete] = useState(false)
   const [showCursor, setShowCursor] = useState(cursor)
-  
-  const timeoutRef = useRef<number | null>(null)
-  const cursorIntervalRef = useRef<number | null>(null)
+
+  const timeoutRef = useRef<NodeJS.Timeout | number>(null)
+  const cursorIntervalRef = useRef<NodeJS.Timeout | number>(null)
   const indexRef = useRef(0)
 
-  // Reset function
   const resetTypewriter = useCallback(() => {
     setDisplayedText('')
     setIsComplete(false)
     setShowCursor(cursor)
     indexRef.current = 0
-    
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
       timeoutRef.current = null
     }
   }, [cursor])
 
-  // Typing function using useCallback to prevent infinite rerenders
   const typeCharacter = useCallback(() => {
     if (indexRef.current >= text.length) {
       setIsComplete(true)
@@ -64,19 +67,16 @@ const TypewriterText: React.FC<TypewriterTextProps> = ({
     setDisplayedText(text.substring(0, indexRef.current + 1))
     indexRef.current += 1
 
-    // Calculate delay for next character
     let nextDelay = speed
-    if (['.', '!', '?', ';', ':'].includes(currentChar)) {
+    if (PUNCTUATION_PAUSE_FULL.includes(currentChar)) {
       nextDelay += pauseOnPunctuation
-    } else if ([','].includes(currentChar)) {
+    } else if (PUNCTUATION_PAUSE_HALF.includes(currentChar)) {
       nextDelay += pauseOnPunctuation / 2
     }
 
-    // Schedule next character
-    timeoutRef.current = window.setTimeout(typeCharacter, nextDelay)
+    timeoutRef.current = setTimeout(typeCharacter, nextDelay)
   }, [text, speed, pauseOnPunctuation, cursor, onComplete])
 
-  // Start typing function
   const startTyping = useCallback(() => {
     if (skipAnimation) {
       setDisplayedText(text)
@@ -87,10 +87,9 @@ const TypewriterText: React.FC<TypewriterTextProps> = ({
     }
 
     resetTypewriter()
-    timeoutRef.current = window.setTimeout(typeCharacter, delay)
+    timeoutRef.current = setTimeout(typeCharacter, delay)
   }, [skipAnimation, text, delay, typeCharacter, resetTypewriter, onComplete])
 
-  // Cursor blinking effect
   useEffect(() => {
     if (!cursor || isComplete) {
       if (cursorIntervalRef.current) {
@@ -100,9 +99,9 @@ const TypewriterText: React.FC<TypewriterTextProps> = ({
       return
     }
 
-    cursorIntervalRef.current = window.setInterval(() => {
-      setShowCursor(prev => !prev)
-    }, 500)
+    cursorIntervalRef.current = setInterval(() => {
+      setShowCursor((prev) => !prev)
+    }, CURSOR_BLINK_INTERVAL)
 
     return () => {
       if (cursorIntervalRef.current) {
@@ -112,7 +111,6 @@ const TypewriterText: React.FC<TypewriterTextProps> = ({
     }
   }, [cursor, isComplete])
 
-  // Auto-start typing when text changes
   useEffect(() => {
     if (autoStart && text) {
       startTyping()
@@ -126,12 +124,11 @@ const TypewriterText: React.FC<TypewriterTextProps> = ({
     }
   }, [text, autoStart, startTyping])
 
-  // Hide cursor after completion
   useEffect(() => {
     if (isComplete && cursor) {
       const timer = setTimeout(() => {
         setShowCursor(false)
-      }, 2000)
+      }, CURSOR_HIDE_DELAY)
       return () => clearTimeout(timer)
     }
   }, [isComplete, cursor])
@@ -148,7 +145,6 @@ const TypewriterText: React.FC<TypewriterTextProps> = ({
   )
 }
 
-// Multi-line typewriter component
 interface TypewriterLinesProps extends Omit<TypewriterTextProps, 'text'> {
   lines: string[]
   lineDelay?: number
@@ -168,11 +164,11 @@ const TypewriterLines: React.FC<TypewriterLinesProps> = ({
 
   const handleLineComplete = useCallback(() => {
     const currentLine = lines[currentLineIndex]
-    setCompletedLines(prev => [...prev, currentLine])
+    setCompletedLines((prev) => [...prev, currentLine])
 
     if (currentLineIndex < lines.length - 1) {
       setTimeout(() => {
-        setCurrentLineIndex(prev => prev + 1)
+        setCurrentLineIndex((prev) => prev + 1)
       }, lineDelay)
     } else {
       setIsAllComplete(true)
@@ -180,7 +176,6 @@ const TypewriterLines: React.FC<TypewriterLinesProps> = ({
     }
   }, [currentLineIndex, lines, lineDelay, onComplete])
 
-  // Reset when lines change
   useEffect(() => {
     setCurrentLineIndex(0)
     setCompletedLines([])
@@ -211,7 +206,6 @@ const TypewriterLines: React.FC<TypewriterLinesProps> = ({
   )
 }
 
-// Game-specific preset configurations
 export const GameTypewriterPresets = {
   dialogue: {
     speed: 40,
@@ -265,4 +259,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export { TypewriterText, TypewriterLines }
+export { TypewriterLines, TypewriterText }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react'
 import {
   View,
   Text,
@@ -7,216 +7,319 @@ import {
   Dimensions,
   PanResponder,
   ImageBackground,
-} from "react-native";
+  StyleSheet,
+} from 'react-native'
 
-const { width, height } = Dimensions.get("window");
 
 interface Character {
-  id: string;
-  name: string;
-  title: string;
-  description: string;
-  recommendedFor: string;
-  image: string;
+  id: string
+  name: string
+  title: string
+  description: string
+  recommendedFor: string
+  image: string
 }
 
 const characters: Character[] = [
   {
-    id: "1",
-    name: "VALDOR THE VALIDATOR",
-    title: "(Balanced)",
+    id: '1',
+    name: 'VALDOR THE VALIDATOR',
+    title: '(Balanced)',
     description:
       "I am Valdor, guardian of consensus. I'll teach you the ancient ways of agreement and truth in this realm.",
-    recommendedFor: "Complete beginners",
+    recommendedFor: 'Complete beginners',
     image:
-      "https://res.cloudinary.com/deensvquc/image/upload/v1752487234/samples/upscale-face-1.jpg",
+      'https://res.cloudinary.com/deensvquc/image/upload/v1752487234/samples/upscale-face-1.jpg',
   },
   {
-    id: "2",
-    name: "ORACLE MYSTRAL",
-    title: "(Knowledge Specialist)",
+    id: '2',
+    name: 'ORACLE MYSTRAL',
+    title: '(Knowledge Specialist)',
     description:
       "I am Mystral, keeper of sacred knowledge. Through me, you'll learn the deepest secrets of this realm.",
-    recommendedFor: "Intermediate users",
+    recommendedFor: 'Intermediate users',
     image:
-      "https://res.cloudinary.com/deensvquc/image/upload/v1752487234/samples/woman-on-a-football-field.jpg",
+      'https://res.cloudinary.com/deensvquc/image/upload/v1752487234/samples/woman-on-a-football-field.jpg',
   },
   {
-    id: "3",
-    name: "GUARDIAN NEXUS",
-    title: "(Combat Expert)",
+    id: '3',
+    name: 'GUARDIAN NEXUS',
+    title: '(Combat Expert)',
     description:
-      "I am Nexus, master of battle tactics. I will forge you into a formidable warrior of this digital realm.",
-    recommendedFor: "Advanced users",
-    image: "https://via.placeholder.com/300x400/DC143C/FFFFFF?text=Nexus",
+      'I am Nexus, master of battle tactics. I will forge you into a formidable warrior of this digital realm.',
+    recommendedFor: 'Advanced users',
+    image: 'https://via.placeholder.com/300x400/DC143C/FFFFFF?text=Nexus',
   },
-];
+]
+
+const SWIPE_THRESHOLD = 50
+const SWIPE_DIRECTION_THRESHOLD = 10
 
 const CharacterCarousel: React.FC = () => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0)
 
   const handlePrevious = () => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : characters.length - 1));
-  };
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : characters.length - 1))
+  }
 
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev < characters.length - 1 ? prev + 1 : 0));
-  };
+    setCurrentIndex((prev) => (prev < characters.length - 1 ? prev + 1 : 0))
+  }
 
   const handleConfirm = () => {
-    const selectedCharacter = characters[currentIndex];
-    console.log("Selected character:", selectedCharacter.name);
-  };
+    const selectedCharacter = characters[currentIndex]
+  }
 
-  // Pan responder for swipe gestures
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (evt, gestureState) => {
       return (
         Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
-        Math.abs(gestureState.dx) > 10
-      );
+        Math.abs(gestureState.dx) > SWIPE_DIRECTION_THRESHOLD
+      )
     },
     onPanResponderRelease: (evt, gestureState) => {
-      const swipeThreshold = 50;
-
-      if (gestureState.dx > swipeThreshold) {
-        handlePrevious();
-      } else if (gestureState.dx < -swipeThreshold) {
-        handleNext();
+      if (gestureState.dx > SWIPE_THRESHOLD) {
+        handlePrevious()
+      } else if (gestureState.dx < -SWIPE_THRESHOLD) {
+        handleNext()
       }
     },
-  });
+  })
 
   const getVisibleCharacters = () => {
-    const visibleChars = [];
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : characters.length - 1
 
-    // Previous character (left side, smaller, darker)
-    const prevIndex =
-      currentIndex > 0 ? currentIndex - 1 : characters.length - 1;
-    visibleChars.push({
-      character: characters[prevIndex],
-      index: prevIndex,
-      isActive: false,
-    });
+    return [
+      {
+        character: characters[prevIndex],
+        index: prevIndex,
+        isActive: false,
+      },
+      {
+        character: characters[currentIndex],
+        index: currentIndex,
+        isActive: true,
+      },
+    ]
+  }
 
-    // Current character (center, larger, active)
-    visibleChars.push({
-      character: characters[currentIndex],
-      index: currentIndex,
-      isActive: true,
-    });
-
-    return visibleChars;
-  };
-
-  const currentCharacter = characters[currentIndex];
+  const currentCharacter = characters[currentIndex]
 
   return (
-    <View className="flex-1 bg-amber-900 px-5">
-      {/* Header */}
-      <View className="pt-4 pb-2">
-        <Text className="text-yellow-400 text-lg text-center font-medium">
-          Select a tour guide
-        </Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Select a tour guide</Text>
       </View>
 
-      {/* Main Content - Landscape Layout */}
-      <View className="flex-1 flex-row items-center justify-between">
-        
-        {/* Left Side - Character Carousel */}
-        <View className="flex-1 flex-row items-center justify-center relative max-w-2xl">
-          
-          {/* Left Navigation Arrow */}
-          <TouchableOpacity
-            className="absolute left-0 z-10 bg-yellow-400 bg-opacity-20 border border-yellow-400 rounded-full w-12 h-12 justify-center items-center"
-            onPress={handlePrevious}
-          >
-            <Text className="text-yellow-400 text-2xl font-bold">‹</Text>
+      <View style={styles.mainContent}>
+        <View style={styles.carouselContainer}>
+          <TouchableOpacity style={styles.navButton} onPress={handlePrevious}>
+            <Text style={styles.navButtonText}>‹</Text>
           </TouchableOpacity>
 
-          {/* Characters Container */}
-          <View
-            className="flex-1 flex-row items-center justify-around px-16"
-            {...panResponder.panHandlers}
-          >
+          <View style={styles.charactersContainer} {...panResponder.panHandlers}>
             {getVisibleCharacters().map(({ character, index, isActive }) => (
               <View
                 key={character.id}
-                className={`items-center justify-center ${
-                  isActive ? 'opacity-100' : 'opacity-50'
-                }`}
+                style={[styles.characterWrapper, !isActive && styles.inactiveCharacter]}
               >
                 <Image
                   source={{ uri: character.image }}
-                  className={`rounded-2xl border-2 border-yellow-400 ${
-                    isActive 
-                      ? 'w-36 h-56' 
-                      : 'w-28 h-44'
-                  }`}
+                  style={[styles.characterImage, isActive ? styles.activeImage : styles.inactiveImage]}
                   resizeMode="cover"
                 />
               </View>
             ))}
           </View>
 
-          {/* Right Navigation Arrow */}
-          <TouchableOpacity
-            className="absolute right-0 z-10 bg-yellow-400 bg-opacity-20 border border-yellow-400 rounded-full w-12 h-12 justify-center items-center"
-            onPress={handleNext}
-          >
-            <Text className="text-yellow-400 text-2xl font-bold">›</Text>
+          <TouchableOpacity style={styles.navButton} onPress={handleNext}>
+            <Text style={styles.navButtonText}>›</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Right Side - Character Info Card */}
-        <View className="w-80 ml-8">
+        <View style={styles.infoCard}>
           <ImageBackground
             source={{
-              uri: "https://res.cloudinary.com/deensvquc/image/upload/v1753427362/Group_1_khuulp.png",
+              uri: 'https://res.cloudinary.com/deensvquc/image/upload/v1753427362/Group_1_khuulp.png',
             }}
-            className="h-80 justify-center items-center"
+            style={styles.infoBackground}
             resizeMode="contain"
           >
-            <View className="absolute inset-0 justify-center p-8">
-              <Text className="text-white text-base font-bold mb-2 text-center">
-                {currentCharacter.name}
-              </Text>
-              
-              <Text className="text-yellow-400 text-sm font-semibold mb-4 text-center">
-                {currentCharacter.title}
-              </Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.characterName}>{currentCharacter.name}</Text>
 
-              <Text className="text-white text-xs italic mb-6 text-left leading-4 px-2">
-                "{currentCharacter.description}"
-              </Text>
+              <Text style={styles.characterTitle}>{currentCharacter.title}</Text>
 
-              <View className="mt-auto">
-                <Text className="text-yellow-400 text-sm font-bold mb-1">
-                  Recommended for:
-                </Text>
-                <Text className="text-white text-sm font-medium">
-                  {currentCharacter.recommendedFor}
-                </Text>
+              <Text style={styles.characterDescription}>"{currentCharacter.description}"</Text>
+
+              <View style={styles.recommendedSection}>
+                <Text style={styles.recommendedLabel}>Recommended for:</Text>
+                <Text style={styles.recommendedText}>{currentCharacter.recommendedFor}</Text>
               </View>
             </View>
           </ImageBackground>
         </View>
       </View>
 
-      {/* Confirm Button - Fixed at bottom */}
-      <View className="justify-center items-center pb-6">
-        <TouchableOpacity
-          className="bg-amber-700 border-2 border-yellow-400 rounded-lg px-8 py-3 min-w-32"
-          onPress={handleConfirm}
-        >
-          <Text className="text-white text-base font-bold text-center">
-            Confirm
-          </Text>
+      <View style={styles.confirmButtonContainer}>
+        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+          <Text style={styles.confirmButtonText}>Confirm</Text>
         </TouchableOpacity>
       </View>
     </View>
-  );
-};
+  )
+}
 
-export default CharacterCarousel;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#92400e',
+    paddingHorizontal: 20,
+  },
+  header: {
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  headerText: {
+    color: '#fbbf24',
+    fontSize: 18,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  mainContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  carouselContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    maxWidth: 672,
+  },
+  navButton: {
+    position: 'absolute',
+    zIndex: 10,
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    borderWidth: 1,
+    borderColor: '#fbbf24',
+    borderRadius: 24,
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navButtonText: {
+    color: '#fbbf24',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  charactersContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 64,
+  },
+  characterWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inactiveCharacter: {
+    opacity: 0.5,
+  },
+  characterImage: {
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#fbbf24',
+  },
+  activeImage: {
+    width: 144,
+    height: 224,
+  },
+  inactiveImage: {
+    width: 112,
+    height: 176,
+  },
+  infoCard: {
+    width: 320,
+    marginLeft: 32,
+  },
+  infoBackground: {
+    height: 320,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    padding: 32,
+  },
+  characterName: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  characterTitle: {
+    color: '#fbbf24',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  characterDescription: {
+    color: 'white',
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginBottom: 24,
+    textAlign: 'left',
+    lineHeight: 16,
+    paddingHorizontal: 8,
+  },
+  recommendedSection: {
+    marginTop: 'auto',
+  },
+  recommendedLabel: {
+    color: '#fbbf24',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  recommendedText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  confirmButtonContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 24,
+  },
+  confirmButton: {
+    backgroundColor: '#b45309',
+    borderWidth: 2,
+    borderColor: '#fbbf24',
+    borderRadius: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    minWidth: 128,
+  },
+  confirmButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+})
+
+export default CharacterCarousel

@@ -1,29 +1,104 @@
 import { CreateContext } from '@/context/Context'
 import { useMWA } from '@/context/mwa/MWAContext'
-import { useGameData } from '@/hooks/useGameData'
-import { useWalletInfo } from '@/hooks/useUndeadProgram'
-import AntDesign from '@expo/vector-icons/AntDesign'
-import Feather from '@expo/vector-icons/Feather'
+import { useBasicGameData } from '@/hooks/game/useBasicGameData'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
+import Octicons from '@expo/vector-icons/Octicons'
 import { usePrivy } from '@privy-io/expo'
 import { useRouter } from 'expo-router'
-import React, { useContext, useEffect, useState } from 'react'
-import { Alert, Image, ImageBackground, Text, TouchableOpacity, View } from 'react-native'
+import React, { useContext, useEffect, useRef, useState } from 'react'
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  ImageBackground,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
+import chaptersStatsIcon from '../../assets/dashboard/chapters-stats.png'
+import menuBg from '../../assets/dashboard/menu-bg.png'
+import menuBg2 from '../../assets/dashboard/menu-bg2.png'
+import profileBackground from '../../assets/dashboard/profile-bg.png'
+import resourceBg from '../../assets/dashboard/resources-bg.png'
+import victoryStatsIcon from '../../assets/dashboard/victory-stats.png'
+import warriorStatsIcon from '../../assets/dashboard/warrior-stats.png'
 import DASHBOARD_BACKGROUND from '../../assets/images/gbg.png'
 import guide4 from '../../assets/images/guides/guide-daemon.png'
 import guide3 from '../../assets/images/guides/guide-guard.png'
 import guide2 from '../../assets/images/guides/guide-oracle.png'
 import guide1 from '../../assets/images/guides/guide-val.png'
-import menuBg from '../../assets/dashboard/menu-bg.png'
-import menuBg2 from '../../assets/dashboard/menu-bg2.png'
-import warriorStatsIcon from '../../assets/dashboard/warrior-stats.png'
-import victoryStatsIcon from '../../assets/dashboard/victory-stats.png'
-import chaptersStatsIcon from '../../assets/dashboard/chapters-stats.png'
 
-import profileBackground from '../../assets/dashboard/profile-bg.png'
-import resourceBg from '../../assets/dashboard/resources-bg.png'
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
-import Octicons from '@expo/vector-icons/Octicons'
+const GUIDE_IMAGES: Record<string, any> = {
+  '1': guide1,
+  '2': guide2,
+  '3': guide3,
+  '4': guide4,
+}
+
+const DEFAULT_USERNAME = 'Harrison'
+const ADDRESS_VISIBLE_START = 4
+const ADDRESS_VISIBLE_END = 4
+const BALANCE_DECIMALS = 6
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
+
+const Firefly = ({ delay }: { delay: number }) => {
+  const position = useRef(
+    new Animated.ValueXY({
+      x: Math.random() * SCREEN_WIDTH,
+      y: Math.random() * SCREEN_HEIGHT,
+    }),
+  ).current
+  const opacity = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    const animate = () => {
+      Animated.loop(
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(position, {
+              toValue: {
+                x: Math.random() * SCREEN_WIDTH,
+                y: Math.random() * SCREEN_HEIGHT,
+              },
+              duration: 3000 + Math.random() * 2000,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.sequence([
+            Animated.timing(opacity, {
+              toValue: 0.8,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+              toValue: 0.2,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]),
+      ).start()
+    }
+
+    setTimeout(animate, delay)
+  }, [delay])
+
+  return (
+    <Animated.View
+      style={[
+        styles.firefly,
+        {
+          transform: [{ translateX: position.x }, { translateY: position.y }],
+          opacity,
+        },
+      ]}
+    />
+  )
+}
 
 const Index = () => {
   const router = useRouter()
@@ -31,31 +106,20 @@ const Index = () => {
   const { disconnect: mwaDisconnect, isConnected: mwaConnected } = useMWA()
   const { onboarding } = useContext(CreateContext)
   const { selectedGuide } = onboarding
-  const { userProfile, userWarriors, balance, loading, error, userAddress } = useGameData()
-  const { publicKey, isConnected, walletType } = useWalletInfo()
+  const { userProfile, balance, userAddress } = useBasicGameData()
 
   const [guideImage, setGuideImage] = useState(guide1)
 
   useEffect(() => {
     if (selectedGuide?.id) {
-      setGuideImage(
-        selectedGuide.id === '1'
-          ? guide1
-          : selectedGuide.id === '2'
-            ? guide2
-            : selectedGuide.id === '3'
-              ? guide3
-              : guide4,
-      )
+      setGuideImage(GUIDE_IMAGES[selectedGuide.id] || guide1)
     } else {
       setGuideImage(guide1)
     }
   }, [selectedGuide])
 
   const handleLogout = () => {
-    const walletProvider = mwaConnected ? 'Mobile Wallet Adapter' : 'Privy'
-
-    Alert.alert('Logout', `Are you sure you want to disconnect from ${walletProvider} and logout?`, [
+    Alert.alert('Logout', `Are you sure you want to logout?`, [
       {
         text: 'Cancel',
         style: 'cancel',
@@ -72,7 +136,7 @@ const Index = () => {
             }
             router.replace('/')
           } catch (error) {
-            console.error('Logout error:', error)
+            return error instanceof Error ? error.message : 'Unknown error occurred'
           }
         },
       },
@@ -81,144 +145,102 @@ const Index = () => {
 
   const formatAddress = (address: string | null): string => {
     if (!address) return 'Not Connected'
-    return `${address.slice(0, 4)}...${address.slice(-4)}`
+    return `${address.slice(0, ADDRESS_VISIBLE_START)}...${address.slice(-ADDRESS_VISIBLE_END)}`
   }
 
   const formatBalance = (balance: number | null): string => {
     if (balance === null) return '0.000000'
-    return balance.toFixed(6)
+    return balance.toFixed(BALANCE_DECIMALS)
   }
 
-  const getWalletTypeDisplay = (type: string): string => {
-    switch (type?.toLowerCase()) {
-      case 'phantom':
-        return 'Phantom'
-      case 'solflare':
-        return 'Solflare'
-      case 'backpack':
-        return 'Backpack'
-      default:
-        return type || 'Unknown'
-    }
-  }
-
-  console.log(userProfile)
   return (
-    <ImageBackground source={DASHBOARD_BACKGROUND} style={{ flex: 1 }} resizeMode="cover">
-      <View
-        style={{
-          ...require('react-native').StyleSheet.absoluteFillObject,
-          backgroundColor: 'rgba(0, 0, 0, 0.3)',
-        }}
-      />
+    <ImageBackground source={DASHBOARD_BACKGROUND} style={styles.container} resizeMode="cover">
+      <View style={styles.overlay} />
 
-      <View className="flex-1 flex-col justify-center px-4">
-        {/* Top Section with User Data */}
-        <View className="w-full flex flex-row justify-between items-center px-4  ">
-          {/* Left: User Profile Card */}
-          <View className="  min-w-[280px]">
-            <ImageBackground source={profileBackground} className="w-full h-20" resizeMode="contain">
-              <View className="flex flex-row items-start mb-2">
-                <View className="w-[65px] h-[65px] bg-[#C87423]  rounded-full flex items-center justify-center right-8">
-                  <MaterialIcons name="person" size={40} color="white" />
-                </View>
-                <View className="flex flex-col py-3 items-start">
-                  <Text className="text-white font-bold text-sm">{userProfile?.username || 'Harrison'}</Text>
-                  <View className="flex flex-row items-center mt-1">
+      <View style={styles.fireflyContainer}>
+        {[...Array(20)].map((_, i) => (
+          <Firefly key={i} delay={i * 150} />
+        ))}
+      </View>
+
+      <View style={styles.mainContent}>
+        <View style={styles.topSection}>
+          <View style={styles.profileCard}>
+            <ImageBackground source={profileBackground} style={styles.profileBackground} resizeMode="contain">
+              <View style={styles.profileRow}>
+                <View style={styles.profileInfo}>
+                  <Text style={styles.username}>{userProfile?.username || DEFAULT_USERNAME}</Text>
+                  <View style={styles.addressRow}>
                     <MaterialIcons name="account-balance-wallet" size={12} color="#9CA3AF" />
-                    <Text className="text-gray-400 text-xs ml-1">{formatAddress(userAddress)}</Text>
-                    <TouchableOpacity className="ml-2">
+                    <Text style={styles.addressText}>{formatAddress(userAddress)}</Text>
+                    <TouchableOpacity style={styles.copyButton}>
                       <MaterialIcons name="content-copy" size={10} color="#9CA3AF" />
                     </TouchableOpacity>
                   </View>
-                  {/* Balance */}
-                  <View className="flex flex-row items-center">
-                    <MaterialIcons name="account-balance-wallet" size={16} color="white" />
-                    <Text className="text-white text-xs font-medium ml-2">{formatBalance(balance)} SOL</Text>
-                    <View className="ml-2 bg-red-600/20 px-2 py-0.5 rounded">
-                      <MaterialIcons name="warning" size={12} color="#EF4444" />
-                    </View>
-                  </View>
                 </View>
               </View>
             </ImageBackground>
-            {/* Profile Header */}
           </View>
 
-          {/* Center: Game Stats */}
-          <ImageBackground source={resourceBg} className="w-[30%] flex items-center justify-center">
-            <View className="flex flex-row gap-x-4">
-              {/* Gold/Points */}
-              <View className=" border-yellow-500/30 rounded-lg px-3 py-2 flex flex-row items-center">
-                <MaterialIcons name="monetization-on" size={16} color="#EAB308" />
-                <Text className="text-yellow-400 font-bold ml-2">
-                  {userProfile?.totalPoints?.toString() || '6,840'}
-                </Text>
+          <ImageBackground source={resourceBg} style={styles.statsContainer}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <MaterialIcons name="monetization-on" size={16} color="#C87423" />
+                <Text style={styles.statValueSol}>{formatBalance(balance)}</Text>
               </View>
 
-              {/* XP/Level */}
-              <View className=" border-blue-500/30 rounded-lg px-3 py-2 flex flex-row items-center">
+              {/* <View style={styles.statItem}>
                 <MaterialIcons name="trending-up" size={16} color="#3B82F6" />
-                <Text className="text-blue-400 font-bold ml-2">
-                  {userProfile ? `${userProfile.totalBattlesWon * 100}` : '13,671'}
+                <Text style={styles.statValueBlue}>
+                  {userProfile ? `${userProfile.totalBattlesWon * XP_MULTIPLIER}` : DEFAULT_XP}
                 </Text>
-              </View>
+              </View> */}
             </View>
           </ImageBackground>
 
-          {/* Right: Action Icons & Achievements */}
-          <View className="flex items-center flex-row gap-x-6">
-            <MaterialCommunityIcons name="police-badge-outline" size={20} color="#CEA858" className="font-thin" />
+          <View style={styles.actionIcons}>
+            <MaterialCommunityIcons name="police-badge-outline" size={20} color="#CEA858" />
             <Octicons name="unmute" size={20} color="#CEA858" />
-            <MaterialCommunityIcons name="logout" size={20} color="#CEA858" />
+            <TouchableOpacity onPress={handleLogout}>
+              <MaterialCommunityIcons name="logout" size={20} color="#CEA858" />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Main Content */}
-        <View className="flex-row items-center h-[75%] justify-between">
-          {/* Left Menu */}
-          <View className="flex flex-col w-[45%] ">
-            <ImageBackground source={menuBg} className="w-full h-32" resizeMode="contain">
-              <TouchableOpacity
-                className="flex items-start justify-center h-full left-[18%] text-wrap"
-                onPress={() => router.push('/dashboard/story-mode')}
-              >
-                <Text className="text-start font-bold text-lg text-white font-li">Story Mode</Text>
-                <Text className="text-start  text-xs text-wrap text-white font-light">
-                  Learn all about Solana while having fun and
-                </Text>
-                <Text className="text-start font-light text-xs text-wrap text-white">winning points</Text>
+        <View style={styles.contentRow}>
+          <View style={styles.menuColumn}>
+            <ImageBackground source={menuBg} style={styles.menuItem} resizeMode="contain">
+              <TouchableOpacity style={styles.menuButton} onPress={() => router.push('/dashboard/story-mode')}>
+                <Text style={styles.menuTitle}>Story Mode</Text>
+                <Text style={styles.menuDescription}>Become the choosen commander of the</Text>
+                <Text style={styles.menuDescription}> Undead Legion</Text>
               </TouchableOpacity>
             </ImageBackground>
-            <ImageBackground source={menuBg2} className="w-full h-32" resizeMode="contain">
-              <TouchableOpacity
-                className="flex items-start justify-center h-full left-[18%] text-wrap"
-                onPress={() => router.push('/')}
-              >
-                <Text className="text-start font-bold text-lg text-white">Battle Arena</Text>
-                <Text className="text-start  text-xs text-wrap text-white font-light">Coming soon</Text>
+            <ImageBackground source={menuBg2} style={styles.menuItem} resizeMode="contain">
+              <TouchableOpacity style={styles.menuButton} disabled activeOpacity={1}>
+                <Text style={styles.menuTitle}>Battle Arena</Text>
+                <Text style={styles.menuDescription}>Coming to mobile soon</Text>
               </TouchableOpacity>
             </ImageBackground>
           </View>
 
-          {/* Right Guide Image with Badges */}
-          <Image source={guideImage} className="w-[300px] h-[500px] " resizeMode="contain" />
-          <View className="flex flex-row items-center relative z-20">
-            <View className="flex flex-col gap-y-2 ">
-              <View className="flex items-center">
-                <Image className="w-[40px] h-[40px]" resizeMode="contain" source={chaptersStatsIcon} />
-                <Text className="text-white text-sm font-light">Chapters</Text>
-                <Text className="text-white font-bold text-lg">4</Text>
+          <Image source={guideImage} style={styles.guideImage} resizeMode="contain" />
+          <View style={styles.statsColumn}>
+            <View style={styles.statsGrid}>
+              <View style={styles.statBadge}>
+                <Image style={styles.statIcon} resizeMode="contain" source={chaptersStatsIcon} />
+                <Text style={styles.statLabel}>Chapters</Text>
+                <Text style={styles.statValue}>1</Text>
               </View>
-              <View className="flex items-center">
-                <Image className="w-[40px] h-[40px]" resizeMode="contain" source={warriorStatsIcon} />
-                <Text className="text-white text-sm font-light">Warriors</Text>
-                <Text className="text-white font-bold text-lg">4</Text>
+              <View style={styles.statBadge}>
+                <Image style={styles.statIcon} resizeMode="contain" source={warriorStatsIcon} />
+                <Text style={styles.statLabel}>Warriors</Text>
+                {/* <Text style={styles.statValue}>4</Text> */}
               </View>
-              <View className="flex items-center">
-                <Image className="w-[40px] h-[40px]" resizeMode="contain" source={victoryStatsIcon} />
-                <Text className="text-white text-sm font-light">Victories</Text>
-                <Text className="text-white font-bold text-lg">4</Text>
+              <View style={styles.statBadge}>
+                <Image style={styles.statIcon} resizeMode="contain" source={victoryStatsIcon} />
+                <Text style={styles.statLabel}>Victories</Text>
+                {/* <Text style={styles.statValue}>4</Text> */}
               </View>
             </View>
           </View>
@@ -227,5 +249,188 @@ const Index = () => {
     </ImageBackground>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  fireflyContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+    pointerEvents: 'none',
+  },
+  firefly: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#C87423',
+    shadowColor: '#C87423',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  mainContent: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    zIndex: 2,
+  },
+  topSection: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  profileCard: {
+    minWidth: 190,
+  },
+  profileBackground: {
+    width: '100%',
+    height: 79,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 12,
+  },
+  avatarContainer: {
+    width: 65,
+    height: 65,
+    backgroundColor: '#C87423',
+    borderRadius: 32.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    right: 32,
+  },
+  profileInfo: {
+    flexDirection: 'column',
+    paddingVertical: 12,
+    alignItems: 'flex-start',
+  },
+  username: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  addressText: {
+    color: '#9CA3AF',
+    fontSize: 10,
+    marginLeft: 4,
+    fontWeight: 600,
+  },
+  copyButton: {
+    marginLeft: 8,
+  },
+  statsContainer: {
+    // width: '40%',
+    position: 'relative',
+    right: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    // gap: 16,
+  },
+  statItem: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statValueSol: {
+    color: '#C87423',
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  statValueBlue: {
+    color: '#60A5FA',
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  actionIcons: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 24,
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: '75%',
+    justifyContent: 'space-between',
+  },
+  menuColumn: {
+    flexDirection: 'column',
+    width: '53%',
+  },
+  menuItem: {
+    width: '100%',
+    height: 98,
+  },
+  menuButton: {
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    height: '100%',
+    left: '18%',
+  },
+  menuTitle: {
+    textAlign: 'left',
+    fontWeight: 'bold',
+    fontSize: 18,
+    color: 'white',
+  },
+  menuDescription: {
+    textAlign: 'left',
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '300',
+  },
+  guideImage: {
+    width: 330,
+    height: 500,
+  },
+  statsColumn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    zIndex: 20,
+  },
+  statsGrid: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  statBadge: {
+    alignItems: 'center',
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+  },
+  statLabel: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '300',
+  },
+  statValue: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+})
 
 export default Index

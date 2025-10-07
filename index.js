@@ -1,7 +1,6 @@
 import 'react-native-get-random-values';
 import 'fast-text-encoding';
 import 'react-native-worklets-core';
-import * as ScreenOrientation from 'expo-screen-orientation';
 import { Platform } from 'react-native';
 import structuredClone from '@ungap/structured-clone';
 import * as Crypto from 'expo-crypto';
@@ -29,25 +28,28 @@ if (Platform.OS !== 'web') {
     polyfillGlobal('TextEncoderStream', () => TextEncoderStream);
     polyfillGlobal('TextDecoderStream', () => TextDecoderStream);
 
-    if (!global.crypto || !global.crypto.subtle) {
-      global.crypto = global.crypto || {};
-      global.crypto.subtle = global.crypto.subtle || {};
+    if (!global.crypto) {
+      global.crypto = {};
+    }
 
-      global.crypto.subtle.digest = async (algorithm, data) => {
-        if (algorithm !== 'SHA-256') {
-          throw new Error(`Unsupported algorithm: ${algorithm}`);
+    if (!global.crypto.subtle) {
+      global.crypto.subtle = {
+        digest: async (algorithm, data) => {
+          if (algorithm !== 'SHA-256') {
+            throw new Error(`Unsupported algorithm: ${algorithm}`);
+          }
+
+          let input;
+          if (data instanceof Buffer || data instanceof ArrayBuffer) {
+            input = new Uint8Array(data);
+          } else if (ArrayBuffer.isView(data)) {
+            input = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+          } else {
+            throw new Error('Input must be a Buffer, ArrayBuffer, or ArrayBufferView');
+          }
+
+          return await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, input);
         }
-
-        let input;
-        if (data instanceof Buffer || data instanceof ArrayBuffer) {
-          input = new Uint8Array(data);
-        } else if (ArrayBuffer.isView(data)) {
-          input = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-        } else {
-          throw new Error('Input must be a Buffer, ArrayBuffer, or ArrayBufferView');
-        }
-
-        return await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, input);
       };
     }
   };

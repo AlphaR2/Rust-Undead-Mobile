@@ -1,11 +1,12 @@
 import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
+import { useBasicGameData } from '@/hooks/game/useBasicGameData'
 import { createUserProfile, UserProfileResult } from '@/hooks/useGameActions'
-import { useGameData } from '@/hooks/useGameData'
-import { useCurrentWallet, usePDAs, useUndeadProgram, useWalletInfo } from '@/hooks/useUndeadProgram'
+import { useUndeadProgram, useWalletInfo } from '@/hooks/useUndeadProgram'
+import { useCurrentWallet, usePDAs } from '@/hooks/utils/useHelpers'
 import { UserPersona } from '@/types/undead'
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { Image, ImageBackground, Text, TouchableOpacity, View } from 'react-native'
+import { Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import guide4 from '../assets/images/guides/guide-daemon.png'
 import guide3 from '../assets/images/guides/guide-guard.png'
 import guide2 from '../assets/images/guides/guide-oracle.png'
@@ -13,7 +14,6 @@ import guide1 from '../assets/images/guides/guide-val.png'
 import { GameTypewriterPresets, TypewriterText } from './common/Typewrite'
 import { toast } from './ui/Toast'
 
-// Guide data (for matching existing profile's guide)
 const GUIDES = [
   {
     id: '1',
@@ -21,7 +21,7 @@ const GUIDES = [
     title: 'Validator Master',
     type: 'Balanced',
     description:
-      'I am Janus, Master of the Foundation. I build the very bedrock upon which this realm stands. Through me, you’ll understand how consensus creates unshakeable truth.',
+      'I am Janus, Master of the Foundation. I build the very bedrock upon which this realm stands. Through me, you will understand how consensus creates unshakeable truth',
     specialty: 'Validators, consensus, foundation concepts',
     recommendedFor: 'Complete beginners who want solid fundamentals',
     learningStyle: 'Step-by-step, methodical building of knowledge',
@@ -81,139 +81,99 @@ const ProfileCreation = () => {
     setSelectedPersona,
   } = useContext(CreateContext).onboarding
   const { publicKey, isConnected } = useWalletInfo()
-  const { address: walletAddress, name: walletName } = useCurrentWallet()
   const { program } = useUndeadProgram()
   const { profilePda, getUsernameRegistryPda } = usePDAs(publicKey)
-  const { userProfile } = useGameData()
+  const { userProfile } = useBasicGameData()
 
-  // Sync userProfile with CreateContext and navigate if profile exists
   useEffect(() => {
     if (userProfile?.username) {
       setPlayerName(userProfile.username)
       setSelectedPersona(userProfile.userPersona || 'BoneSmith')
       const matchingGuide = GUIDES.find((guide) => guide.name === 'JANUS THE BUILDER') || GUIDES[0]
       setSelectedGuide(matchingGuide)
-      console.log('🚀 Navigating to game-card-intro for existing user:', userProfile.username)
       setCurrentOnboardingScreen('game-card-intro')
-    } else {
-      console.log('🛠️ ProfileCreation: No existing user profile found')
     }
   }, [userProfile, setPlayerName, setSelectedPersona, setSelectedGuide, setCurrentOnboardingScreen])
 
-  // Convert selectedPersona to UserPersona enum
   const getUserPersona = (): UserPersona => {
-    switch (selectedPersona?.toLowerCase()) {
-      case 'bonesmith':
-      case 'bone_smith':
-        return UserPersona.BoneSmith
-      case 'cerberus':
-        return UserPersona.Cerberus
-      case 'treasure_hunter':
-      case 'treasurehunter':
-        return UserPersona.TreasureHunter
-      case 'obsidian_prophet':
-      case 'obsidianprophet':
-        return UserPersona.ObsidianProphet
-      case 'grave_baron':
-      case 'gravebaron':
-        return UserPersona.GraveBaron
-      case 'demeter':
-        return UserPersona.Demeter
-      case 'collector':
-        return UserPersona.Collector
-      case 'coven_caller':
-      case 'covencaller':
-        return UserPersona.CovenCaller
-      case 'seer_of_ash':
-      case 'seerofash':
-        return UserPersona.SeerOfAsh
-      default:
-        return UserPersona.BoneSmith
+    const personaMap: Record<string, UserPersona> = {
+      bonesmith: UserPersona.BoneSmith,
+      bone_smith: UserPersona.BoneSmith,
+      cerberus: UserPersona.Cerberus,
+      treasure_hunter: UserPersona.TreasureHunter,
+      treasurehunter: UserPersona.TreasureHunter,
+      obsidian_prophet: UserPersona.ObsidianProphet,
+      obsidianprophet: UserPersona.ObsidianProphet,
+      grave_baron: UserPersona.GraveBaron,
+      gravebaron: UserPersona.GraveBaron,
+      demeter: UserPersona.Demeter,
+      collector: UserPersona.Collector,
+      coven_caller: UserPersona.CovenCaller,
+      covencaller: UserPersona.CovenCaller,
+      seer_of_ash: UserPersona.SeerOfAsh,
+      seerofash: UserPersona.SeerOfAsh,
     }
+
+    return personaMap[selectedPersona?.toLowerCase() || ''] || UserPersona.BoneSmith
   }
 
-  // Get guide image
   const getGuideImage = () => {
-    switch (selectedGuide?.id) {
-      case '1':
-        return guide1
-      case '2':
-        return guide2
-      case '3':
-        return guide3
-      case '4':
-        return guide4
-      default:
-        return guide1
+    const imageMap: Record<string, any> = {
+      '1': guide1,
+      '2': guide2,
+      '3': guide3,
+      '4': guide4,
     }
+    return imageMap[selectedGuide?.id || '1'] || guide1
   }
 
-  // Get guide title for badge
   const getGuideTitle = (): string => {
     if (!selectedGuide?.name) return 'GUIDE'
-    switch (selectedGuide.name) {
-      case 'JANUS THE BUILDER':
-        return 'BUILDER'
-      case 'JAREK THE ORACLE':
-        return 'ORACLE'
-      case 'GAIUS THE GUARDIAN':
-        return 'GUARDIAN'
-      case 'BRYN THE DAEMON':
-        return 'DAEMON'
-      default:
-        return selectedGuide.title?.toUpperCase() || 'GUIDE'
+
+    const titleMap: Record<string, string> = {
+      'JANUS THE BUILDER': 'BUILDER',
+      'JAREK THE ORACLE': 'ORACLE',
+      'GAIUS THE GUARDIAN': 'GUARDIAN',
+      'BRYN THE DAEMON': 'DAEMON',
     }
+
+    return titleMap[selectedGuide.name] || selectedGuide.title?.toUpperCase() || 'GUIDE'
   }
 
   const getProfileCreationMessage = (): string => {
     const name = playerName || 'Warrior'
-    switch (selectedGuide?.name) {
-      case 'JANUS THE BUILDER':
-        return `${name}, the Necropolis awaits your mark! Forge your identity forever in the eternal stone, where your legend will stand unyielding against the tides of time!`
-      case 'JAREK THE ORACLE':
-        return `${name}, the realm summons your essence! Bind your soul to the undying scroll of fate, where ancient spirits will chant your name through the ages!`
-      case 'GAIUS THE GUARDIAN':
-        return `${name}, the Crypt demands your vow! Anchor your name in the blockchain’s unbreachable fortress, shielded eternally by the might of the undead realm!`
-      case 'BRYN THE DAEMON':
-        return `${name}, the Digital Void calls! Ignite your essence and compile your identity into the immortal flame, forever blazing in the heart of the realm!`
-      default:
-        return `${name}, the Necropolis opens its gates! Etch your destiny upon the blockchain’s eternal ledger, where your legend will rise immortal in the realm of shadows!`
+    const messageMap: Record<string, string> = {
+      'JANUS THE BUILDER': `${name}, the Necropolis awaits your mark! Forge your identity forever in the eternal stone, where your legend will stand unyielding against the tides of time!`,
+      'JAREK THE ORACLE': `${name}, the realm summons your essence! Bind your soul to the undying scroll of fate, where ancient spirits will chant your name through the ages!`,
+      'GAIUS THE GUARDIAN': `${name}, the Crypt demands your vow! Anchor your name in the blockchain's unbreachable fortress, shielded eternally by the might of the undead realm!`,
+      'BRYN THE DAEMON': `${name}, the Digital Void calls! Ignite your essence and compile your identity into the immortal flame, forever blazing in the heart of the realm!`,
     }
+
+    return (
+      messageMap[selectedGuide?.name || ''] ||
+      `${name}, the Necropolis opens its gates! Etch your destiny upon the blockchain's eternal ledger, where your legend will rise immortal in the realm of shadows!`
+    )
   }
 
-  // Memoize profile message
   const profileMessage = useMemo(() => getProfileCreationMessage(), [playerName, selectedGuide?.name])
 
-  // Get guide-specific success message
   const getGuideSuccessMessage = (): string => {
-    switch (selectedGuide?.name) {
-      case 'JANUS THE BUILDER':
-        return 'Your foundation has been built!'
-      case 'JAREK THE ORACLE':
-        return 'Your essence flows through the blockchain!'
-      case 'GAIUS THE GUARDIAN':
-        return 'Your identity is protected!'
-      case 'BRYN THE DAEMON':
-        return 'Your profile has been compiled!'
-      default:
-        return 'Your legend is inscribed!'
+    const successMap: Record<string, string> = {
+      'JANUS THE BUILDER': 'Your foundation has been built!',
+      'JAREK THE ORACLE': 'Your essence flows through the blockchain!',
+      'GAIUS THE GUARDIAN': 'Your identity is protected!',
+      'BRYN THE DAEMON': 'Your profile has been compiled!',
     }
+
+    return successMap[selectedGuide?.name || ''] || 'Your legend is inscribed!'
   }
 
-  // Typewriter complete callback
   const handleTypewriterCompleteRef = useRef(() => {
     setShowMintButton(true)
   })
 
-  // Handle profile creation
   const handleForgeProfile = async () => {
-    console.log("popular")
-    // Skip creation if user already has a profile
     if (userProfile?.username) {
-      console.log(
-        '🚀 Skipping profile creation, navigating to game-card-intro for existing user:',
-        userProfile.username,
-      )
       setCurrentOnboardingScreen('game-card-intro')
       return
     }
@@ -253,18 +213,10 @@ const ProfileCreation = () => {
       })
 
       if (result.success) {
-        console.log('✅ Profile created successfully:', result.signature)
         setProfileCreated(true)
-        // Update CreateContext with new profile data
         setPlayerName(playerName)
         setSelectedGuide(selectedGuide || GUIDES[0])
         setSelectedPersona(selectedPersona || 'BoneSmith')
-        console.log('🛠️ Updated CreateContext:', {
-          username: playerName,
-          guide: selectedGuide?.name,
-          persona: selectedPersona,
-        })
-        // Navigate to next screen
         setCurrentOnboardingScreen('game-card-intro')
         toast.success('Success', getGuideSuccessMessage())
       } else {
@@ -272,83 +224,52 @@ const ProfileCreation = () => {
         toast.error('Error', result.error || 'Failed to create profile')
       }
     } catch (error: any) {
-      console.error('❌ Error creating user profile:', error)
-      setProfileCreationError(error.message || 'Unexpected error occurred. Please try again.')
-      toast.error('Error', error.message || 'Unexpected error occurred. Please try again.')
+      const errorMessage = error?.message || 'Unexpected error occurred. Please try again.'
+      setProfileCreationError(errorMessage)
+      toast.error('Error', errorMessage)
     } finally {
       setIsMinting(false)
     }
   }
 
-  // Get button text
   const getButtonText = (): string => {
     if (!isConnected) return 'Connect Wallet First'
+
     if (isMinting) {
-      switch (selectedGuide?.name) {
-        case 'JANUS THE BUILDER':
-          return 'Building...'
-        case 'JAREK THE ORACLE':
-          return 'Weaving...'
-        case 'GAIUS THE GUARDIAN':
-          return 'Forging...'
-        case 'BRYN THE DAEMON':
-          return 'Compiling...'
-        default:
-          return 'Creating...'
+      const loadingMap: Record<string, string> = {
+        'JANUS THE BUILDER': 'Building...',
+        'JAREK THE ORACLE': 'Weaving...',
+        'GAIUS THE GUARDIAN': 'Forging...',
+        'BRYN THE DAEMON': 'Compiling...',
       }
+      return loadingMap[selectedGuide?.name || ''] || 'Creating...'
     }
-    switch (selectedGuide?.name) {
-      case 'JANUS THE BUILDER':
-        return 'Build Profile'
-      case 'JAREK THE ORACLE':
-        return 'Forge Identity'
-      case 'GAIUS THE GUARDIAN':
-        return 'Forge Identity'
-      case 'BRYN THE DAEMON':
-        return 'Compile Profile'
-      default:
-        return 'Create Profile'
+
+    const buttonMap: Record<string, string> = {
+      'JANUS THE BUILDER': 'Build Profile',
+      'JAREK THE ORACLE': 'Forge Identity',
+      'GAIUS THE GUARDIAN': 'Forge Identity',
+      'BRYN THE DAEMON': 'Compile Profile',
     }
+
+    return buttonMap[selectedGuide?.name || ''] || 'Create Profile'
   }
 
-  console.log(isMinting || !isConnected)
   return (
-    <View className="flex-1 h-full w-full flex justify-end items-end">
-      <View className="flex-1 justify-end" style={{ width: '85%' }}>
-        <ImageBackground
-          className="w-full absolute -bottom-8 right-12 flex flex-row px-8"
-          source={require('../assets/onboarding/dialog-bg-2.png')}
-          style={{ height: 180, overflow: 'visible' }}
-        >
-          <View className="w-[30%] relative" style={{ overflow: 'visible' }}>
-            <Image
-              source={getGuideImage()}
-              className="w-[290px] h-[320px] relative z-20"
-              height={240}
-              width={240}
-              style={{ position: 'absolute', bottom: -45, right: 25 }}
-              resizeMode="contain"
-            />
+    <View style={styles.container}>
+      <View style={styles.contentWrapper}>
+        <ImageBackground style={styles.dialogBackground} source={require('../assets/onboarding/dialog-bg-2.png')}>
+          <View style={styles.guideImageContainer}>
+            <Image source={getGuideImage()} style={styles.guideImage} resizeMode="contain" />
           </View>
-          <View className="flex-1 pt-2 pr-4 w-[50%]">
-            <TouchableOpacity
-              className="w-24 p-1 border"
-              style={{
-                marginTop: -20,
-                borderColor: '#c873234d',
-                borderTopRightRadius: 10,
-                borderTopLeftRadius: 10,
-                backgroundColor: 'black',
-              }}
-              disabled
-            >
-              <Text className="text-white text-xs text-center font-bold">{getGuideTitle()}</Text>
+          <View style={styles.textContainer}>
+            <TouchableOpacity style={styles.badge} disabled>
+              <Text style={styles.badgeText}>{getGuideTitle()}</Text>
             </TouchableOpacity>
             <TypewriterText
               key={`profile-typewriter-${selectedGuide?.id}`}
               text={profileMessage}
-              style={[GameFonts.body]}
-              className="text-white mt-2 leading-8 mb-4"
+              style={[GameFonts.body, styles.typewriterText]}
               {...GameTypewriterPresets.dialogue}
               delay={300}
               skipAnimation={false}
@@ -356,16 +277,19 @@ const ProfileCreation = () => {
             />
 
             {showMintButton && (
-              <View className="flex flex-row items-center mt-2">
-                <TouchableOpacity onPress={()=> {handleForgeProfile()}} disabled={isMinting || !isConnected} className="ml-2   block w-full">
+              <View style={styles.buttonWrapper}>
+                <TouchableOpacity
+                  onPress={handleForgeProfile}
+                  disabled={isMinting || !isConnected}
+                  style={styles.buttonTouchable}
+                >
                   <ImageBackground
                     source={require('../assets/onboarding/button-bg-main.png')}
-                    className="flex items-center w-fit h-fit ml-[170px] -top-4 absolute justify-center py-3 px-8"
+                    style={styles.buttonBackground}
                     resizeMode="contain"
                   >
                     <Text
-                      className="text-center font-bold text-lg text-black"
-                      style={[GameFonts.button, { opacity: isMinting || !isConnected ? 0.7 : 1 }]}
+                      style={[GameFonts.button, styles.buttonText, { opacity: isMinting || !isConnected ? 0.7 : 1 }]}
                     >
                       {getButtonText()}
                     </Text>
@@ -379,5 +303,96 @@ const ProfileCreation = () => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    height: '100%',
+    width: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+  },
+  contentWrapper: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    width: '100%',
+  },
+  dialogBackground: {
+    width: '100%',
+    position: 'absolute',
+    bottom: -8,
+    left: 36,
+    flexDirection: 'row',
+    // paddingHorizontal: 32,
+    height: 180,
+    overflow: 'visible',
+  },
+  guideImageContainer: {
+    width: '30%',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  guideImage: {
+    width: 280,
+    height: 320,
+    position: 'absolute',
+    bottom: -54,
+    right: 25,
+    zIndex: 20,
+  },
+  textContainer: {
+    flex: 1,
+    paddingTop: 8,
+    paddingRight: 16,
+    width: '50%',
+  },
+  badge: {
+    width: 96,
+    padding: 4,
+    marginTop: -20,
+    borderColor: '#c873234d',
+    borderWidth: 1,
+    borderTopRightRadius: 10,
+    borderTopLeftRadius: 10,
+    backgroundColor: 'black',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  typewriterText: {
+    color: 'white',
+    marginTop: 8,
+    lineHeight: 32,
+    marginBottom: 16,
+  },
+  buttonWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  buttonTouchable: {
+    marginLeft: 8,
+    width: '100%',
+  },
+  buttonBackground: {
+    alignItems: 'center',
+    width: 'auto',
+    height: 'auto',
+    marginLeft: 170,
+    top: -35,
+    left: 32,
+    paddingVertical: 15,
+    paddingHorizontal: 32,
+  },
+  buttonText: {
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: 'black',
+  },
+})
 
 export default ProfileCreation

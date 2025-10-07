@@ -1,3 +1,4 @@
+import { withDeduplication } from '@/utils/helper'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { transact, Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { Connection, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js'
@@ -134,9 +135,8 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const walletResults = await checkSpecificWalletApps()
         const hasWallets = walletResults.some((result) => result.isInstalled)
         setHasWalletsInstalled(hasWallets)
-        console.log(`🔍 [MWA] Wallets available: ${hasWallets}`)
       } catch (err) {
-        console.error('❌ [MWA] Error checking wallets:', err)
+        console.error('[MWA] Error checking wallets:', err)
         setHasWalletsInstalled(false)
       } finally {
         setIsCheckingWallets(false)
@@ -152,13 +152,9 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const storedWalletInfo = await AsyncStorage.getItem(WALLET_INFO_KEY)
       const storedAuthToken = await AsyncStorage.getItem(AUTH_TOKEN_KEY)
 
-      console.log('📥 [MWA] Retrieved stored wallet info:', storedWalletInfo)
-      console.log('📥 [MWA] Retrieved stored auth_token:', storedAuthToken)
-
       if (storedWalletInfo && storedAuthToken) {
         const walletInfo = JSON.parse(storedWalletInfo)
         if (!walletInfo.address || !isValidSolanaAddress(walletInfo.address)) {
-          console.warn('⚠️ [MWA] Invalid stored wallet address, clearing storage:', walletInfo.address)
           await AsyncStorage.multiRemove([WALLET_INFO_KEY, AUTH_TOKEN_KEY])
           return
         }
@@ -171,16 +167,14 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
           setWallet(walletInfoWithToken)
           setIsConnected(true)
-          console.log('✅ [MWA] Restored wallet session:', walletInfo.address, 'with auth_token:', storedAuthToken)
         } catch (publicKeyError) {
-          console.error('❌ [MWA] Error creating PublicKey from stored address:', publicKeyError)
+          console.error('[MWA] Error creating PublicKey from stored address:', publicKeyError)
           await AsyncStorage.multiRemove([WALLET_INFO_KEY, AUTH_TOKEN_KEY])
         }
       } else {
-        console.log('ℹ️ [MWA] No stored wallet info or auth_token found')
       }
     } catch (error) {
-      console.error('❌ [MWA] Error loading stored wallet:', error)
+      console.error('[MWA] Error loading stored wallet:', error)
       await AsyncStorage.multiRemove([WALLET_INFO_KEY, AUTH_TOKEN_KEY])
     }
   }, [])
@@ -189,7 +183,7 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const storeWalletInfo = useCallback(async (walletInfo: MWAWalletInfo) => {
     try {
       if (!isValidSolanaAddress(walletInfo.address)) {
-        console.error('❌ [MWA] Cannot store invalid wallet address:', walletInfo.address)
+        console.error('[MWA] Cannot store invalid wallet address:', walletInfo.address)
         return
       }
       const storableInfo = {
@@ -199,12 +193,10 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await AsyncStorage.setItem(WALLET_INFO_KEY, JSON.stringify(storableInfo))
       if (walletInfo.authToken) {
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, walletInfo.authToken)
-        console.log('💾 [MWA] Stored wallet info:', storableInfo, 'with auth_token:', walletInfo.authToken)
       } else {
-        console.warn('⚠️ [MWA] No auth_token provided for storage')
       }
     } catch (error) {
-      console.error('❌ [MWA] Error storing wallet info:', error)
+      console.error('[MWA] Error storing wallet info:', error)
     }
   }, [])
 
@@ -212,133 +204,109 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const clearStoredWalletInfo = useCallback(async () => {
     try {
       await AsyncStorage.multiRemove([WALLET_INFO_KEY, AUTH_TOKEN_KEY])
-      console.log('🗑️ [MWA] Stored wallet info and auth_token cleared')
     } catch (error) {
-      console.error('❌ [MWA] Error clearing stored wallet info:', error)
+      console.error('[MWA] Error clearing stored wallet info:', error)
     }
   }, [])
 
   const connect = useCallback(
     async (forceReauthorize = false) => {
-      if (isConnecting || isTransactingRef.current) {
-        console.warn('⚠️ [MWA] Connection already in progress - waiting...')
+      const operationKey = `mwa_connect_${Date.now()}`
 
-        // Wait for current operation to finish instead of throwing error
-        let attempts = 0
-        while ((isConnecting || isTransactingRef.current) && attempts < 30) {
-          await new Promise((resolve) => setTimeout(resolve, 100))
-          attempts++
-        }
-
+      return withDeduplication(operationKey, async () => {
         if (isConnecting || isTransactingRef.current) {
-          throw new Error('Connection timeout - another operation is still in progress')
+          let attempts = 0
+          while ((isConnecting || isTransactingRef.current) && attempts < 30) {
+            await new Promise((resolve) => setTimeout(resolve, 100))
+            attempts++
+          }
+
+          if (isConnecting || isTransactingRef.current) {
+            throw new Error('Connection timeout - another operation is still in progress')
+          }
+
+          if (isConnected && wallet && !forceReauthorize) {
+            return
+          }
         }
-
-        // If already connected after waiting, return early
-        if (isConnected && wallet && !forceReauthorize) {
-          console.log('✅ [MWA] Already connected after waiting')
-          return
-        }
-      }
-
-      try {
-        setIsConnecting(true)
-        setError(null)
-        console.log('🔌 [MWA] Initiating connection...', { forceReauthorize })
-
-        const storedAuthToken = forceReauthorize ? null : await AsyncStorage.getItem(AUTH_TOKEN_KEY)
-        console.log('📥 [MWA] Using stored auth_token for connection:', storedAuthToken ? 'exists' : 'none')
-
-        const authorizationResult = await transact(async (mwaWallet: Web3MobileWallet) => {
-          const authResult = await mwaWallet.authorize({
-            chain: 'devnet',
-            identity: APP_IDENTITY,
-            auth_token: storedAuthToken || undefined,
-          })
-          console.log('🔑 [MWA] Received auth_token from authorize')
-          return authResult
-        })
-
-        if (authorizationResult.accounts.length === 0) {
-          throw new Error('No accounts authorized')
-        }
-
-        const account = authorizationResult.accounts[0]
-        let publicKey: PublicKey
-        let base58Address: string
 
         try {
-          console.log('📝 [MWA] Converting wallet address...')
+          setIsConnecting(true)
+          setError(null)
+
+          const storedAuthToken = forceReauthorize ? null : await AsyncStorage.getItem(AUTH_TOKEN_KEY)
+
+          const authorizationResult = await transact(async (mwaWallet: Web3MobileWallet) => {
+            const authResult = await mwaWallet.authorize({
+              chain: 'devnet',
+              identity: APP_IDENTITY,
+              auth_token: storedAuthToken || undefined,
+            })
+            return authResult
+          })
+
+          if (authorizationResult.accounts.length === 0) {
+            throw new Error('No accounts authorized')
+          }
+
+          const account = authorizationResult.accounts[0]
           const addressBytes = toByteArray(account.address)
-          publicKey = new PublicKey(addressBytes)
-          base58Address = publicKey.toString()
-          console.log('✅ [MWA] Converted address to base58:', base58Address)
-        } catch (conversionError: any) {
-          console.error('❌ [MWA] Error converting address:', conversionError)
-          throw new Error(`Failed to convert wallet address: ${conversionError.message}`)
-        }
+          const publicKey = new PublicKey(addressBytes)
+          const base58Address = publicKey.toString()
 
-        const walletInfo: MWAWalletInfo = {
-          address: base58Address,
-          publicKey,
-          authToken: authorizationResult.auth_token,
-          label: account.label || 'MWA Wallet',
-        }
+          const walletInfo: MWAWalletInfo = {
+            address: base58Address,
+            publicKey,
+            authToken: authorizationResult.auth_token,
+            label: account.label || 'MWA Wallet',
+          }
 
-        setWallet(walletInfo)
-        setIsConnected(true)
-        await storeWalletInfo(walletInfo)
-
-        console.log('✅ [MWA] Connected successfully:', base58Address)
-      } catch (error: any) {
-        console.error('❌ [MWA] Connection failed:', error)
-        let errorMessage = 'Failed to connect to wallet'
-        if (error.message?.includes('rejected')) {
-          errorMessage = 'Connection rejected by user'
-        } else if (error.message?.includes('not installed')) {
-          errorMessage = 'No compatible wallets found'
-        } else if (error.message?.includes('Failed to convert')) {
-          errorMessage = 'Invalid wallet address format'
+          setWallet(walletInfo)
+          setIsConnected(true)
+          await storeWalletInfo(walletInfo)
+        } catch (error: any) {
+          let errorMessage = 'Failed to connect to wallet'
+          if (error.message?.includes('rejected')) {
+            errorMessage = 'Connection rejected by user'
+          } else if (error.message?.includes('not installed')) {
+            errorMessage = 'No compatible wallets found'
+          } else if (error.message?.includes('Failed to convert')) {
+            errorMessage = 'Invalid wallet address format'
+          }
+          setError(errorMessage)
+          setIsConnected(false)
+          setWallet(null)
+          throw error
+        } finally {
+          setIsConnecting(false)
         }
-        setError(errorMessage)
-        setIsConnected(false)
-        setWallet(null)
-        throw error
-      } finally {
-        setIsConnecting(false)
-      }
+      })
     },
-    [isConnecting, storeWalletInfo],
+    [isConnecting, storeWalletInfo, isConnected, wallet],
   )
 
   // Disconnect from MWA wallet
   const disconnect = useCallback(async () => {
     try {
       setError(null)
-      console.log('🔌 [MWA] Disconnecting...')
 
       if (wallet?.authToken) {
-        console.log('🔑 [MWA] Using auth_token for deauthorize:', wallet.authToken)
         await transact(async (mwaWallet: Web3MobileWallet) => {
           try {
             await mwaWallet.deauthorize({ auth_token: wallet.authToken })
-            console.log('✅ [MWA] Wallet deauthorized with auth_token:', wallet.authToken)
-          } catch (deauthError) {
-            console.warn('⚠️ [MWA] Deauthorization failed, continuing disconnect:', deauthError)
-          }
+          } catch (deauthError) {}
         })
       }
 
       setWallet(null)
       setIsConnected(false)
       await clearStoredWalletInfo()
-      console.log('🗑️ [MWA] Disconnected successfully')
     } catch (error) {
-      console.error('❌ [MWA] Disconnect error:', error)
+      console.error('[MWA] Disconnect error:', error)
       setWallet(null)
       setIsConnected(false)
       await clearStoredWalletInfo()
-      console.log('🗑️ [MWA] Disconnected despite error')
+      console.log(' [MWA] Disconnected despite error')
     }
   }, [wallet?.authToken, clearStoredWalletInfo])
 
@@ -353,49 +321,55 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         throw new Error('Another transaction is in progress')
       }
 
-      try {
-        isTransactingRef.current = true
-        setError(null)
-        console.log('🔐 [MWA] Attempting to sign and send transaction with auth_token:', wallet.authToken)
+      const operationKey = `mwa_sign_send_${wallet.address}_${Date.now()}`
 
-        const signature = await transact(async (mwaWallet: Web3MobileWallet) => {
-          try {
-            const signatures = await mwaWallet.signAndSendTransactions({
-              transactions: [transaction],
-            })
-            console.log('✅ [MWA] Transaction signed and sent with auth_token:', wallet.authToken)
-            return signatures[0]
-          } catch (error: any) {
-            if (error.message?.includes('auth_token not valid')) {
-              console.warn('⚠️ [MWA] Invalid auth_token:', wallet.authToken, 'attempting re-authorization')
-              await connect(true) // Force re-authorization
-              const newWallet = currentWalletRef.current
-              if (!newWallet?.authToken) {
-                throw new Error('Failed to obtain new auth_token')
-              }
-              console.log('🔑 [MWA] Re-authorized with new auth_token:', newWallet.authToken)
+      return withDeduplication(operationKey, async () => {
+        try {
+          isTransactingRef.current = true
+          setError(null)
+
+          const signature = await transact(async (mwaWallet: Web3MobileWallet) => {
+            try {
               const signatures = await mwaWallet.signAndSendTransactions({
                 transactions: [transaction],
               })
-              console.log('✅ [MWA] Transaction signed and sent with new auth_token:', newWallet.authToken)
               return signatures[0]
-            }
-            throw error
-          }
-        })
+            } catch (error: any) {
+              if (error.message?.includes('auth_token not valid')) {
+                await connect(true)
+                const newWallet = currentWalletRef.current
+                if (!newWallet?.authToken) {
+                  throw new Error('Failed to obtain new auth_token')
+                }
+                const signatures = await mwaWallet.signAndSendTransactions({
+                  transactions: [transaction],
+                })
+                return signatures[0]
+              }
 
-        console.log('✅ [MWA] Transaction signed and sent:', signature)
-        return signature
-      } catch (error: any) {
-        console.error('❌ [MWA] Transaction signing/sending failed:', error)
-        const errorMessage = error.message?.includes('rejected')
-          ? 'Transaction rejected by user'
-          : `Failed to send transaction: ${error.message}`
-        setError(errorMessage)
-        throw error
-      } finally {
-        isTransactingRef.current = false
-      }
+              // Add "already processed" handling
+              if (error.message?.includes('already been processed') || error.message?.includes('already processed')) {
+                console.warn('[MWA] Transaction already processed')
+                throw new Error('Transaction already processed - refresh to see updated state')
+              }
+
+              throw error
+            }
+          })
+
+          return signature
+        } catch (error: any) {
+          const errorMessage = error.message?.includes('rejected')
+            ? 'Transaction rejected by user'
+            : error.message?.includes('already processed')
+              ? error.message
+              : `Failed to send transaction: ${error.message}`
+          setError(errorMessage)
+          throw error
+        } finally {
+          isTransactingRef.current = false
+        }
+      })
     },
     [wallet, isConnected, connect],
   )
@@ -411,73 +385,69 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         throw new Error('Another transaction is in progress')
       }
 
-      try {
-        isTransactingRef.current = true
-        setError(null)
-        console.log(
-          `🔐 [MWA] Attempting to sign ${transactions.length} transactions with auth_token:`,
-          wallet.authToken,
-        )
+      const operationKey = `mwa_batch_sign_${wallet.address}_${Date.now()}`
 
-        const signedTransactions = await transact(async (mwaWallet: Web3MobileWallet) => {
-          try {
-            console.warn('⚠️ [MWA] Using signTransactions for Anchor compatibility')
-            const signedTxs = await mwaWallet.signTransactions({
-              transactions,
-            })
-            console.log('✅ [MWA] Transactions signed with auth_token:', wallet.authToken)
-            return signedTxs
-          } catch (error: any) {
-            if (error.message?.includes('auth_token not valid')) {
-              console.warn('⚠️ [MWA] Invalid auth_token, attempting fresh authorization...')
+      return withDeduplication(operationKey, async () => {
+        try {
+          isTransactingRef.current = true
+          setError(null)
 
-              // Clear the old token and force fresh authorization
-              await AsyncStorage.removeItem(AUTH_TOKEN_KEY)
-              setWallet((prev: any) => (prev ? { ...prev, authToken: undefined } : null))
-
-              // Get fresh authorization
-              const authResult = await mwaWallet.authorize({
-                chain: 'devnet',
-                identity: APP_IDENTITY,
-              })
-
-              if (!authResult.auth_token) {
-                throw new Error('Failed to obtain new auth_token')
-              }
-
-              console.log('🔑 [MWA] Fresh authorization successful with new auth_token:', authResult.auth_token)
-
-              // Update wallet with new token
-              const updatedWallet = {
-                ...wallet,
-                authToken: authResult.auth_token,
-              }
-              setWallet(updatedWallet)
-              await AsyncStorage.setItem(AUTH_TOKEN_KEY, authResult.auth_token)
-
-              // Retry signing with new token
+          const signedTransactions = await transact(async (mwaWallet: Web3MobileWallet) => {
+            try {
               const signedTxs = await mwaWallet.signTransactions({
                 transactions,
               })
-              console.log('✅ [MWA] Transactions signed with fresh auth_token')
               return signedTxs
-            }
-            throw error
-          }
-        })
+            } catch (error: any) {
+              if (error.message?.includes('auth_token not valid')) {
+                await AsyncStorage.removeItem(AUTH_TOKEN_KEY)
+                setWallet((prev: any) => (prev ? { ...prev, authToken: undefined } : null))
 
-        console.log(`✅ [MWA] ${signedTransactions.length} transactions signed successfully`)
-        return signedTransactions
-      } catch (error: any) {
-        console.error('❌ [MWA] Batch transaction signing failed:', error)
-        const errorMessage = error.message?.includes('rejected')
-          ? 'Transaction signing rejected by user'
-          : `Failed to sign transactions: ${error.message}`
-        setError(errorMessage)
-        throw error
-      } finally {
-        isTransactingRef.current = false
-      }
+                const authResult = await mwaWallet.authorize({
+                  chain: 'devnet',
+                  identity: APP_IDENTITY,
+                })
+
+                if (!authResult.auth_token) {
+                  throw new Error('Failed to obtain new auth_token')
+                }
+
+                const updatedWallet = {
+                  ...wallet,
+                  authToken: authResult.auth_token,
+                }
+                setWallet(updatedWallet)
+                await AsyncStorage.setItem(AUTH_TOKEN_KEY, authResult.auth_token)
+
+                const signedTxs = await mwaWallet.signTransactions({
+                  transactions,
+                })
+                return signedTxs
+              }
+
+              // Add "already processed" handling
+              if (error.message?.includes('already been processed') || error.message?.includes('already processed')) {
+                console.warn('[MWA] Batch already processed')
+                throw new Error('Transactions already processed - refresh to see updated state')
+              }
+
+              throw error
+            }
+          })
+
+          return signedTransactions
+        } catch (error: any) {
+          const errorMessage = error.message?.includes('rejected')
+            ? 'Transaction signing rejected by user'
+            : error.message?.includes('already processed')
+              ? error.message
+              : `Failed to sign transactions: ${error.message}`
+          setError(errorMessage)
+          throw error
+        } finally {
+          isTransactingRef.current = false
+        }
+      })
     },
     [wallet, isConnected],
   )
@@ -493,51 +463,48 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         throw new Error('Another transaction is in progress')
       }
 
-      try {
-        isTransactingRef.current = true
-        setError(null)
-        console.log('🔐 [MWA] Attempting to sign message with auth_token:', wallet.authToken)
+      const operationKey = `mwa_sign_msg_${wallet.address}_${Date.now()}`
 
-        const signedMessage = await transact(async (mwaWallet: Web3MobileWallet) => {
-          try {
-            const signatures = await mwaWallet.signMessages({
-              addresses: [wallet.address],
-              payloads: [message],
-            })
-            console.log('✅ [MWA] Message signed with auth_token:', wallet.authToken)
-            return signatures[0]
-          } catch (error: any) {
-            if (error.message?.includes('auth_token not valid')) {
-              console.warn('⚠️ [MWA] Invalid auth_token:', wallet.authToken, 'attempting re-authorization')
-              await connect(true) // Force re-authorization
-              const newWallet = currentWalletRef.current
-              if (!newWallet?.authToken) {
-                throw new Error('Failed to obtain new auth_token')
-              }
-              console.log('🔑 [MWA] Re-authorized with new auth_token:', newWallet.authToken)
+      return withDeduplication(operationKey, async () => {
+        try {
+          isTransactingRef.current = true
+          setError(null)
+
+          const signedMessage = await transact(async (mwaWallet: Web3MobileWallet) => {
+            try {
               const signatures = await mwaWallet.signMessages({
                 addresses: [wallet.address],
                 payloads: [message],
               })
-              console.log('✅ [MWA] Message signed with new auth_token:', newWallet.authToken)
               return signatures[0]
+            } catch (error: any) {
+              if (error.message?.includes('auth_token not valid')) {
+                await connect(true)
+                const newWallet = currentWalletRef.current
+                if (!newWallet?.authToken) {
+                  throw new Error('Failed to obtain new auth_token')
+                }
+                const signatures = await mwaWallet.signMessages({
+                  addresses: [wallet.address],
+                  payloads: [message],
+                })
+                return signatures[0]
+              }
+              throw error
             }
-            throw error
-          }
-        })
+          })
 
-        console.log('✅ [MWA] Message signed successfully')
-        return signedMessage
-      } catch (error: any) {
-        console.error('❌ [MWA] Message signing failed:', error)
-        const errorMessage = error.message?.includes('rejected')
-          ? 'Message signing rejected by user'
-          : `Failed to sign message: ${error.message}`
-        setError(errorMessage)
-        throw error
-      } finally {
-        isTransactingRef.current = false
-      }
+          return signedMessage
+        } catch (error: any) {
+          const errorMessage = error.message?.includes('rejected')
+            ? 'Message signing rejected by user'
+            : `Failed to sign message: ${error.message}`
+          setError(errorMessage)
+          throw error
+        } finally {
+          isTransactingRef.current = false
+        }
+      })
     },
     [wallet, isConnected, connect],
   )
@@ -552,10 +519,10 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const hasWallets = walletResults.some((result) => result.isInstalled)
 
       setHasWalletsInstalled(hasWallets)
-      console.log(`🔍 [MWA] Wallets available: ${hasWallets}`)
+
       return hasWallets
     } catch (error) {
-      console.error('❌ [MWA] Error checking wallets:', error)
+      console.error('[MWA] Error checking wallets:', error)
       setHasWalletsInstalled(false)
       return false
     } finally {
@@ -628,11 +595,10 @@ export const useMWAAnchorAdapter = (): AnchorWallet | null => {
       // Single transaction signing - uses signAllTransactions with array of one
       signTransaction: async <T extends Transaction | VersionedTransaction>(tx: T): Promise<T> => {
         try {
-          console.log('🔐 [MWA Anchor Adapter] Signing single transaction...')
           const signedTxs = await signAllTransactions([tx])
           return signedTxs[0] as T
         } catch (error) {
-          console.error('❌ [MWA Anchor Adapter] Failed to sign transaction:', error)
+          console.error(' [MWA Anchor Adapter] Failed to sign transaction:', error)
           throw error
         }
       },
@@ -640,10 +606,9 @@ export const useMWAAnchorAdapter = (): AnchorWallet | null => {
       // Multiple transaction signing - uses existing signAllTransactions
       signAllTransactions: async <T extends Transaction | VersionedTransaction>(txs: T[]): Promise<T[]> => {
         try {
-          console.log(`🔐 [MWA Anchor Adapter] Signing ${txs.length} transactions...`)
           return (await signAllTransactions(txs)) as T[]
         } catch (error) {
-          console.error('❌ [MWA Anchor Adapter] Failed to sign transactions:', error)
+          console.error('[MWA Anchor Adapter] Failed to sign transactions:', error)
           throw error
         }
       },
@@ -658,7 +623,7 @@ export const useMWAAnchorAdapter = (): AnchorWallet | null => {
  * Use useMWAAnchorAdapter for standard Anchor compatibility
  */
 export const useMWASignAndSendAdapter = (): MWAAnchorWallet | null => {
-  console.warn('⚠️ useMWASignAndSendAdapter is deprecated. Use useMWAAnchorAdapter for standard Anchor compatibility.')
+  console.warn('useMWASignAndSendAdapter is deprecated. Use useMWAAnchorAdapter for standard Anchor compatibility.')
 
   const { wallet, isConnected, signAndSendTransaction, signAllTransactions } = useMWA()
 
@@ -670,11 +635,9 @@ export const useMWASignAndSendAdapter = (): MWAAnchorWallet | null => {
     return {
       publicKey: wallet.publicKey,
       signAndSendTransaction: async (tx: Transaction | VersionedTransaction) => {
-        console.log('🔐 [MWA Legacy Adapter] Using signAndSendTransaction...')
         return await signAndSendTransaction(tx)
       },
       signAllTransactions: async (txs: (Transaction | VersionedTransaction)[]) => {
-        console.log(`🔐 [MWA Legacy Adapter] Signing ${txs.length} transactions...`)
         return await signAllTransactions(txs)
       },
     }
@@ -703,12 +666,6 @@ export const checkSpecificWalletApps = async (): Promise<{ wallet: WalletApp; is
         }
       }
     }),
-  )
-
-  const installedWallets = results.filter((r) => r.isInstalled)
-  console.log(
-    `📱 [MWA] Found ${installedWallets.length} installed wallets:`,
-    installedWallets.map((r) => r.wallet.name),
   )
 
   return results

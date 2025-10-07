@@ -88,12 +88,10 @@
     "gill": "^0.11.0",
     "js-base64": "^3.7.8",
     "matter-js": "^0.20.0",
-    "nativewind": "^4.2.1",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
-    "react-native-css-interop": "^0.2.1",
     "react-native-game-engine": "^1.2.0",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-get-random-values": "^1.11.0",
@@ -108,13 +106,13 @@
     "react-native-screens": "4.11.1",
     "react-native-snackbar": "^2.9.0",
     "react-native-svg": "15.11.2",
+    "react-native-svg-transformer": "^1.5.1",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
     "react-native-worklets-core": "^1.6.2",
     "react-qr-code": "^2.0.16",
     "stream-browserify": "3.0.0",
-    "tailwindcss": "^3.4.17",
     "text-encoding": "^0.7.0"
   },
   "devDependencies": {
@@ -124,7 +122,6 @@
     "eslint": "^9.33.0",
     "eslint-config-expo": "~9.2.0",
     "prettier": "^3.6.2",
-    "react-native-worklets": "^0.5.1",
     "typescript": "~5.8.3"
   },
   "private": true

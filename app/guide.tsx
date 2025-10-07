@@ -7,9 +7,9 @@ import PersonaSelectionScreen from '@/components/Persona'
 import WarriorProfileSetup from '@/components/warrior/WarriorProfileSetup'
 import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
-import { useGameData } from '@/hooks/useGameData'
+import { useBasicGameData } from '@/hooks/game/useBasicGameData'
 import { router, useNavigation } from 'expo-router'
-import React, { useContext, useEffect, useState } from 'react'
+import React, { JSX, useContext, useEffect, useState } from 'react'
 import {
   Animated,
   Dimensions,
@@ -26,10 +26,8 @@ import PERSONA_BACKGROUND from '../assets/images/bg-assets/bg-03.png'
 import PROFILE_BACKGROUND from '../assets/images/bg-assets/bg-04.png'
 import PRO_BACKGROUND from '../assets/images/bg-assets/bg-099.png'
 
-// Get screen dimensions for responsive design
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
+const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
-// Guide data
 const GUIDES = [
   {
     id: '1',
@@ -37,7 +35,7 @@ const GUIDES = [
     title: 'Validator Master',
     type: 'Balanced',
     description:
-      'I am Janus, Master of the Foundation. I build the very bedrock upon which this realm stands. Through me, you’ll understand how consensus creates unshakeable truth.',
+      'I am Janus, Master of the Foundation. I build the very bedrock upon which this realm stands. Through me, you will understand how consensus creates unshakeable truth.',
     specialty: 'Validators, consensus, foundation concepts',
     recommendedFor: 'Complete beginners who want solid fundamentals',
     learningStyle: 'Step-by-step, methodical building of knowledge',
@@ -81,34 +79,43 @@ const GUIDES = [
   },
 ]
 
+const ANIMATION_DURATION_LONG = 1000
+const ANIMATION_DURATION_SHORT = 800
+const ANIMATION_DELAY = 2000
+
+type OnboardingScreen =
+  | 'welcome'
+  | 'selection'
+  | 'persona'
+  | 'name'
+  | 'profile'
+  | 'game-card-intro'
+  | 'game-card-carousel'
+
 const GuideSelection = () => {
   const { currentOnboardingScreen, setCurrentOnboardingScreen, setSelectedGuide, setPlayerName, setSelectedPersona } =
     useContext(CreateContext).onboarding
-  const { userProfile } = useGameData()
+  const { userProfile } = useBasicGameData()
   const navigation = useNavigation()
   const [fadeAnim] = useState(new Animated.Value(0))
   const [slideAnim] = useState(new Animated.Value(50))
   const [textDelayAnim] = useState(new Animated.Value(0))
 
-  // Sync userProfile with CreateContext
   useEffect(() => {
     if (userProfile?.username) {
       setPlayerName(userProfile.username)
       setSelectedPersona(userProfile.userPersona || '')
       const matchingGuide = GUIDES.find((guide) => guide.name === 'JANUS THE BUILDER') || GUIDES[0]
       setSelectedGuide(matchingGuide)
-    } else {
     }
   }, [userProfile, setPlayerName, setSelectedPersona, setSelectedGuide])
 
-  // Start welcome animation on mount
   useEffect(() => {
     requestAnimationFrame(() => {
       startWelcomeAnimation()
     })
   }, [])
 
-  // Start selection animation when screen changes
   useEffect(() => {
     if (currentOnboardingScreen === 'selection') {
       requestAnimationFrame(() => {
@@ -117,7 +124,6 @@ const GuideSelection = () => {
     }
   }, [currentOnboardingScreen])
 
-  // Animation for welcome screen
   const startWelcomeAnimation = () => {
     fadeAnim.setValue(1)
     slideAnim.setValue(0)
@@ -127,14 +133,13 @@ const GuideSelection = () => {
       Animated.parallel([
         Animated.timing(textDelayAnim, {
           toValue: 1,
-          duration: 1000,
+          duration: ANIMATION_DURATION_LONG,
           useNativeDriver: true,
         }),
       ]).start()
-    }, 2000)
+    }, ANIMATION_DELAY)
   }
 
-  // Animation for selection screen
   const startSelectionAnimation = () => {
     fadeAnim.setValue(0)
     slideAnim.setValue(50)
@@ -142,64 +147,53 @@ const GuideSelection = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1000,
+        duration: ANIMATION_DURATION_LONG,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 800,
+        duration: ANIMATION_DURATION_SHORT,
         useNativeDriver: true,
       }),
     ]).start()
   }
 
-  // Handle navigation to next screen
   const handleNext = () => {
     if (userProfile?.username) {
-      console.log('🚀 Navigating to game-card-intro for existing user:', userProfile.username)
-      setCurrentOnboardingScreen('game-card-intro')
+      router.push('/dashboard')
+      // setCurrentOnboardingScreen('game-card-intro')
     } else {
-      console.log('🚀 Navigating to selection for new user')
       setCurrentOnboardingScreen('selection')
     }
   }
 
-  // Handle back navigation
   const handleBack = () => {
-    switch (currentOnboardingScreen) {
-      case 'selection':
+    const backMap: Record<OnboardingScreen, OnboardingScreen | 'default'> = {
+      welcome: 'default',
+      selection: 'welcome',
+      persona: 'selection',
+      name: 'persona',
+      profile: 'name',
+      'game-card-intro': 'name',
+      'game-card-carousel': 'game-card-intro',
+    }
+
+    const nextScreen = backMap[currentOnboardingScreen as OnboardingScreen]
+
+    if (nextScreen === 'default') {
+      if (navigation.canGoBack()) {
+        router.back()
+      } else {
+        router.replace('/intro')
         setCurrentOnboardingScreen('welcome')
-        break
-      case 'persona':
-        setCurrentOnboardingScreen('selection')
-        break
-      case 'name':
-        setCurrentOnboardingScreen('persona')
-        break
-      case 'game-card-intro':
-        setCurrentOnboardingScreen('name')
-        break
-      case 'game-card-carousel':
-        setCurrentOnboardingScreen('game-card-intro')
-        break
-      case 'warrior-profile':
-        setCurrentOnboardingScreen('game-card-carousel')
-        break
-      default:
-        if (navigation.canGoBack()) {
-          router.back()
-        } else {
-          router.replace('/intro')
-          setCurrentOnboardingScreen('welcome')
-        }
-        break
+      }
+    } else {
+      setCurrentOnboardingScreen(nextScreen as OnboardingScreen)
     }
   }
 
-  // Determine if back button should be shown
   const shouldShowBackButton = currentOnboardingScreen !== 'welcome'
 
-  // Back Button Component
   const BackButton = () => (
     <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7}>
       <View style={styles.backButtonContainer}>
@@ -208,13 +202,12 @@ const GuideSelection = () => {
     </TouchableOpacity>
   )
 
-  // Welcome screen
   const renderWelcomeScreen = () => (
     <View style={styles.container}>
       <ImageBackground source={WELCOME_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
         <View style={styles.overlay} />
         <SafeAreaView style={styles.safeArea}>
-          <View className="flex flex-col items-center gap-y-[-30px]">
+          <View style={styles.welcomeContentWrapper}>
             <Animated.View
               style={[
                 {
@@ -226,20 +219,16 @@ const GuideSelection = () => {
               <ImageBackground
                 source={require('../assets/onboarding/dialog-bg-1.png')}
                 style={styles.titleContainer}
-                className="p-3 mt-5"
                 resizeMode="contain"
               >
-                <Text className="text-base text-[#E0E0E0]" style={[GameFonts.epic]}>
-                  Choose your guide
-                </Text>
+                <Text style={[GameFonts.epic, styles.titleText]}>Choose your guide</Text>
               </ImageBackground>
               <ImageBackground
                 source={require('../assets/onboarding/dialog-bg-2.png')}
                 style={styles.welcomeTextContainer}
-                className="p-24"
                 resizeMode="contain"
               >
-                <Text style={[styles.welcomeText, GameFonts.bodyMedium]} className="">
+                <Text style={[styles.welcomeText, GameFonts.bodyMedium]}>
                   Four legendary undead masters await to guide you through the mysteries of blockchain.
                 </Text>
               </ImageBackground>
@@ -248,7 +237,7 @@ const GuideSelection = () => {
               <TouchableOpacity onPress={handleNext} activeOpacity={0.85}>
                 <ImageBackground
                   source={require('../assets/onboarding/button-bg-main.png')}
-                  className="py-6 px-12 flex"
+                  style={styles.buttonBackground}
                   resizeMode="contain"
                 >
                   <Text style={[GameFonts.button]}>
@@ -263,7 +252,6 @@ const GuideSelection = () => {
     </View>
   )
 
-  // Guide selection screen
   const renderGuideSelection = () => (
     <View style={styles.container}>
       <ImageBackground source={SELECTION_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -291,7 +279,6 @@ const GuideSelection = () => {
     </View>
   )
 
-  // Persona selection screen
   const renderPersonaScreen = () => (
     <View style={styles.container}>
       <ImageBackground source={PERSONA_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -306,7 +293,6 @@ const GuideSelection = () => {
     </View>
   )
 
-  // Name input screen
   const renderInputScreen = () => (
     <View style={styles.container}>
       <ImageBackground source={PRO_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -332,7 +318,6 @@ const GuideSelection = () => {
     </View>
   )
 
-  // Profile creation screen
   const renderMintProfile = () => (
     <View style={styles.container}>
       <ImageBackground source={PRO_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -358,7 +343,6 @@ const GuideSelection = () => {
     </View>
   )
 
-  // Game card intro screen
   const renderGameCardIntroScreen = () => (
     <View style={styles.container}>
       <ImageBackground source={PROFILE_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -384,7 +368,6 @@ const GuideSelection = () => {
     </View>
   )
 
-  // Game card carousel screen
   const renderGameCardCarouselScreen = () => (
     <View style={styles.container}>
       {shouldShowBackButton && (
@@ -396,7 +379,6 @@ const GuideSelection = () => {
     </View>
   )
 
-  // Warrior profile setup screen
   const renderWarriorProfileSetupScreen = () => (
     <View style={styles.container}>
       <ImageBackground
@@ -417,21 +399,17 @@ const GuideSelection = () => {
     </View>
   )
 
-  return currentOnboardingScreen === 'welcome'
-    ? renderWelcomeScreen()
-    : currentOnboardingScreen === 'selection'
-      ? renderGuideSelection()
-      : currentOnboardingScreen === 'persona'
-        ? renderPersonaScreen()
-        : currentOnboardingScreen === 'name'
-          ? renderInputScreen()
-          : currentOnboardingScreen === 'profile'
-            ? renderMintProfile()
-            : currentOnboardingScreen === 'game-card-intro'
-              ? renderGameCardIntroScreen()
-              : currentOnboardingScreen === 'game-card-carousel'
-                ? renderGameCardCarouselScreen()
-                : renderWarriorProfileSetupScreen()
+  const screenMap: Record<OnboardingScreen, () => JSX.Element> = {
+    welcome: renderWelcomeScreen,
+    selection: renderGuideSelection,
+    persona: renderPersonaScreen,
+    name: renderInputScreen,
+    profile: renderMintProfile,
+    'game-card-intro': renderGameCardIntroScreen,
+    'game-card-carousel': renderGameCardCarouselScreen,
+  }
+
+  return screenMap[currentOnboardingScreen as OnboardingScreen]?.() || renderWelcomeScreen()
 }
 
 const styles = StyleSheet.create({
@@ -486,49 +464,37 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 100,
   },
-  welcomeWrapper: {
-    flex: 1,
-    justifyContent: 'center',
+  welcomeContentWrapper: {
+    flexDirection: 'column',
+    height: '55%',
     alignItems: 'center',
-    paddingVertical: 10,
-  },
-  welcomeContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    marginBottom: 20,
+    // gap: -30,
   },
   titleContainer: {
     marginBottom: 12,
     alignItems: 'center',
+    padding: 12,
+    marginTop: 20,
   },
-  welcomeTitle: {
-    fontSize: 28,
-    color: '#cd7f32',
-    textAlign: 'center',
-    textShadowColor: '#000',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 6,
-  },
-  titleUnderline: {
-    width: SCREEN_WIDTH * 0.6,
-    height: 3,
-    backgroundColor: '#cd7f32',
-    marginTop: 15,
-    shadowColor: '#cd7f32',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
+  titleText: {
+    fontSize: 16,
+    color: '#E0E0E0',
   },
   welcomeTextContainer: {
     alignItems: 'center',
     paddingHorizontal: 20,
     maxWidth: SCREEN_WIDTH * 0.7,
+    padding: 96,
   },
   welcomeText: {
     fontSize: 12,
     color: '#E0E0E0',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  buttonBackground: {
+    paddingVertical: 20,
+    paddingHorizontal: 48,
   },
   selectionContainer: {
     flex: 1,
@@ -537,12 +503,6 @@ const styles = StyleSheet.create({
   selectionHeader: {
     alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 24,
-    color: '#E0E0E0',
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
   carouselWrapper: {
     flex: 1,
   },
@@ -550,110 +510,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingVertical: 40,
-  },
-  selectionContent: {
-    flex: 1,
-  },
-  carouselContainer: {
-    height: 200,
-    marginBottom: 20,
-  },
-  carousel: {
-    flex: 1,
-  },
-  guideCard: {
-    width: SCREEN_WIDTH,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-  },
-  guideAvatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    marginBottom: 20,
-  },
-  guideInitial: {
-    fontSize: 48,
-  },
-  guideName: {
-    fontSize: 18,
-    color: '#E0E0E0',
-    textAlign: 'center',
-  },
-  detailsPanel: {
-    flex: 1,
-    paddingHorizontal: 10,
-  },
-  detailsCard: {
-    backgroundColor: 'rgba(205, 127, 50, 0.1)',
-    borderWidth: 2,
-    borderRadius: 15,
-    padding: 20,
-    marginHorizontal: 10,
-    marginBottom: 20,
-  },
-  detailsTitle: {
-    fontSize: 20,
-    color: '#cd7f32',
-    textAlign: 'center',
-    marginBottom: 5,
-  },
-  detailsType: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  detailsDescription: {
-    fontSize: 14,
-    color: '#E0E0E0',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-    fontStyle: 'italic',
-  },
-  detailsLabel: {
-    fontSize: 14,
-    color: '#cd7f32',
-    marginBottom: 5,
-  },
-  detailsValue: {
-    fontSize: 14,
-    color: '#C0C0C0',
-    lineHeight: 18,
-  },
-  buttonContainer: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  nextButton: {
-    backgroundColor: '#121212',
-    paddingHorizontal: 40,
-    paddingVertical: 16,
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: '#cd7f32',
-    minWidth: 200,
-    alignItems: 'center',
-  },
-  confirmButton: {
-    backgroundColor: '#121212',
-    paddingHorizontal: 40,
-    paddingVertical: 16,
-    borderRadius: 25,
-    borderWidth: 2,
-    minWidth: 200,
-    alignItems: 'center',
-  },
-  buttonText: {
-    fontSize: 16,
-    color: '#cd7f32',
-    textAlign: 'center',
-    letterSpacing: 1,
   },
 })
 

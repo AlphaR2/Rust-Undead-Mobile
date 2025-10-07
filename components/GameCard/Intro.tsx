@@ -1,14 +1,33 @@
 import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
-import React, { useContext, useMemo, useRef, useState } from 'react'
-import { Image, ImageBackground, Text, TouchableOpacity, View } from 'react-native'
-
-// Import guide images directly
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import guide4 from '../../assets/images/guides/guide-daemon.png'
 import guide3 from '../../assets/images/guides/guide-guard.png'
 import guide2 from '../../assets/images/guides/guide-oracle.png'
 import guide1 from '../../assets/images/guides/guide-val.png'
 import { GameTypewriterPresets, TypewriterText } from '../common/Typewrite'
+
+const GUIDE_IMAGES: Record<string, any> = {
+  '1': guide1,
+  '2': guide2,
+  '3': guide3,
+  '4': guide4,
+}
+
+const GUIDE_TITLES: Record<string, string> = {
+  'JANUS THE BUILDER': 'BUILDER',
+  'JAREK THE ORACLE': 'ORACLE',
+  'GAIUS THE GUARDIAN': 'GUARDIAN',
+  'BRYN THE DAEMON': 'DAEMON',
+}
+
+const GUIDE_NAMES: Record<string, string> = {
+  'JANUS THE BUILDER': 'Janus',
+  'JAREK THE ORACLE': 'Jarek',
+  'GAIUS THE GUARDIAN': 'Gaius',
+  'BRYN THE DAEMON': 'Bryn',
+}
 
 const GameCardIntro = () => {
   const [showNextButton, setShowNextButton] = useState(false)
@@ -16,158 +35,73 @@ const GameCardIntro = () => {
   const { setCurrentOnboardingScreen, selectedGuide, playerName, selectedPersona } =
     useContext(CreateContext).onboarding
 
-  // Check if we should skip animation (returning user or already completed previous steps)
-  const shouldSkipAnimation = useMemo(() => (!playerName ? false : false), [playerName])
+  const shouldSkipAnimation = useMemo(() => false, [playerName])
 
-  // Get the guide image using direct imports
   const getGuideImage = () => {
-    switch (selectedGuide?.id) {
-      case '1':
-        return guide1 // Janus the Builder
-      case '2':
-        return guide2 // Jarek the Oracle
-      case '3':
-        return guide3 // Gaius the Guardian
-      case '4':
-        return guide4 // Bryn the Daemon
-      default:
-        return guide1 // Default fallback
-    }
+    return GUIDE_IMAGES[selectedGuide?.id || '1'] || guide1
   }
 
-  // Get guide title for badge
   const getGuideTitle = (): string => {
     if (!selectedGuide?.name) return 'GUIDE'
-
-    switch (selectedGuide.name) {
-      case 'JANUS THE BUILDER':
-        return 'BUILDER'
-      case 'JAREK THE ORACLE':
-        return 'ORACLE'
-      case 'GAIUS THE GUARDIAN':
-        return 'GUARDIAN'
-      case 'BRYN THE DAEMON':
-        return 'DAEMON'
-      default:
-        return selectedGuide.title?.toUpperCase() || 'GUIDE'
-    }
+    return GUIDE_TITLES[selectedGuide.name] || selectedGuide.title?.toUpperCase() || 'GUIDE'
   }
 
-  // Memoize the intro message to prevent changes
   const introMessage = useMemo(() => {
     const name = playerName || 'Warrior'
-
     return `Welcome, ${name}. Before we begin, let me explain what lies ahead... Your journey begins with forging your first warrior from the essence of ancient powers. This cursed champion will embody your fighting spirit and supernatural gifts.`
-  }, [playerName, selectedGuide?.name])
+  }, [playerName])
 
-  // Get the guide's first name for speaking
   const getGuideName = (): string => {
     if (!selectedGuide?.name) return 'Guide'
-
-    switch (selectedGuide.name) {
-      case 'JANUS THE BUILDER':
-        return 'Janus'
-      case 'JAREK THE ORACLE':
-        return 'Jarek'
-      case 'GAIUS THE GUARDIAN':
-        return 'Gaius'
-      case 'BRYN THE DAEMON':
-        return 'Bryn'
-      default:
-        return selectedGuide.name.split(' ')[0] || 'Guide'
-    }
+    return GUIDE_NAMES[selectedGuide.name] || selectedGuide.name.split(' ')[0] || 'Guide'
   }
 
-  // Use useRef to ensure this callback doesn't change
   const handleTypewriterCompleteRef = useRef(() => {
     setShowNextButton(true)
   })
 
   const handleNext = () => {
-    console.log('Moving to game card carousel with:', {
-      guide: selectedGuide?.name,
-      player: playerName,
-      persona: selectedPersona,
-    })
     setCurrentOnboardingScreen('game-card-carousel')
   }
 
-  // Initialize button visibility for skip animation cases
-  React.useEffect(() => {
+  useEffect(() => {
     if (shouldSkipAnimation) {
       setShowNextButton(true)
     }
   }, [shouldSkipAnimation])
 
   return (
-    <View className="flex-1 h-full w-full flex justify-end items-end">
-      <View className="flex-1 justify-end" style={{ width: '85%' }}>
-        <ImageBackground
-          className="w-full absolute -bottom-8 right-8 flex flex-row px-8"
-          source={require('../../assets/onboarding/dialog-bg-2.png')}
-          style={{
-            height: 180,
-            overflow: 'visible',
-          }}
-        >
-          {/* Guide Image */}
-          <View className="w-[30%] relative" style={{ overflow: 'visible' }}>
-            <Image
-              source={getGuideImage()}
-              className="w-[290px] h-[320px] relative z-20"
-              height={240}
-              width={240}
-              style={{
-                position: 'absolute',
-                bottom: -45,
-                right: 25,
-              }}
-              resizeMode="contain"
-            />
+    <View style={styles.container}>
+      <View style={styles.contentWrapper}>
+        <ImageBackground style={styles.dialogBackground} source={require('../../assets/onboarding/dialog-bg-2.png')}>
+          <View style={styles.guideImageContainer}>
+            <Image source={getGuideImage()} style={styles.guideImage} resizeMode="contain" />
           </View>
 
-          {/* Conversation Content */}
-          <View className="flex-1 pt-2 pr-4 w-[50%]">
-            {/* Guide Title Badge */}
-            <TouchableOpacity
-              className="w-24 p-1 border"
-              style={{
-                marginTop: -20,
-                borderColor: '#c873234d',
-                borderTopRightRadius: 10,
-                borderTopLeftRadius: 10,
-                backgroundColor: 'black',
-              }}
-              disabled
-            >
-              <Text className="text-white text-xs text-center font-bold">{getGuideTitle()}</Text>
+          <View style={styles.textContainer}>
+            <TouchableOpacity style={styles.badge} disabled>
+              <Text style={styles.badgeText}>{getGuideTitle()}</Text>
             </TouchableOpacity>
 
-            {/* Greeting Text with Typewriter Effect */}
             <TypewriterText
               key={`intro-typewriter-${selectedGuide?.id}`}
               text={introMessage}
-              style={[GameFonts.body]}
-              className="text-white mt-2 leading-8 mb-4"
+              style={[GameFonts.body, styles.typewriterText]}
               {...GameTypewriterPresets.narration}
               delay={300}
               skipAnimation={shouldSkipAnimation}
               onComplete={handleTypewriterCompleteRef.current}
             />
 
-            {/* Continue Button Section - Only show after typewriter completes */}
             {showNextButton && (
-              <View className="flex flex-row items-center mt-2 ">
-                {/* Continue Button */}
-                <TouchableOpacity onPress={handleNext} className="  ml-auto">
+              <View style={styles.buttonWrapper}>
+                <TouchableOpacity onPress={handleNext} style={styles.buttonTouchable}>
                   <ImageBackground
                     source={require('../../assets/onboarding/button-bg-main.png')}
-                    className="flex items-center w-fit h-fit -right-[140px] -top-14 absolute justify-center py-2 px-24"
+                    style={styles.buttonBackground}
                     resizeMode="contain"
                   >
-                    <Text className="text-center  font-bold text-2xl text-black" style={[GameFonts.button]}>
-                      Next
-                    </Text>
+                    <Text style={[GameFonts.button, styles.buttonText]}>Next</Text>
                   </ImageBackground>
                 </TouchableOpacity>
               </View>
@@ -178,5 +112,95 @@ const GameCardIntro = () => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    height: '100%',
+    width: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+  },
+  contentWrapper: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    width: '100%',
+  },
+  dialogBackground: {
+    width: '100%',
+    bottom: -8,
+    right: -30,
+    flexDirection: 'row',
+    // paddingHorizontal: 32,
+    height: 180,
+  },
+  guideImageContainer: {
+    width: '30%',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  guideImage: {
+    width: 290,
+    height: 302,
+    position: 'absolute',
+    bottom: -45,
+    right: -6,
+    zIndex: 20,
+  },
+  textContainer: {
+    flex: 1,
+    paddingTop: 8,
+    paddingRight: 16,
+    width: '50%',
+  },
+  badge: {
+    width: 96,
+    padding: 4,
+    marginTop: -20,
+    borderColor: '#c873234d',
+    borderWidth: 1,
+    borderTopRightRadius: 10,
+    borderTopLeftRadius: 10,
+    backgroundColor: 'black',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  typewriterText: {
+    color: 'white',
+    fontSize: 12,
+    marginTop: 8,
+    lineHeight: 32,
+    marginBottom: 16,
+  },
+  buttonWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  buttonTouchable: {
+    marginLeft: 'auto',
+  },
+  buttonBackground: {
+    alignItems: 'center',
+    width: 'auto',
+    height: 'auto',
+    right: -40,
+    top: -26,
+    position: 'absolute',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 96,
+  },
+  buttonText: {
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: 'black',
+  },
+})
 
 export default GameCardIntro
