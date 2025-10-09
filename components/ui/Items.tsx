@@ -33,6 +33,9 @@ interface SelectionScreenProps {
   showMuteButton?: boolean
   showBackButton?: boolean
   overlayOpacity?: number
+  mainImage?: ImageSourcePropType
+  ctaButtonText?: string
+  buttonBackgroundImage?: ImageSourcePropType
 }
 
 const SelectionScreen: React.FC<SelectionScreenProps> = ({
@@ -46,6 +49,9 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
   showMuteButton = true,
   showBackButton = true,
   overlayOpacity = 0.5,
+  mainImage,
+  ctaButtonText,
+  buttonBackgroundImage,
 }) => {
   const [isMuted, setIsMuted] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -88,39 +94,54 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
       </ImageBackground>
 
       <View style={styles.contentContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.itemsContainer}>
-          {items.map((item, index) => {
-            const ImageComponent = item.image
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.itemCard,
-                  selectedId === item.id && styles.itemCardSelected,
-                  item.isLocked && styles.itemCardLocked,
-                ]}
-                onPress={() => handleItemSelect(item.id, item.isLocked)}
-                disabled={item.isLocked}
-                activeOpacity={0.8}
-              >
-                <View style={styles.itemImageContainer}>
-                  {item.isSvg ? (
-                    <ImageComponent width={120} height={160} />
-                  ) : (
-                    <Image source={item.image} style={styles.itemImage} resizeMode="contain" />
-                  )}
-                  {index === 0 && !item.isLocked && <View style={styles.activeIndicator} />}
-                </View>
-                <Text style={styles.itemTitle}>{item.title}</Text>
-                <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
-              </TouchableOpacity>
-            )
-          })}
-        </ScrollView>
+        {items.length >= 1 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.itemsContainer}>
+            {items.map((item, index) => {
+              const ImageComponent = item.image
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.itemCard,
+                    selectedId === item.id && styles.itemCardSelected,
+                    item.isLocked && styles.itemCardLocked,
+                  ]}
+                  onPress={() => handleItemSelect(item.id, item.isLocked)}
+                  disabled={item.isLocked}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.itemImageContainer}>
+                    {item.isSvg ? (
+                      <ImageComponent width={120} height={160} />
+                    ) : (
+                      <Image source={item.image} style={styles.itemImage} resizeMode="contain" />
+                    )}
+                    {index === 0 && !item.isLocked && <View style={styles.activeIndicator} />}
+                  </View>
+                  <Text style={styles.itemTitle}>{item.title}</Text>
+                  <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
+        ) : (
+          <View>
+            <Image source={mainImage} style={{ width: 700, height: 500 }} resizeMode="contain" />
+          </View>
+        )}
       </View>
 
       <View style={styles.descriptionContainer}>
         <Text style={styles.descriptionText}>{description}</Text>
+        {ctaButtonText && (
+          <View style={styles.buttonWrapper}>
+            <TouchableOpacity style={styles.buttonTouchable}>
+              <ImageBackground source={buttonBackgroundImage} style={styles.buttonBackground} resizeMode="contain">
+                <Text style={[GameFonts.button, styles.buttonText]}>{ctaButtonText}</Text>
+              </ImageBackground>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </ImageBackground>
   )
@@ -244,6 +265,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  buttonTouchable: {
+    marginLeft: 16,
+  },
+  buttonBackground: {
+    alignItems: 'center',
+    width: 'auto',
+    height: 'auto',
+    right: -10,
+    top: -20,
+    position: 'absolute',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  buttonText: {
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: 'black',
+  },
+  buttonWrapper: {
+    flexDirection: 'row',
+    position: 'relative',
+    alignItems: 'center',
+    marginTop: 8,
   },
 })
 

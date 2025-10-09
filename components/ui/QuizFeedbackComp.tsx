@@ -1,18 +1,20 @@
-import { GameTypewriterPresets, TypewriterText } from '@/components/common/Typewrite'
 import { GameFonts } from '@/constants/GameFonts'
 import { MaterialIcons } from '@expo/vector-icons'
 import React, { useRef, useState } from 'react'
 import { Image, ImageBackground, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import correctAnswerIcon from '@/assets/images/chapter1/quiz/correct-choice.png'
+import wrongAnswerIcon from '@/assets/images/chapter1/quiz/wrong-choice.png'
+
 
 interface ConversationScreenProps {
-  title: string
+  // title: string
   message: string
   buttonText: string
   playerName?: string
   guideName?: string
   guideImage: ImageSourcePropType
   badgeText?: string
-  backgroundImage?: ImageSourcePropType
+  backgroundImage: ImageSourcePropType
   dialogBackgroundImage: ImageSourcePropType
   titleBackgroundImage: ImageSourcePropType
   buttonBackgroundImage: ImageSourcePropType
@@ -23,10 +25,11 @@ interface ConversationScreenProps {
   typewriterDelay?: number
   autoShowButton?: boolean
   overlayOpacity?: number
+  answerType: boolean
 }
 
-const ConversationScreen: React.FC<ConversationScreenProps> = ({
-  title,
+const QuizFeedbackComp: React.FC<ConversationScreenProps> = ({
+  // title,
   message,
   buttonText,
   guideImage,
@@ -39,9 +42,10 @@ const ConversationScreen: React.FC<ConversationScreenProps> = ({
   onContinue,
   showMuteButton = true,
   showBackButton = true,
-  typewriterDelay = 300,
-  autoShowButton = false,
+  // typewriterDelay = 300,
+  autoShowButton = true,
   overlayOpacity = 0.45,
+  answerType,
 }) => {
   const [showButton, setShowButton] = useState(autoShowButton)
   const [isMuted, setIsMuted] = useState(false)
@@ -57,7 +61,7 @@ const ConversationScreen: React.FC<ConversationScreenProps> = ({
   return (
     <ImageBackground style={styles.container} source={backgroundImage}>
       <ImageBackground source={titleBackgroundImage} style={styles.titleContainer} resizeMode="contain">
-        <Text style={[GameFonts.epic, styles.titleText]}>{title}</Text>
+        {/* <Text style={[GameFonts.epic, styles.titleText]}>{title}</Text> */}
       </ImageBackground>
       <View style={[styles.blackOverlay, { backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})` }]} />
       <View style={styles.contentWrapper}>
@@ -87,14 +91,18 @@ const ConversationScreen: React.FC<ConversationScreenProps> = ({
                 <Text style={styles.badgeText}>{badgeText}</Text>
               </TouchableOpacity>
             )}
-            <TypewriterText
-              text={message}
-              style={[GameFonts.body, styles.typewriterText]}
-              {...GameTypewriterPresets.narration}
-              delay={typewriterDelay}
-              skipAnimation={false}
-              onComplete={handleTypewriterCompleteRef.current}
-            />
+            {answerType === true ? (
+              <View style={styles.answerContainer}>
+                <Image source={correctAnswerIcon} />
+                <Text style={styles.correctAnswer}>Correct</Text>
+              </View>
+            ) : (
+                <View style={styles.answerContainer}>
+                <Image style={{height: 50, width: 50}} source={wrongAnswerIcon} />
+                <Text style={styles.wrongAnswer}>Correct</Text>
+              </View>
+            )}
+            <Text style={styles.message}>{message}</Text>
             {showButton && (
               <View style={styles.buttonWrapper}>
                 <TouchableOpacity onPress={onContinue} style={styles.buttonTouchable}>
@@ -231,6 +239,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'black',
   },
+  correctAnswer: {
+    color: '#17B26A',
+  },
+  wrongAnswer: {
+    color: "#E5484D"
+  },
+  answerContainer: {
+    display: 'flex',
+    columnGap: 5,
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  message: {
+    color: 'white',
+    fontStyle: 'italic',
+  },
 })
 
-export default ConversationScreen
+export default QuizFeedbackComp

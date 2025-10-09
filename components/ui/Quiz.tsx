@@ -6,13 +6,15 @@ import { Image, ImageBackground, ImageSourcePropType, StyleSheet, Text, Touchabl
 
 interface ConversationScreenProps {
   title: string
-  message: string
+  // message: string
+  question: string
+  options: string[]
   buttonText: string
   playerName?: string
   guideName?: string
   guideImage: ImageSourcePropType
   badgeText?: string
-  backgroundImage?: ImageSourcePropType
+  backgroundImage: ImageSourcePropType
   dialogBackgroundImage: ImageSourcePropType
   titleBackgroundImage: ImageSourcePropType
   buttonBackgroundImage: ImageSourcePropType
@@ -25,9 +27,11 @@ interface ConversationScreenProps {
   overlayOpacity?: number
 }
 
-const ConversationScreen: React.FC<ConversationScreenProps> = ({
+const Quiz: React.FC<ConversationScreenProps> = ({
   title,
-  message,
+  // message,
+  options,
+  question,
   buttonText,
   guideImage,
   badgeText,
@@ -77,33 +81,23 @@ const ConversationScreen: React.FC<ConversationScreenProps> = ({
             </TouchableOpacity>
           )}
         </View>
-        <ImageBackground style={styles.dialogBackground} source={dialogBackgroundImage}>
+        <View style={styles.quizContainer}>
+          <Text style={styles.quizQuestion}>{question}</Text>
+          <View style={styles.quizOptionsContainer}>
+            {options.map((option, index) => {
+              return (
+                <TouchableOpacity>
+                  <Text style={styles.quizOption} key={index}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+        </View>
+        <ImageBackground source={dialogBackgroundImage}>
           <View style={styles.guideImageContainer}>
             <Image source={guideImage} style={styles.guideImage} resizeMode="contain" />
-          </View>
-          <View style={styles.textContainer}>
-            {badgeText && (
-              <TouchableOpacity style={styles.badge} disabled>
-                <Text style={styles.badgeText}>{badgeText}</Text>
-              </TouchableOpacity>
-            )}
-            <TypewriterText
-              text={message}
-              style={[GameFonts.body, styles.typewriterText]}
-              {...GameTypewriterPresets.narration}
-              delay={typewriterDelay}
-              skipAnimation={false}
-              onComplete={handleTypewriterCompleteRef.current}
-            />
-            {showButton && (
-              <View style={styles.buttonWrapper}>
-                <TouchableOpacity onPress={onContinue} style={styles.buttonTouchable}>
-                  <ImageBackground source={buttonBackgroundImage} style={styles.buttonBackground} resizeMode="contain">
-                    <Text style={[GameFonts.button, styles.buttonText]}>{buttonText}</Text>
-                  </ImageBackground>
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
         </ImageBackground>
       </View>
@@ -143,7 +137,7 @@ const styles = StyleSheet.create({
   },
   contentWrapper: {
     flex: 1,
-    justifyContent: 'flex-end',
+    // justifyContent: 'flex-end',
     right: -26,
     bottom: 0,
     width: '100%',
@@ -162,11 +156,11 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   guideImage: {
-    width: 240,
-    height: 320,
+    width: 150,
+    height: 200,
     position: 'absolute',
-    bottom: -55,
-    right: 1,
+    bottom: -120,
+    right: 90,
     zIndex: 20,
   },
   textContainer: {
@@ -231,6 +225,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'black',
   },
+  quizContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    padding: 10,
+    marginTop: 20,
+    color: 'white',
+    // border: '1px solid white',
+    borderColor: 'white',
+    borderRadius: 8,
+
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '90%',
+    rowGap: 20,
+  },
+  quizQuestion: {
+    color: 'white',
+  },
+  quizOptionsContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    rowGap: 10,
+  },
+  quizOption: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 8,
+    borderRadius: 12,
+    color: 'white',
+    textAlign: 'center',
+  },
 })
 
-export default ConversationScreen
+export default Quiz

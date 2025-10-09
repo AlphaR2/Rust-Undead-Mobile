@@ -59,6 +59,7 @@ const AvatarSelection: React.FC<AvatarSelectionProps> = ({ onComplete, onBack })
       showMuteButton={true}
       showBackButton={true}
       overlayOpacity={0.7}
+      mainImage={undefined}
     />
   )
 }
