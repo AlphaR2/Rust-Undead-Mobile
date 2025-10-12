@@ -1,59 +1,109 @@
 import PROFILE_BACKGROUND from '@/assets/images/bg-assets/bg-04.png'
+import { Camera } from '@/components/game-engine/camera'
 import Character from '@/components/game-engine/character'
 import Ground from '@/components/game-engine/ground'
 import { Physics } from '@/components/game-engine/Physics'
+import { CharacterClass, GAME_CONFIG, SPRITE_CONFIG, WORLD_CONFIG } from '@/constants/characters'
 import Matter from 'matter-js'
 import React, { useRef, useState } from 'react'
 import { Dimensions, ImageBackground, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { GameEngine } from 'react-native-game-engine'
+import { GameEngine } from 'react-native-game-engine' 
 
-const { width, height } = Dimensions.get('window')
+const { width, height } = Dimensions.get('window')    
 
 const Index = () => {
-  const gameEngineRef = useRef(null)
-  const [running, setRunning] = useState(true)
-  const [score, setScore] = useState(0)
-  const moveIntervalRef = useRef<number | null>(null)
+  const gameEngineRef = useRef<GameEngine | null>(null)
+  const [running, setRunning] = useState<boolean>(true)
+  const [score, setScore] = useState<number>(0)
+  const [selectedCharacter, setSelectedCharacter] = useState<CharacterClass>('oracle')
+  const moveIntervalRef = useRef<NodeJS.Timeout | any>(null)
+
+  // Add state for camera position to trigger re-renders
+  const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 })
 
   // Get screen dimensions dynamically
   const screenWidth = Dimensions.get('window').width
   const screenHeight = Dimensions.get('window').height
 
+  // Calculate world dimensions using config
+  const worldWidth = WORLD_CONFIG.getWorldWidth(screenWidth)
+  const worldBounds = WORLD_CONFIG.getBounds(screenWidth)
+
   // Create Matter.js engine and world
-  const engine = Matter.Engine.create({ enableSleeping: false })
-  const world = engine.world
-  world.gravity.y = 0.8 // Gravity
-
-  // Create character body
-  const characterBody = Matter.Bodies.rectangle(screenWidth / 4, screenHeight - 150, 40, 40, {
-    label: 'character',
-    isStatic: false,
-    restitution: 0,
-    friction: 1,
-    frictionAir: 0.01,
-    inertia: Infinity, // Prevents rotation
+  const engine = Matter.Engine.create({
+    enableSleeping: false,
+    timing: {
+      timeScale: 1,
+    },
   })
+  const world = engine.world
+  engine.gravity.y = 0.8
 
-  // Create ground body with full screen width
-  const groundBody = Matter.Bodies.rectangle(
-    screenWidth / 2,
-    screenHeight - 50,
-    screenWidth * 2, // Make it extra wide to ensure full coverage
-    100,
+  // Create character at starting position
+  const characterBody = Matter.Bodies.rectangle(
+    screenWidth * WORLD_CONFIG.startPosition.x,
+    screenHeight - WORLD_CONFIG.startPosition.yOffset,
+    SPRITE_CONFIG.size.width,
+    SPRITE_CONFIG.size.height,
     {
-      label: 'ground',
-      isStatic: true,
+      label: 'character',
+      isStatic: false,
+      restitution: 0,
+      friction: 1,
+      frictionAir: 0.01,
+      inertia: Infinity,
     },
   )
 
-  // Add bodies to world
-  Matter.World.add(world, [characterBody, groundBody])
+  // Create ground spanning entire world
+  const groundBody = Matter.Bodies.rectangle(worldWidth / 2, screenHeight - 50, worldWidth, 100, {
+    label: 'ground',
+    isStatic: true,
+  })
+
+  // Create boundary walls
+  const leftWall = Matter.Bodies.rectangle(worldBounds.min - 10, screenHeight / 2, 20, screenHeight * 2, {
+    label: 'leftWall',
+    isStatic: true,
+  })
+
+  const rightWall = Matter.Bodies.rectangle(worldBounds.max + 10, screenHeight / 2, 20, screenHeight * 2, {
+    label: 'rightWall',
+    isStatic: true,
+  })
+
+  // Add all bodies to world
+  Matter.World.add(world, [characterBody, groundBody, leftWall, rightWall])
+
+  // Create camera instance
+  const cameraRef = useRef(new Camera(screenWidth, screenHeight, worldWidth))
 
   // Initial entities
   const entities = {
     physics: { engine, world },
-    character: { body: characterBody, size: [40, 40], renderer: Character },
-    ground: { body: groundBody, size: [screenWidth * 2, 100], renderer: Ground },
+    camera: cameraRef.current,
+    setCameraOffset, // Pass state setter to Physics system
+    character: {
+      body: characterBody,
+      size: [SPRITE_CONFIG.size.width, SPRITE_CONFIG.size.height] as [number, number],
+      characterClass: selectedCharacter,
+      cameraOffset, // Pass state instead of camera object
+      renderer: Character,
+    },
+    ground: {
+      body: groundBody,
+      size: [worldWidth, 100] as [number, number],
+      cameraOffset, // Pass state instead of camera object
+      renderer: Ground,
+    },
+    leftWall: {
+      body: leftWall,
+      renderer: () => null,
+    },
+    rightWall: {
+      body: rightWall,
+      renderer: () => null,
+    },
   }
 
   // Clear any movement interval
@@ -64,58 +114,41 @@ const Index = () => {
     }
   }
 
-  // Movement handlers with continuous movement
+  // Update movement handlers to use config speed
   const moveForward = () => {
     clearMoveInterval()
 
-    // Apply initial movement
     Matter.Body.setVelocity(characterBody, {
-      x: 5,
+      x: GAME_CONFIG.MOVEMENT_SPEED,
       y: characterBody.velocity.y,
     })
 
-    // Continue movement while pressed
     moveIntervalRef.current = setInterval(() => {
       Matter.Body.setVelocity(characterBody, {
-        x: 5,
+        x: GAME_CONFIG.MOVEMENT_SPEED,
         y: characterBody.velocity.y,
       })
-    }, 16) // ~60fps
+    }, 16)
   }
 
   const moveBackward = () => {
     clearMoveInterval()
 
-    // Apply initial movement
     Matter.Body.setVelocity(characterBody, {
-      x: -5,
+      x: -GAME_CONFIG.MOVEMENT_SPEED,
       y: characterBody.velocity.y,
     })
 
-    // Continue movement while pressed
     moveIntervalRef.current = setInterval(() => {
       Matter.Body.setVelocity(characterBody, {
-        x: -5,
+        x: -GAME_CONFIG.MOVEMENT_SPEED,
         y: characterBody.velocity.y,
       })
-    }, 16) // ~60fps
-  }
-
-  const jump = () => {
-    // Only jump if character is on the ground (very small vertical velocity)
-    if (Math.abs(characterBody.velocity.y) < 1) {
-      Matter.Body.setVelocity(characterBody, {
-        x: characterBody.velocity.x,
-        y: -12,
-      })
-    }
+    }, 16)
   }
 
   const stopMovement = () => {
-    // Clear the continuous movement interval
     clearMoveInterval()
-
-    // Only stop horizontal movement, preserve vertical velocity
     Matter.Body.setVelocity(characterBody, {
       x: 0,
       y: characterBody.velocity.y,
@@ -124,8 +157,19 @@ const Index = () => {
 
   const resetGame = () => {
     clearMoveInterval()
-    Matter.Body.setPosition(characterBody, { x: width / 4, y: height - 150 })
+    Matter.Body.setPosition(characterBody, {
+      x: screenWidth * WORLD_CONFIG.startPosition.x,
+      y: screenHeight - WORLD_CONFIG.startPosition.yOffset,
+    })
     Matter.Body.setVelocity(characterBody, { x: 0, y: 0 })
+
+    // Reset camera
+    cameraRef.current.follow(
+      screenWidth * WORLD_CONFIG.startPosition.x,
+      screenHeight - WORLD_CONFIG.startPosition.yOffset,
+    )
+    setCameraOffset(cameraRef.current.getOffset())
+
     setScore(0)
     setRunning(true)
   }
@@ -143,45 +187,26 @@ const Index = () => {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
 
-      onPanResponderGrant: (evt, gestureState) => {
-        // Tap detected - handle jump
-        const touchY = evt.nativeEvent.pageY
-        const screenMiddle = screenHeight / 2
-
-        // If tap is in upper half of screen, jump
-        if (touchY < screenMiddle) {
-          jump()
-        }
+      onPanResponderGrant: () => {
+        // Do nothing on initial touch
       },
 
       onPanResponderMove: (evt, gestureState) => {
-        // Horizontal swipe/drag
-        const { dx, dy } = gestureState
+        const { dx } = gestureState
 
-        // If horizontal movement is dominant (more than vertical)
-        if (Math.abs(dx) > Math.abs(dy)) {
-          if (dx > 10) {
-            // Swiping right - move forward
-            moveForward()
-          } else if (dx < -10) {
-            // Swiping left - move backward
-            moveBackward()
-          }
-        }
-
-        // Vertical swipe up - jump
-        if (dy < -20) {
-          jump()
+        // Only handle horizontal movement
+        if (dx > 10) {
+          moveForward()
+        } else if (dx < -10) {
+          moveBackward()
         }
       },
 
-      onPanResponderRelease: (evt, gestureState) => {
-        // Stop movement when finger is lifted
+      onPanResponderRelease: () => {
         stopMovement()
       },
 
       onPanResponderTerminate: () => {
-        // Stop movement if gesture is interrupted
         stopMovement()
       },
     }),
@@ -190,7 +215,7 @@ const Index = () => {
   return (
     <ImageBackground style={styles.container} source={PROFILE_BACKGROUND}>
       <View style={styles.overlay} />
-      <View style={styles.gameWrapper} {...panResponder.panHandlers}>
+      <View style={styles.gameWrapper}>
         <GameEngine
           ref={gameEngineRef}
           style={styles.gameContainer}
@@ -199,20 +224,16 @@ const Index = () => {
           running={running}
         />
 
-        {/* Score Display */}
-        {/* <View style={styles.scoreContainer}>
-          <Text style={styles.scoreText}>Score: {score}</Text>
-        </View> */}
+        {/* Gesture layer */}
+        <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers} />
 
         {/* Gesture Instructions Overlay */}
         <View style={styles.instructionsContainer}>
-          <Text style={styles.instructionText}>👆 Tap top: Jump</Text>
           <Text style={styles.instructionText}>⬅️ Swipe left: Move back</Text>
           <Text style={styles.instructionText}>➡️ Swipe right: Move forward</Text>
-          <Text style={styles.instructionText}>⬆️ Swipe up: Jump</Text>
         </View>
 
-        {/* Reset Button (floating) */}
+        {/* Reset Button */}
         <TouchableOpacity style={styles.floatingResetButton} onPress={resetGame}>
           <Text style={styles.resetButtonText}>↻ Reset</Text>
         </TouchableOpacity>
@@ -224,7 +245,6 @@ const Index = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor: '#87CEEB',
   },
   gameWrapper: {
     flex: 1,
@@ -235,20 +255,6 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  },
-  scoreContainer: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 10,
-    borderRadius: 8,
-    zIndex: 10,
-  },
-  scoreText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
   },
   instructionsContainer: {
     position: 'absolute',
