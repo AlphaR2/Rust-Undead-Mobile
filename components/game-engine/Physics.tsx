@@ -33,12 +33,25 @@ export const Physics = (entities: any, { time }: { time: any }) => {
     })
   }
 
-  // Update camera to follow character and trigger re-render
+  // Update camera to follow character
   if (entities.camera && character && entities.setCameraOffset) {
     entities.camera.follow(character.position.x, character.position.y)
     
-    // Update state to trigger re-render
+    // Get the new camera offset
     const newOffset = entities.camera.getOffset()
+    
+    // Update the cameraOffset in all entities that need it
+    if (entities.background) {
+      entities.background.cameraOffset = newOffset
+    }
+    if (entities.character) {
+      entities.character.cameraOffset = newOffset
+    }
+    if (entities.ground) {
+      entities.ground.cameraOffset = newOffset
+    }
+    
+    // Trigger React re-render by updating state
     entities.setCameraOffset(newOffset)
   }
 

@@ -2,6 +2,7 @@ import PROFILE_BACKGROUND from '@/assets/images/bg-assets/bg-04.png'
 import { Camera } from '@/components/game-engine/camera'
 import Character from '@/components/game-engine/character'
 import Ground from '@/components/game-engine/ground'
+import ScrollingBackground from '@/components/game-engine/scrollingBackground'
 import { Physics } from '@/components/game-engine/Physics'
 import { CharacterClass, GAME_CONFIG, SPRITE_CONFIG, WORLD_CONFIG } from '@/constants/characters'
 import Matter from 'matter-js'
@@ -18,7 +19,7 @@ const Index = () => {
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterClass>('oracle')
   const moveIntervalRef = useRef<NodeJS.Timeout | any>(null)
 
-  // Add state for camera position to trigger re-renders
+  // State for camera position to trigger re-renders
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 })
 
   // Get screen dimensions dynamically
@@ -79,21 +80,30 @@ const Index = () => {
   const cameraRef = useRef(new Camera(screenWidth, screenHeight, worldWidth))
 
   // Initial entities
-  const entities = {
+  const entitiesRef = useRef({
     physics: { engine, world },
     camera: cameraRef.current,
     setCameraOffset, // Pass state setter to Physics system
+    background: {
+      source: PROFILE_BACKGROUND,
+      worldWidth,
+      screenWidth,
+      screenHeight,
+      parallaxFactor: 0.3,
+      cameraOffset: { x: 0, y: 0 },
+      renderer: ScrollingBackground,
+    },
     character: {
       body: characterBody,
       size: [SPRITE_CONFIG.size.width, SPRITE_CONFIG.size.height] as [number, number],
       characterClass: selectedCharacter,
-      cameraOffset, // Pass state instead of camera object
+      cameraOffset: { x: 0, y: 0 }, // Initialize with default offset
       renderer: Character,
     },
     ground: {
       body: groundBody,
       size: [worldWidth, 100] as [number, number],
-      cameraOffset, // Pass state instead of camera object
+      cameraOffset: { x: 0, y: 0 }, // Initialize with default offset
       renderer: Ground,
     },
     leftWall: {
@@ -104,7 +114,17 @@ const Index = () => {
       body: rightWall,
       renderer: () => null,
     },
-  }
+  })
+
+  // Update entities reference when cameraOffset changes
+  React.useEffect(() => {
+    if (entitiesRef.current.character) {
+      entitiesRef.current.character.cameraOffset = cameraOffset
+    }
+    if (entitiesRef.current.ground) {
+      entitiesRef.current.ground.cameraOffset = cameraOffset
+    }
+  }, [cameraOffset])
 
   // Clear any movement interval
   const clearMoveInterval = () => {
@@ -213,14 +233,24 @@ const Index = () => {
   ).current
 
   return (
-    <ImageBackground style={styles.container} source={PROFILE_BACKGROUND}>
+    <View style={styles.container}>
+      {/* Scrolling Background */}
+      <ScrollingBackground
+        source={PROFILE_BACKGROUND}
+        cameraOffset={cameraOffset}
+        worldWidth={worldWidth}
+        screenWidth={screenWidth}
+        screenHeight={screenHeight}
+        parallaxFactor={0.5} // Adjust this: 0 = static, 1 = moves fully with camera
+      />
+      
       <View style={styles.overlay} />
       <View style={styles.gameWrapper}>
         <GameEngine
           ref={gameEngineRef}
           style={styles.gameContainer}
           systems={[Physics]}
-          entities={entities}
+          entities={entitiesRef.current}
           running={running}
         />
 
@@ -238,7 +268,7 @@ const Index = () => {
           <Text style={styles.resetButtonText}>↻ Reset</Text>
         </TouchableOpacity>
       </View>
-    </ImageBackground>
+    </View>
   )
 }
 

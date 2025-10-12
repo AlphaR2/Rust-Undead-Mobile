@@ -2,12 +2,17 @@ import React from 'react'
 import { View, StyleSheet } from 'react-native'
 import { GroundProps } from '@/types/matter'
 
-const Ground: React.FC<GroundProps> = ({ body, size }) => {
+interface UpdatedGroundProps extends GroundProps {
+  cameraOffset: { x: number; y: number }
+}
+
+const Ground: React.FC<UpdatedGroundProps> = ({ body, size, cameraOffset }) => {
   const width = size[0]
   const height = size[1]
   
-  const x = body.position.x - width / 2
-  const y = body.position.y - height / 2
+  // Apply camera offset to position
+  const x = body.position.x - width / 2 + cameraOffset.x
+  const y = body.position.y - height / 2 + cameraOffset.y
 
   return (
     <View

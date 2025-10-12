@@ -5,12 +5,12 @@ import React, { useEffect, useRef } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useSharedValue } from 'react-native-reanimated'
 
-// Extend props to include camera
+// Extend props to include cameraOffset
 interface CharacterPropsWithCamera extends CharacterProps {
-  camera?: { getOffset: () => { x: number; y: number } }
+  cameraOffset: { x: number; y: number }
 }
 
-const Character: React.FC<CharacterPropsWithCamera> = ({ body, size, characterClass = 'oracle', camera }) => {
+const Character: React.FC<CharacterPropsWithCamera> = ({ body, size, characterClass = 'oracle', cameraOffset }) => {
   const frameCounter = useSharedValue(0)
   const animationRef = useRef<NodeJS.Timeout | any>(null)
 
@@ -62,9 +62,6 @@ const Character: React.FC<CharacterPropsWithCamera> = ({ body, size, characterCl
   // Determine direction and scale
   const facingLeft = body.velocity.x < 0
   const scale = size[0] / frameWidth
-
-  // Get camera offset
-  const cameraOffset = camera?.getOffset() || { x: 0, y: 0 }
 
   // Fallback if sprite sheet not loaded
   if (!spriteSheet) {
