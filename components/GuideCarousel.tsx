@@ -29,9 +29,9 @@ const CharacterSelection = () => {
     setSelectedIndex(index)
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const selectedCharacter = characters[selectedIndex]
-    setSelectedGuide(selectedCharacter)
+    await setSelectedGuide(selectedCharacter)
     setCurrentOnboardingScreen('persona')
   }
 
@@ -187,12 +187,13 @@ const styles = StyleSheet.create({
   confirmButtonBackground: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingVertical: 22,
+    paddingHorizontal: 42,
     width: 'auto',
     top: -5,
   },
   confirmButtonText: {
-    fontSize: 16,
+    fontSize: 14,
   },
 })
 

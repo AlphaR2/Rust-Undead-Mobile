@@ -8,6 +8,7 @@ import WarriorProfileSetup from '@/components/warrior/WarriorProfileSetup'
 import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
 import { useBasicGameData } from '@/hooks/game/useBasicGameData'
+import { GUIDES } from '@/utils/helper'
 import { router, useNavigation } from 'expo-router'
 import React, { JSX, useContext, useEffect, useState } from 'react'
 import {
@@ -27,58 +28,6 @@ import PROFILE_BACKGROUND from '../assets/images/bg-assets/bg-04.png'
 import PRO_BACKGROUND from '../assets/images/bg-assets/bg-099.png'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
-
-const GUIDES = [
-  {
-    id: '1',
-    name: 'JANUS THE BUILDER',
-    title: 'Validator Master',
-    type: 'Balanced',
-    description:
-      'I am Janus, Master of the Foundation. I build the very bedrock upon which this realm stands. Through me, you will understand how consensus creates unshakeable truth.',
-    specialty: 'Validators, consensus, foundation concepts',
-    recommendedFor: 'Complete beginners who want solid fundamentals',
-    learningStyle: 'Step-by-step, methodical building of knowledge',
-    color: '#cd7f32',
-  },
-  {
-    id: '2',
-    name: 'JAREK THE ORACLE',
-    title: 'Knowledge Keeper',
-    type: 'Advanced',
-    description:
-      'I am Jarek, Keeper of Ancient Wisdom. The deepest secrets of this realm flow through my consciousness like rivers of pure knowledge.',
-    specialty: 'Advanced concepts, technical deep-dives, ecosystem insights',
-    recommendedFor: 'Technical backgrounds who want comprehensive understanding',
-    learningStyle: 'Mystical wisdom, interconnected learning, big picture thinking',
-    color: '#4169E1',
-  },
-  {
-    id: '3',
-    name: 'GAIUS THE GUARDIAN',
-    title: 'Protector of Assets',
-    type: 'Security',
-    description:
-      'I am Gaius, Shield of the Realm. I guard against the dark forces that would steal your digital treasures and corrupt your transactions.',
-    specialty: 'Security, wallets, protection strategies, best practices',
-    recommendedFor: 'Security-conscious learners who want to stay safe',
-    learningStyle: 'Protective approach, risk awareness, practical safety',
-    color: '#228B22',
-  },
-  {
-    id: '4',
-    name: 'BRYN THE DAEMON',
-    title: 'Code Compiler',
-    type: 'Technical',
-    description:
-      'I am Bryn, Flame of Efficiency. I transform raw code into blazing reality and optimize every process until it burns with perfect precision.',
-    specialty: 'Technical implementation, smart contracts, development',
-    recommendedFor: 'Developers and power users who want to build',
-    learningStyle: 'Aggressive optimization, technical precision, implementation focus',
-    color: '#DC143C',
-  },
-]
-
 const ANIMATION_DURATION_LONG = 1000
 const ANIMATION_DURATION_SHORT = 800
 const ANIMATION_DELAY = 2000
@@ -95,6 +44,7 @@ type OnboardingScreen =
 const GuideSelection = () => {
   const { currentOnboardingScreen, setCurrentOnboardingScreen, setSelectedGuide, setPlayerName, setSelectedPersona } =
     useContext(CreateContext).onboarding
+
   const { userProfile } = useBasicGameData()
   const navigation = useNavigation()
   const [fadeAnim] = useState(new Animated.Value(0))
@@ -102,12 +52,16 @@ const GuideSelection = () => {
   const [textDelayAnim] = useState(new Animated.Value(0))
 
   useEffect(() => {
-    if (userProfile?.username) {
-      setPlayerName(userProfile.username)
-      setSelectedPersona(userProfile.userPersona || '')
-      const matchingGuide = GUIDES.find((guide) => guide.name === 'JANUS THE BUILDER') || GUIDES[0]
-      setSelectedGuide(matchingGuide)
+    const loadUserProfile = async () => {
+      if (userProfile?.username) {
+        await setPlayerName(userProfile.username)
+        await setSelectedPersona(userProfile.userPersona || '')
+        const matchingGuide = GUIDES.find((guide) => guide.name === 'JANUS THE BUILDER') || GUIDES[0]
+        await setSelectedGuide(matchingGuide)
+      }
     }
+
+    loadUserProfile()
   }, [userProfile, setPlayerName, setSelectedPersona, setSelectedGuide])
 
   useEffect(() => {
@@ -161,7 +115,6 @@ const GuideSelection = () => {
   const handleNext = () => {
     if (userProfile?.username) {
       router.push('/dashboard')
-      // setCurrentOnboardingScreen('game-card-intro')
     } else {
       setCurrentOnboardingScreen('selection')
     }
@@ -468,7 +421,6 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     height: '55%',
     alignItems: 'center',
-    // gap: -30,
   },
   titleContainer: {
     marginBottom: 12,
@@ -493,8 +445,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   buttonBackground: {
-    paddingVertical: 20,
-    paddingHorizontal: 48,
+    paddingVertical: 22,
+    paddingHorizontal: 42,
   },
   selectionContainer: {
     flex: 1,

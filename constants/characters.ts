@@ -60,7 +60,7 @@ export const GAME_CONFIG = {
   WARRIOR_WIDTH: 128,
   WARRIOR_HEIGHT: 128,
   GROUND_Y_RATIO: 0.7, // 70% down the screen
-  MOVEMENT_SPEED: 5, // Max speed
+  MOVEMENT_SPEED: 20, // Max speed
   ANIMATION_FPS: {
     idle: 6, // 6 frames per second (slow, subtle)
     walking: 12, // 12 frames per second (smooth walking)
@@ -100,3 +100,5 @@ export const WORLD_CONFIG = {
     yOffset: 150, // Offset from bottom
   },
 }
+
+export const INSTRUCTION_AUTO_HIDE_DURATION = 5000

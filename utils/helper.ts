@@ -257,3 +257,55 @@ export function calculateWaitTime(response: Response, attempt: number): number {
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
+
+
+export const GUIDES = [
+  {
+    id: '1',
+    name: 'JANUS THE BUILDER',
+    title: 'Validator Master',
+    type: 'Balanced',
+    description:
+      'I am Janus, Master of the Foundation. I build the very bedrock upon which this realm stands. Through me, you will understand how consensus creates unshakeable truth.',
+    specialty: 'Validators, consensus, foundation concepts',
+    recommendedFor: 'Complete beginners who want solid fundamentals',
+    learningStyle: 'Step-by-step, methodical building of knowledge',
+    color: '#cd7f32',
+  },
+  {
+    id: '2',
+    name: 'JAREK THE ORACLE',
+    title: 'Knowledge Keeper',
+    type: 'Advanced',
+    description:
+      'I am Jarek, Keeper of Ancient Wisdom. The deepest secrets of this realm flow through my consciousness like rivers of pure knowledge.',
+    specialty: 'Advanced concepts, technical deep-dives, ecosystem insights',
+    recommendedFor: 'Technical backgrounds who want comprehensive understanding',
+    learningStyle: 'Mystical wisdom, interconnected learning, big picture thinking',
+    color: '#4169E1',
+  },
+  {
+    id: '3',
+    name: 'GAIUS THE GUARDIAN',
+    title: 'Protector of Assets',
+    type: 'Security',
+    description:
+      'I am Gaius, Shield of the Realm. I guard against the dark forces that would steal your digital treasures and corrupt your transactions.',
+    specialty: 'Security, wallets, protection strategies, best practices',
+    recommendedFor: 'Security-conscious learners who want to stay safe',
+    learningStyle: 'Protective approach, risk awareness, practical safety',
+    color: '#228B22',
+  },
+  {
+    id: '4',
+    name: 'BRYN THE DAEMON',
+    title: 'Code Compiler',
+    type: 'Technical',
+    description:
+      'I am Bryn, Flame of Efficiency. I transform raw code into blazing reality and optimize every process until it burns with perfect precision.',
+    specialty: 'Technical implementation, smart contracts, development',
+    recommendedFor: 'Developers and power users who want to build',
+    learningStyle: 'Aggressive optimization, technical precision, implementation focus',
+    color: '#DC143C',
+  },
+]

@@ -217,10 +217,7 @@ const Index = () => {
               </TouchableOpacity>
             </ImageBackground>
             <ImageBackground source={menuBg2} style={styles.menuItem} resizeMode="contain">
-              <TouchableOpacity
-                style={styles.menuButton}
-                onPress={() => router.push('/dashboard/story-mode/game/sample')}
-              >
+              <TouchableOpacity style={styles.menuButton} disabled>
                 <Text style={styles.menuTitle}>Battle Arena</Text>
                 <Text style={styles.menuDescription}>Coming to mobile soon</Text>
               </TouchableOpacity>

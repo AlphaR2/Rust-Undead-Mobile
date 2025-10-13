@@ -9,32 +9,32 @@ import Path4 from '../../../../assets/images/paths/path-04.svg'
 const PATHS = [
   {
     id: '1',
-    title: 'The Cursed Ledger',
-    subtitle: 'Blockchain',
+    title: 'The Machine Spirits',
+    subtitle: 'Foundations',
     image: Path1,
     isLocked: false,
     isSvg: true,
   },
   {
     id: '2',
-    title: "Solana's Shadow Bolt",
-    subtitle: 'What makes Solana special',
+    title: 'The Soul Keys',
+    subtitle: 'Identity',
     image: Path2,
     isLocked: true,
     isSvg: true,
   },
   {
     id: '3',
-    title: 'The Cursed Keys of Binding',
-    subtitle: 'Cryptovaults',
+    title: 'The Chain Wraiths',
+    subtitle: 'Solana',
     image: Path3,
     isLocked: true,
     isSvg: true,
   },
   {
     id: '4',
-    title: 'The Soul Transaction Ritual',
-    subtitle: 'Anatomy of soul transaction',
+    title: 'The Validator',
+    subtitle: 'Distributed Systems',
     image: Path4,
     isLocked: true,
     isSvg: true,
@@ -42,19 +42,19 @@ const PATHS = [
 ]
 
 interface PathScreenProps {
-  onComplete: () => void
+  onComplete: (path: string) => void
   onBack: () => void
 }
 
 const PathScreen: React.FC<PathScreenProps> = ({ onComplete, onBack }) => {
   const handlePathSelect = (pathId: string) => {
-    onComplete()
+    onComplete(pathId)
   }
 
   return (
     <SelectionScreen
-      title="CHAPTER 1"
-      description="Five paths lie before you, each holding a shard of ancient power. Walk them all, or remain bound in eternal dusk."
+      title="THE FIRST AWAKENING"
+      description="Four haunted paths hold wisdom. Tread them to rise from ignorance, or linger in shadow."
       items={PATHS}
       backgroundImage={PERSONA_BACKGROUND}
       titleBackgroundImage={require('../../../../assets/onboarding/dialog-bg-1.png')}

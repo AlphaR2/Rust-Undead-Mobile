@@ -26,7 +26,7 @@ interface Chapters {
 const CHAPTERS: Chapters[] = [
   {
     id: 1,
-    title: 'Chapter 1',
+    title: 'The First Awakening',
     slug: 'chapter-one',
     image: ActiveChapter,
     isLocked: false,
@@ -37,7 +37,7 @@ const CHAPTERS: Chapters[] = [
   },
   {
     id: 2,
-    title: 'Chapter 2',
+    title: 'Coming Soon',
     slug: 'chapter-two',
     image: require('../../../assets/images/roadmap/inactive-02.png'),
     isLocked: true,
@@ -47,7 +47,7 @@ const CHAPTERS: Chapters[] = [
   },
   {
     id: 3,
-    title: 'Chapter 3',
+    title: 'Coming Soon',
     slug: 'chapter-three',
     image: require('../../../assets/images/roadmap/inactive-03.png'),
     isLocked: true,
@@ -57,7 +57,7 @@ const CHAPTERS: Chapters[] = [
   },
   {
     id: 4,
-    title: 'Chapter 4',
+    title: 'Coming Soon',
     slug: 'chapter-four',
     image: require('../../../assets/images/roadmap/inactive-04.png'),
     isLocked: true,
@@ -67,7 +67,7 @@ const CHAPTERS: Chapters[] = [
   },
   {
     id: 5,
-    title: 'Chapter 5',
+    title: 'Coming Soon',
     slug: 'chapter-five',
     image: require('../../../assets/images/roadmap/inactive-05.png'),
     isLocked: true,
@@ -77,7 +77,7 @@ const CHAPTERS: Chapters[] = [
   },
   {
     id: 6,
-    title: 'Chapter 6',
+    title: 'Coming Soon',
     slug: 'chapter-six' as any,
     image: require('../../../assets/images/roadmap/inactive-06.png'),
     isLocked: true,
@@ -324,13 +324,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   chapterLabelCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginTop: 8,
+    marginTop: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(200, 116, 35, 0.4)',
   },
   chapterLabel: {
     color: 'white',

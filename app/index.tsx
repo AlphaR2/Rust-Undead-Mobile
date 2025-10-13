@@ -1,4 +1,3 @@
-// import 'react-native-worklets-core'
 import { usePrivy } from '@privy-io/expo'
 import { router } from 'expo-router'
 import React, { useEffect } from 'react'

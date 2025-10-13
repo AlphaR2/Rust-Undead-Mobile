@@ -1,6 +1,7 @@
 import { GameFonts } from '@/constants/GameFonts'
-import { CreateContext, UserPersona } from '@/context/Context'
+import { CreateContext } from '@/context/Context'
 import { PERSONA_INFO, PersonaInfo, getGradientColors } from '@/types/mobile'
+import { UserPersona } from '@/types/undead'
 import { Ionicons } from '@expo/vector-icons'
 import React, { useContext, useState } from 'react'
 import { Dimensions, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
@@ -15,16 +16,16 @@ const PersonaSelectionScreen: React.FC = () => {
   const { width, height } = Dimensions.get('window')
   const personas = Object.entries(PERSONA_INFO) as [UserPersona, PersonaInfo][]
 
-  const handlePersonaSelect = (persona: UserPersona) => {
+  const handlePersonaSelect = async (persona: UserPersona) => {
     setLocalSelectedPersona(persona)
-    setContextSelectedPersona(persona)
+    await setContextSelectedPersona(persona)
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const selectedPersona = localSelectedPersona || contextSelectedPersona
 
     if (selectedPersona) {
-      setContextSelectedPersona(selectedPersona)
+      await setContextSelectedPersona(selectedPersona)
       setCurrentOnboardingScreen('name')
     }
   }
@@ -329,7 +330,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     bottom: -20,
     left: '40%',
-    // top: 25,
     marginLeft: -80,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
@@ -344,7 +344,8 @@ const styles = StyleSheet.create({
   confirmButtonBackground: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 22,
+    paddingVertical: 22,
+    paddingHorizontal: 42,
     position: 'absolute',
   },
   emptyState: {

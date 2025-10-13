@@ -1,26 +1,46 @@
+import { CharacterClass } from '@/constants/characters'
+import { CreateContext } from '@/context/Context'
 import { router } from 'expo-router'
-import React, { useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
-import StoryModeIntro from './intro'
+import AvatarSelection from './avatar'
 import StoryModeTrailer from './trailer'
 
 const StoryMode = () => {
-  const [showIntro, setShowIntro] = useState<boolean>(false)
+  const { selectedCharacter, setSelectedCharacter } = useContext(CreateContext).onboarding
+  const [showAvatar, setShowAvatar] = useState<boolean>(false)
+
+  useEffect(() => {
+    if (selectedCharacter) {
+      router.replace({
+        pathname: '/dashboard/story-mode/intro',
+        params: { selectedCharacter },
+      })
+    }
+  }, [selectedCharacter])
 
   const handleTrailerComplete = () => {
-    setShowIntro(true)
+    setShowAvatar(true)
   }
 
   const handleBack = () => {
     router.push('/dashboard')
   }
 
+  const handleAvatarComplete = async (character: CharacterClass) => {
+    await setSelectedCharacter(character)
+    router.push({
+      pathname: '/dashboard/story-mode/intro',
+      params: { selectedCharacter: character },
+    })
+  }
+
   return (
     <View style={styles.container}>
-      {!showIntro ? (
+      {!showAvatar ? (
         <StoryModeTrailer onComplete={handleTrailerComplete} onBack={handleBack} />
       ) : (
-        <StoryModeIntro onBack={handleBack} />
+        <AvatarSelection onComplete={handleAvatarComplete} onBack={handleBack} />
       )}
     </View>
   )
