@@ -1,6 +1,8 @@
 import { GameFonts } from '@/constants/GameFonts'
+import { CreateContext } from '@/context/Context'
+import { getActivePath } from '@/utils/path'
 import { MaterialIcons } from '@expo/vector-icons'
-import React, { useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import {
   Image,
   ImageBackground,
@@ -55,6 +57,16 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
 }) => {
   const [isMuted, setIsMuted] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const { paths, setPaths } = useContext(CreateContext).path
+  const [activePathId, setActivePathId] = useState<string>('')
+  getActivePath(paths)
+
+  useEffect(() => {
+    if (paths.length >= 1) {
+      const activePath = getActivePath(paths)
+      activePath && setActivePathId(activePath?.id)
+    }
+  }, [paths])
 
   const toggleMute = () => {
     setIsMuted(!isMuted)
@@ -67,6 +79,7 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
       onSelect(itemId)
     }, 300)
   }
+  console.log(activePathId)
 
   return (
     <ImageBackground style={styles.container} source={backgroundImage}>
@@ -116,7 +129,8 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
                     ) : (
                       <Image source={item.image} style={styles.itemImage} resizeMode="contain" />
                     )}
-                    {index === 0 && !item.isLocked && <View style={styles.activeIndicator} />}
+                    {Number(activePathId) === index + 1 && !item.isLocked && <View style={styles.activeIndicator} />}
+                    {Number(activePathId) > index + 1 && <View style={styles.completedIndicator} />}
                   </View>
                   <Text style={styles.itemTitle}>{item.title}</Text>
                   <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
@@ -233,6 +247,17 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     backgroundColor: '#cd7f32',
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  completedIndicator: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'green',
     borderWidth: 2,
     borderColor: 'white',
   },

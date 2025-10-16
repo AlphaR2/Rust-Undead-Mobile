@@ -6,14 +6,13 @@ import ChapterIntro from './intro'
 
 import { CreateContext } from '@/context/Context'
 import PathScreen from './path'
-
-type Screen = 'intro' | 'path' | 'gameplay'
+import QuizSample from './QuizSample'
 
 const ChapterOne = () => {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('intro')
   const [selectedPathId, setSelectedPathId] = useState<string>('1')
-
-  const { onboarding } = useContext(CreateContext)
+  
+  const { onboarding, path } = useContext(CreateContext)
+  const {currentScreen, setCurrentScreen} = path
   const { selectedCharacter } = onboarding
 
   const handleBackFromIntro = () => router.push('/dashboard/story-mode/roadmap')
@@ -64,6 +63,7 @@ const ChapterOne = () => {
           customEntities={customEntities}
         />
       )}
+      {currentScreen === "quiz"  && (<QuizSample onComplete={handleIntroComplete} onBack={handleBackFromPath}/>)}
     </View>
   )
 }

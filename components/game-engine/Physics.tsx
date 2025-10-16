@@ -51,6 +51,13 @@ export const Physics = (entities: any, { time }: { time: any }) => {
       entities.ground.cameraOffset = newOffset
     }
     
+    // Update all checkpoint offsets
+    Object.keys(entities).forEach((key) => {
+      if (key.startsWith('checkpoint_')) {
+        entities[key].cameraOffset = newOffset
+      }
+    })
+    
     // Trigger React re-render by updating state
     entities.setCameraOffset(newOffset)
   }

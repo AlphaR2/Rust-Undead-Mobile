@@ -2,7 +2,7 @@ import { GameTypewriterPresets, TypewriterText } from '@/components/common/Typew
 import { GameFonts } from '@/constants/GameFonts'
 import { MaterialIcons } from '@expo/vector-icons'
 import React, { useRef, useState } from 'react'
-import { Image, ImageBackground, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Dimensions, Image, ImageBackground, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 interface ConversationScreenProps {
   title: string
@@ -57,15 +57,24 @@ const Quiz: React.FC<ConversationScreenProps> = ({
   const toggleMute = () => {
     setIsMuted(!isMuted)
   }
+    const screenHeight = Dimensions.get('window').height
+  
 
   return (
-    <ImageBackground style={styles.container} source={backgroundImage}>
-      <ImageBackground source={titleBackgroundImage} style={styles.titleContainer} resizeMode="contain">
+    <View  style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: screenHeight,
+        zIndex: 20,
+
+        // justifyContent: 'space-between',
+      }}>
+      {/* <ImageBackground source={titleBackgroundImage} style={styles.titleContainer} resizeMode="contain">
         <Text style={[GameFonts.epic, styles.titleText]}>{title}</Text>
-      </ImageBackground>
+      </ImageBackground> */}
       <View style={[styles.blackOverlay, { backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})` }]} />
       <View style={styles.contentWrapper}>
-        <View style={styles.dialogHeader}>
+        {/* <View style={styles.dialogHeader}>
           {showBackButton && (
             <TouchableOpacity onPress={onBack} style={styles.headerButton}>
               <View style={styles.iconBackground}>
@@ -80,34 +89,42 @@ const Quiz: React.FC<ConversationScreenProps> = ({
               </View>
             </TouchableOpacity>
           )}
-        </View>
+        </View> */}
         <View style={styles.quizContainer}>
           <Text style={styles.quizQuestion}>{question}</Text>
           <View style={styles.quizOptionsContainer}>
             {options.map((option, index) => {
               return (
-                <TouchableOpacity>
-                  <Text style={styles.quizOption} key={index}>
-                    {option}
-                  </Text>
+                <TouchableOpacity key={index}>
+                  <Text style={styles.quizOption}>{option}</Text>
                 </TouchableOpacity>
               )
             })}
           </View>
         </View>
-        <ImageBackground source={dialogBackgroundImage}>
+        <View style={styles.buttonWrapper}>
+          <TouchableOpacity onPress={onContinue} style={styles.buttonTouchable}>
+            <ImageBackground source={buttonBackgroundImage} style={styles.buttonBackground} resizeMode="contain">
+              <Text style={[GameFonts.button, styles.buttonText]}>{buttonText}</Text>
+            </ImageBackground>
+          </TouchableOpacity>
+        </View>
+        {/* <ImageBackground source={dialogBackgroundImage}>
           <View style={styles.guideImageContainer}>
             <Image source={guideImage} style={styles.guideImage} resizeMode="contain" />
           </View>
-        </ImageBackground>
+        </ImageBackground> */}
       </View>
-    </ImageBackground>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+     width: '100%',
+    height: '100%',
+    zIndex: 30,
   },
   dialogHeader: {
     flexDirection: 'row',
@@ -137,8 +154,11 @@ const styles = StyleSheet.create({
   },
   contentWrapper: {
     flex: 1,
-    // justifyContent: 'flex-end',
-    right: -26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // right: -26,
+    flexDirection: 'column',
+    rowGap: 80,
     bottom: 0,
     width: '100%',
   },
@@ -192,10 +212,9 @@ const styles = StyleSheet.create({
     marginBottom: 1,
   },
   buttonWrapper: {
-    flexDirection: 'row',
-    position: 'relative',
-    alignItems: 'center',
-    marginTop: 8,
+    // alignItems: 'center',
+    // borderColor: 'green',
+    // borderWidth: 20,
   },
   titleContainer: {
     alignItems: 'center',
@@ -207,15 +226,15 @@ const styles = StyleSheet.create({
     color: '#E0E0E0',
   },
   buttonTouchable: {
-    marginLeft: 16,
+    // marginLeft: 16,
   },
   buttonBackground: {
-    alignItems: 'center',
+    // alignItems: 'center',
     width: 'auto',
     height: 'auto',
-    right: -10,
-    top: -20,
-    position: 'absolute',
+    // marginRight: -30,
+    // top: -20,
+    // position: 'absolute',
     justifyContent: 'center',
     padding: 16,
   },
@@ -242,18 +261,21 @@ const styles = StyleSheet.create({
   },
   quizQuestion: {
     color: 'white',
+    fontSize: 20,
   },
   quizOptionsContainer: {
     display: 'flex',
-    flexDirection: 'column',
-    rowGap: 10,
+    flexDirection: 'row',
+    columnGap: 20,
   },
   quizOption: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    padding: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 12,
     color: 'white',
     textAlign: 'center',
+    width: 'auto',
   },
 })
 

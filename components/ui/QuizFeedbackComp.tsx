@@ -122,6 +122,8 @@ const QuizFeedbackComp: React.FC<ConversationScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    zIndex: 40
+    
   },
   dialogHeader: {
     flexDirection: 'row',
@@ -132,6 +134,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     marginBottom: 8,
+    
   },
   headerButton: {
     width: 44,

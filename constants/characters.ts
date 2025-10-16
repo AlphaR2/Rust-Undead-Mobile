@@ -83,15 +83,15 @@ export const SPRITE_CONFIG = {
 // World configuration
 export const WORLD_CONFIG = {
   // World is 4x the screen width (adjust multiplier if needed: 2x, 3x, 5x)
-  widthMultiplier: 4,
+  widthMultiplier: 7,
   
   // Helper function to calculate world width based on screen
-  getWorldWidth: (screenWidth: number) => screenWidth * 4,
+  getWorldWidth: (screenWidth: number) => screenWidth * 7,
   
   // World boundaries
   getBounds: (screenWidth: number) => ({
     min: 0,
-    max: screenWidth * 4,
+    max: screenWidth * 7,
   }),
   
   // Starting position (as ratio of screen width)

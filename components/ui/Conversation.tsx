@@ -16,7 +16,7 @@ interface ConversationScreenProps {
   dialogBackgroundImage: ImageSourcePropType
   titleBackgroundImage: ImageSourcePropType
   buttonBackgroundImage: ImageSourcePropType
-  onBack: () => void
+  onBack?: () => void
   onContinue: () => void
   showMuteButton?: boolean
   showBackButton?: boolean
@@ -155,6 +155,7 @@ const styles = StyleSheet.create({
     right: 48,
     flexDirection: 'row',
     height: 190,
+    zIndex: 20
   },
   guideImageContainer: {
     width: '30%',

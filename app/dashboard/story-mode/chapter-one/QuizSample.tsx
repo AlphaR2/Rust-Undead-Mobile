@@ -37,17 +37,15 @@ const QuizSample: React.FC<ChapterIntroProps> = ({ onComplete, onBack }) => {
   }, [playerName])
 
    const options = [
-    "Because it is protected by a powerful spell",
-    "Because each record is chained to the one before it, making it impossible to alter.",
-    "Because it is guarded by undead creatures",
-    
+    "True",
+    "False",  
   ]
 
   return (
     <Quiz
       title="THE CURSED LEDGER"
       // message={message}
-      question='Why can’t anyone erase what is written in the Cursed Ledger?'
+      question={"What up"}
       options={options}
       buttonText="Submit Answer"
       guideImage={guideImage}

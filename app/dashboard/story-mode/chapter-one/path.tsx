@@ -1,4 +1,6 @@
 import SelectionScreen from '@/components/ui/Items'
+import { useContext } from 'react'
+import { CreateContext } from '@/context/Context'
 import React from 'react'
 import PERSONA_BACKGROUND from '../../../../assets/images/bg-assets/bg-012.png'
 import Path1 from '../../../../assets/images/paths/path-01.svg'
@@ -20,8 +22,8 @@ const PATHS = [
     title: 'The Soul Keys',
     subtitle: 'Identity',
     image: Path2,
-    isLocked: true,
-    isSvg: true,
+    isLocked: false,
+    isSvg: false,
   },
   {
     id: '3',
@@ -50,12 +52,13 @@ const PathScreen: React.FC<PathScreenProps> = ({ onComplete, onBack }) => {
   const handlePathSelect = (pathId: string) => {
     onComplete(pathId)
   }
+  const {paths}  = useContext(CreateContext).path
 
   return (
     <SelectionScreen
       title="THE FIRST AWAKENING"
       description="Four haunted paths hold wisdom. Tread them to rise from ignorance, or linger in shadow."
-      items={PATHS}
+      items={paths}
       backgroundImage={PERSONA_BACKGROUND}
       titleBackgroundImage={require('../../../../assets/onboarding/dialog-bg-1.png')}
       onBack={onBack}
