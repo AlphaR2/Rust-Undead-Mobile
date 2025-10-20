@@ -1,8 +1,8 @@
-import { GameTypewriterPresets, TypewriterText } from '@/components/common/Typewrite'
+import { GameTypewriterPresets, TypewriterText, TypewriterTextRef } from '@/components/common/Typewrite'
 import { GameFonts } from '@/constants/GameFonts'
 import { MaterialIcons } from '@expo/vector-icons'
 import React, { useRef, useState } from 'react'
-import { Image, ImageBackground, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Image, ImageBackground, ImageSourcePropType, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 interface ConversationScreenProps {
   title: string
@@ -45,6 +45,7 @@ const ConversationScreen: React.FC<ConversationScreenProps> = ({
 }) => {
   const [showButton, setShowButton] = useState(autoShowButton)
   const [isMuted, setIsMuted] = useState(false)
+  const typewriterRef = useRef<TypewriterTextRef>(null)
 
   const handleTypewriterCompleteRef = useRef(() => {
     setShowButton(true)
@@ -54,65 +55,77 @@ const ConversationScreen: React.FC<ConversationScreenProps> = ({
     setIsMuted(!isMuted)
   }
 
+  const handleScreenTap = () => {
+    if (!showButton) {
+      typewriterRef.current?.skipToEnd()
+    }
+  }
+
   return (
     <ImageBackground style={styles.container} source={backgroundImage}>
       <ImageBackground source={titleBackgroundImage} style={styles.titleContainer} resizeMode="contain">
         <Text style={[GameFonts.epic, styles.titleText]}>{title}</Text>
       </ImageBackground>
       <View style={[styles.blackOverlay, { backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})` }]} />
-      <View style={styles.contentWrapper}>
-        <View style={styles.dialogHeader}>
-          {showBackButton && (
-            <TouchableOpacity onPress={onBack} style={styles.headerButton}>
-              <View style={styles.iconBackground}>
-                <MaterialIcons name="arrow-back" size={22} color="white" />
-              </View>
-            </TouchableOpacity>
-          )}
-          {showMuteButton && (
-            <TouchableOpacity onPress={toggleMute} style={styles.headerButton}>
-              <View style={styles.iconBackground}>
-                <MaterialIcons name={isMuted ? 'volume-off' : 'volume-up'} size={22} color="white" />
-              </View>
-            </TouchableOpacity>
-          )}
-        </View>
-        <ImageBackground style={styles.dialogBackground} source={dialogBackgroundImage}>
-          <View style={styles.guideImageContainer}>
-            <Image source={guideImage} style={styles.guideImage} resizeMode="contain" />
-          </View>
-          <View style={styles.textContainer}>
-            {badgeText && (
-              <TouchableOpacity style={styles.badge} disabled>
-                <Text style={styles.badgeText}>{badgeText}</Text>
+      <Pressable style={styles.tapArea} onPress={handleScreenTap}>
+        <View style={styles.contentWrapper}>
+          <View style={styles.dialogHeader}>
+            {showBackButton && (
+              <TouchableOpacity onPress={onBack} style={styles.headerButton}>
+                <View style={styles.iconBackground}>
+                  <MaterialIcons name="arrow-back" size={22} color="white" />
+                </View>
               </TouchableOpacity>
             )}
-            <TypewriterText
-              text={message}
-              style={[GameFonts.body, styles.typewriterText]}
-              {...GameTypewriterPresets.narration}
-              delay={typewriterDelay}
-              skipAnimation={false}
-              onComplete={handleTypewriterCompleteRef.current}
-            />
-            {showButton && (
-              <View style={styles.buttonWrapper}>
-                <TouchableOpacity onPress={onContinue} style={styles.buttonTouchable}>
-                  <ImageBackground source={buttonBackgroundImage} style={styles.buttonBackground} resizeMode="contain">
-                    <Text style={[GameFonts.button, styles.buttonText]}>{buttonText}</Text>
-                  </ImageBackground>
-                </TouchableOpacity>
-              </View>
+            {showMuteButton && (
+              <TouchableOpacity onPress={toggleMute} style={styles.headerButton}>
+                <View style={styles.iconBackground}>
+                  <MaterialIcons name={isMuted ? 'volume-off' : 'volume-up'} size={22} color="white" />
+                </View>
+              </TouchableOpacity>
             )}
           </View>
-        </ImageBackground>
-      </View>
+          <ImageBackground style={styles.dialogBackground} source={dialogBackgroundImage}>
+            <View style={styles.guideImageContainer}>
+              <Image source={guideImage} style={styles.guideImage} resizeMode="contain" />
+            </View>
+            <View style={styles.textContainer}>
+              {badgeText && (
+                <TouchableOpacity style={styles.badge} disabled>
+                  <Text style={styles.badgeText}>{badgeText}</Text>
+                </TouchableOpacity>
+              )}
+              <TypewriterText
+                ref={typewriterRef}
+                text={message}
+                style={[GameFonts.body, styles.typewriterText]}
+                {...GameTypewriterPresets.narration}
+                delay={typewriterDelay}
+                skipAnimation={false}
+                onComplete={handleTypewriterCompleteRef.current}
+              />
+              {showButton && (
+                <View style={styles.buttonWrapper}>
+                  <TouchableOpacity onPress={onContinue} style={styles.buttonTouchable}>
+                    <ImageBackground source={buttonBackgroundImage} style={styles.buttonBackground} resizeMode="contain">
+                      <Text style={[GameFonts.button, styles.buttonText]}>{buttonText}</Text>
+                    </ImageBackground>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </ImageBackground>
+        </View>
+      </Pressable>
     </ImageBackground>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  tapArea: {
     flex: 1,
   },
   dialogHeader: {
@@ -155,7 +168,7 @@ const styles = StyleSheet.create({
     right: 48,
     flexDirection: 'row',
     height: 190,
-    zIndex: 20
+    zIndex: 20,
   },
   guideImageContainer: {
     width: '30%',

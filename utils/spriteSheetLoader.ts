@@ -1,4 +1,4 @@
-import { CharacterClass, AnimationType } from '@/constants/characters'
+import { AnimationType, CharacterClass } from '@/constants/characters'
 
 /**
  * Pre-load all sprite sheets statically
@@ -24,6 +24,13 @@ const SPRITE_SHEETS = {
     walking: require('@/assets/spritesheets/daemon-walking.png'),
     interact: require('@/assets/spritesheets/daemon-interact.png'),
   },
+}
+
+/**
+ * Get Spritesheet of the character animation
+ */
+const ITEM_SHEET = {
+  idle: require('@/assets/spritesheets/daemon-idle.png'),
 }
 
 /**

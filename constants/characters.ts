@@ -1,6 +1,8 @@
 export type CharacterClass = 'oracle' | 'validator' | 'guardian' | 'daemon'
 export type AnimationType = 'idle' | 'walking' | 'interact'
 
+export type ItemType = 'obstacle' | 'checkpoint' | 'chest'
+
 export interface CharacterConfig {
   name: string
   class: CharacterClass
@@ -9,6 +11,16 @@ export interface CharacterConfig {
     idle: number
     walking: number
     interact: number
+  }
+}
+
+export interface ItemsConfig {
+  name: string
+  class: ItemType
+  description?: string
+  frames: {
+    idle: number
+    //add more later
   }
 }
 
@@ -83,17 +95,17 @@ export const SPRITE_CONFIG = {
 // World configuration
 export const WORLD_CONFIG = {
   // World is 4x the screen width (adjust multiplier if needed: 2x, 3x, 5x)
-  widthMultiplier: 7,
-  
+  widthMultiplier: 8,
+
   // Helper function to calculate world width based on screen
-  getWorldWidth: (screenWidth: number) => screenWidth * 7,
-  
+  getWorldWidth: (screenWidth: number) => screenWidth * 8,
+
   // World boundaries
   getBounds: (screenWidth: number) => ({
     min: 0,
-    max: screenWidth * 7,
+    max: screenWidth * 8,
   }),
-  
+
   // Starting position (as ratio of screen width)
   startPosition: {
     x: 0.15, // Start at 15% of screen width

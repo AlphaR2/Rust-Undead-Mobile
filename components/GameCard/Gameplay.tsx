@@ -5,24 +5,24 @@ import {
   SPRITE_CONFIG,
   WORLD_CONFIG,
 } from '@/constants/characters'
+import { PathContent, getCheckpointPositions } from '@/constants/Paths'
+import { CreateContext } from '@/context/Context'
+import useFetchConcepts from '@/hooks/useFetchConcepts'
+import { completePathAndUnlockNext, getActivePath } from '@/utils/path'
 import { MaterialIcons } from '@expo/vector-icons'
 import Matter from 'matter-js'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { Dimensions, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { GameEngine } from 'react-native-game-engine'
 import { Camera } from '../game-engine/camera'
 import Character from '../game-engine/character'
-import Checkpoint from './Checkpoint'
-import CheckpointModal, { CheckpointContent } from './CheckpointModal'
-import { CheckpointSystem, completeCheckpoint, createCheckpoint } from './CheckpointSystem'
 import Ground from '../game-engine/ground'
 import { Physics } from '../game-engine/Physics'
 import ScrollingBackground from '../game-engine/scrollingBackground'
-import { PATH_CONTENTS, PathContent, getCheckpointPositions } from '@/constants/Paths'
-import { useContext } from 'react'
-import { CreateContext } from '@/context/Context'
-import { completePathAndUnlockNext, getActivePath } from '@/utils/path'
-import useFetchConcepts from '@/hooks/useFetchConcepts'
+import GameLoadingScreen from '../ui/Loading'
+import Checkpoint from './Checkpoint'
+import CheckpointModal, { CheckpointContent } from './CheckpointModal'
+import { CheckpointSystem, completeCheckpoint, createCheckpoint } from './CheckpointSystem'
 
 interface BackgroundImages {
   layer1: any
@@ -41,7 +41,7 @@ interface GameplayProps {
   backgroundImages: BackgroundImages
   pathId?: string
   customEntities?: any
-  pathIndex?: number // Add path index prop
+  pathIndex?: number
 }
 
 const Gameplay: React.FC<GameplayProps> = ({
@@ -51,7 +51,7 @@ const Gameplay: React.FC<GameplayProps> = ({
   backgroundImages,
   pathId,
   customEntities = {},
-  pathIndex = 0, // Default to first path
+  pathIndex = 0,
 }) => {
   const gameEngineRef = useRef<GameEngine | null>(null)
   const [running, setRunning] = useState<boolean>(true)
@@ -72,15 +72,15 @@ const Gameplay: React.FC<GameplayProps> = ({
     }[]
   >()
 
-  // Checkpoint modal state
   const [modalVisible, setModalVisible] = useState(false)
+  const [showMiniModal, setShowMiniModal] = useState(false)
+  const [showQuizIntro, setShowQuizIntro] = useState(false)
   const [currentCheckpointContent, setCurrentCheckpointContent] = useState<CheckpointContent | null>(null)
   const [currentCheckpointNumber, setCurrentCheckpointNumber] = useState<number | null>(null)
 
   const [activePathId, setActivePathId] = useState<string>('')
 
   const { data, loading, error } = useFetchConcepts()
- 
 
   useEffect(() => {
     if (data) {
@@ -175,20 +175,23 @@ const Gameplay: React.FC<GameplayProps> = ({
 
   const cameraRef = useRef(new Camera(screenWidth, screenHeight, worldWidth))
 
-  // Callback when checkpoint is reached
   const handleCheckpointReached = useCallback((checkpointNumber: number, content: CheckpointContent) => {
-    console.log('🎉 Checkpoint reached callback triggered:', checkpointNumber)
     setCurrentCheckpointNumber(checkpointNumber)
     setCurrentCheckpointContent(content)
+    setShowMiniModal(true)
     setModalVisible(true)
-    setRunning(false) // Pause game
+    setRunning(false)
   }, [])
 
-  // Callback when modal is closed
+  const handleOpenBox = useCallback(() => {
+    if (currentCheckpointNumber === 6) {
+      setShowQuizIntro(true)
+    }
+    setShowMiniModal(false)
+  }, [currentCheckpointNumber])
+
   const handleContinue = useCallback(() => {
-    // console.log('Continuing from checkpoint:', currentCheckpointNumber)
     if (currentCheckpointNumber !== null && entitiesRef.current) {
-      // Mark checkpoint as completed
       completeCheckpoint(entitiesRef.current, currentCheckpointNumber)
     }
 
@@ -197,28 +200,25 @@ const Gameplay: React.FC<GameplayProps> = ({
       setPaths(completePathAndUnlockNext(paths, activePathId))
     }
     setModalVisible(false)
+    setShowMiniModal(false)
+    setShowQuizIntro(false)
     setCurrentCheckpointContent(null)
     setCurrentCheckpointNumber(null)
-    setRunning(true) // Resume game
-  }, [currentCheckpointNumber])
-
-  // Create checkpoints FIRST, before entities
+    setRunning(true)
+  }, [currentCheckpointNumber, paths, activePathId])
 
   useEffect(() => {
     const pathContentRaw = pathContents && pathContents[pathIndex] ? pathContents[pathIndex] : null
     setPath(pathContentRaw)
-    setCheckpointPositions(pathContentRaw ? getCheckpointPositions(worldWidth, screenHeight, pathContentRaw.checkpoints.length + 1) : [])
+    setCheckpointPositions(
+      pathContentRaw ? getCheckpointPositions(worldWidth, screenHeight, pathContentRaw.checkpoints.length) : [],
+    )
   }, [pathContents])
 
   const checkpointEntitiesRef = useRef<any>({})
 
-  // Initialize checkpoints once
   useEffect(() => {
     if (path && (checkpointPositions?.length ?? 0) > 0) {
-      // console.log('🎮 Initializing checkpoints for path:', path.title)
-      // console.log('Ground position:', groundBody.position)
-      // console.log('Character start position:', characterBody.position)
-
       const newCheckpointEntities: any = {}
       checkpointPositions?.forEach((pos, index) => {
         const checkpointData = createCheckpoint(world, pos.x, pos.y, index + 1, path.checkpoints[index])
@@ -226,14 +226,10 @@ const Gameplay: React.FC<GameplayProps> = ({
           ...checkpointData,
           renderer: Checkpoint,
         }
-        // console.log(`📍 Checkpoint ${index + 1} created at x:${pos.x.toFixed(0)}, y:${pos.y.toFixed(0)}`)
       })
 
       checkpointEntitiesRef.current = newCheckpointEntities
-
-      // Force update the entities ref
       Object.assign(entitiesRef.current, newCheckpointEntities)
-      // console.log('✅ Total entities:', Object.keys(entitiesRef.current).filter(k => k.startsWith('checkpoint_')))
     }
   }, [checkpointPositions, path])
 
@@ -275,7 +271,6 @@ const Gameplay: React.FC<GameplayProps> = ({
     ...customEntities,
   })
 
-  // Update camera offsets for all entities
   useEffect(() => {
     if (entitiesRef.current.character) {
       entitiesRef.current.character.cameraOffset = cameraOffset
@@ -284,7 +279,6 @@ const Gameplay: React.FC<GameplayProps> = ({
       entitiesRef.current.ground.cameraOffset = cameraOffset
     }
 
-    // Update checkpoint camera offsets
     Object.keys(entitiesRef.current).forEach((key) => {
       if (key.startsWith('checkpoint_')) {
         entitiesRef.current[key].cameraOffset = cameraOffset
@@ -377,11 +371,15 @@ const Gameplay: React.FC<GameplayProps> = ({
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Loading...</Text>
-      </View>
+      <GameLoadingScreen
+        backgroundImage={backgroundImages.layer1}
+        titleBackgroundImage={require('../../assets/onboarding/dialog-bg-1.png')}
+        loadingText="Preparing your adventure..."
+        overlayOpacity={0.6}
+      />
     )
   }
+
   return (
     <View style={styles.container}>
       <ScrollingBackground
@@ -465,8 +463,15 @@ const Gameplay: React.FC<GameplayProps> = ({
           running={running}
         />
 
-        {/* Checkpoint Modal */}
-        <CheckpointModal visible={modalVisible} content={currentCheckpointContent} onContinue={handleContinue} />
+        <CheckpointModal
+          visible={modalVisible}
+          content={currentCheckpointContent}
+          onContinue={handleContinue}
+          onOpenBox={handleOpenBox}
+          showMiniModal={showMiniModal}
+          showQuizIntro={showQuizIntro}
+          allTopics={pathContents?.[pathIndex]?.checkpoints || []}
+        />
 
         <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers} />
 

@@ -1,7 +1,7 @@
+import chestboxClose from '@/assets/gameplay/Chest_01_Locked.png'
+import chestboxOpen from '@/assets/gameplay/Chest_01_Unlocked.png'
 import React from 'react'
-import { StyleSheet, View, Text, Image } from 'react-native'
-import chestboxClose from '@/assets/gameplay/chestbox-close.png'
-import chestboxOpen from '@/assets/gameplay/chestbox-open.png'
+import { Image, StyleSheet, View } from 'react-native'
 
 interface CheckpointProps {
   body: any
@@ -11,10 +11,10 @@ interface CheckpointProps {
   checkpointNumber: number
 }
 
-const Checkpoint: React.FC<CheckpointProps> = ({ body, size, cameraOffset, isCompleted, checkpointNumber }) => {
+const Checkpoint: React.FC<CheckpointProps> = ({ body, size, cameraOffset, isCompleted}) => {
   const [width, height] = size
-  const x = body.position.x - width / 2 + cameraOffset.x
-  const y = body.position.y - height / 2 + cameraOffset.y
+  const x = body.position.x - width / 1 + cameraOffset.x
+  const y = body.position.y - height / 1.7 + cameraOffset.y
 
   return (
     <View
@@ -25,35 +25,15 @@ const Checkpoint: React.FC<CheckpointProps> = ({ body, size, cameraOffset, isCom
           top: y,
           width,
           height,
-          // backgroundColor: isCompleted ? '#4CAF50' : '#FFD700',
-          // borderColor: isCompleted ? '#2E7D32' : '#FFA000',
+          zIndex: -1,
         },
       ]}
     >
-      {/* Chest lock/checkmark indicator */}
       {isCompleted ? (
-        <Image
-          source={chestboxOpen}
-          alt="chestbox"
-          height={10}
-          width={10}
-          style={{ height: 80, width: 100, marginTop: 25 }}
-        />
+        <Image source={chestboxOpen} alt="chestbox" style={styles.chestImage} />
       ) : (
-        <Image
-          source={chestboxClose}
-          alt="chestbox"
-          height={10}
-          width={10}
-          style={{ height: 80, width: 100, marginTop: 25 }}
-        />
+        <Image source={chestboxClose} alt="chestbox" style={styles.chestImage} />
       )}
-      {/* <Text style={styles.icon}>
-        {isCompleted ? '✓' : '🔒'}
-      </Text> */}
-
-      {/* Checkpoint number */}
-      {/* <Text style={styles.number}>{checkpointNumber}</Text> */}
     </View>
   )
 }
@@ -61,8 +41,6 @@ const Checkpoint: React.FC<CheckpointProps> = ({ body, size, cameraOffset, isCom
 const styles = StyleSheet.create({
   checkpoint: {
     position: 'absolute',
-    // borderWidth: 3,
-    // borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -71,17 +49,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  icon: {
-    fontSize: 28,
-    marginBottom: 4,
-  },
-  number: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: '#000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+  chestImage: {
+    height: 50,
+    width: 60,
+    marginTop: 25,
   },
 })
 

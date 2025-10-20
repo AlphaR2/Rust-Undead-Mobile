@@ -1,14 +1,13 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { createContext, useState, useEffect, useCallback } from 'react'
-import { Guide, WarriorType } from '@/types/mobile'
-import { UserPersona } from '@/types/undead'
-import { CharacterClass } from '@/constants/characters'
 import Path1 from '@/assets/images/paths/path-01.svg'
 import Path2 from '@/assets/images/paths/path-02.svg'
 import Path3 from '@/assets/images/paths/path-03.svg'
 import Path4 from '@/assets/images/paths/path-04.svg'
+import { CharacterClass } from '@/constants/characters'
+import { Guide, WarriorType } from '@/types/mobile'
 import { Path } from '@/types/path'
-import { SvgProps } from 'react-native-svg'
+import { UserPersona } from '@/types/undead'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { createContext, useCallback, useEffect, useState } from 'react'
 
 class DataStore {
   static async saveGuide(guide: Guide) {
@@ -73,9 +72,7 @@ class DataStore {
     ])
   }
 }
-type Screen = 'intro' | 'path' | 'gameplay' | "quiz"
-
-
+type Screen = 'intro' | 'path' | 'gameplay'
 
 interface ContextTypes {
   auth: {
@@ -126,51 +123,51 @@ const ContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('intro')
 
   const [paths, setPaths] = useState([
-  {
-    id: '1',
-    title: 'The Machine Spirits',
-    subtitle: 'Foundations',
-    image: Path1,
-    isLocked: false,
-    isActive: true, // First path starts as active
-    isCompleted: false,
-    isSvg: true,
-    progress: 0,
-  },
-  {
-    id: '2',
-    title: 'The Soul Keys',
-    subtitle: 'Identity',
-    image: Path2,
-    isLocked: true,
-    isActive: false,
-    isCompleted: false,
-    isSvg: true,
-    progress: 0,
-  },
-  {
-    id: '3',
-    title: 'The Chain Wraiths',
-    subtitle: 'Solana',
-    image: Path3,
-    isLocked: true,
-    isActive: false,
-    isCompleted: false,
-    isSvg: true,
-    progress: 0,
-  },
-  {
-    id: '4',
-    title: 'The Validator',
-    subtitle: 'Distributed Systems',
-    image: Path4,
-    isLocked: true,
-    isActive: false,
-    isCompleted: false,
-    isSvg: true,
-    progress: 0,
-  },
-])
+    {
+      id: '1',
+      title: 'The Machine Spirits',
+      subtitle: 'Foundations',
+      image: Path1,
+      isLocked: false,
+      isActive: true, // First path starts as active
+      isCompleted: false,
+      isSvg: true,
+      progress: 0,
+    },
+    {
+      id: '2',
+      title: 'The Soul Keys',
+      subtitle: 'Identity',
+      image: Path2,
+      isLocked: true,
+      isActive: false,
+      isCompleted: false,
+      isSvg: true,
+      progress: 0,
+    },
+    {
+      id: '3',
+      title: 'The Chain Wraiths',
+      subtitle: 'Solana',
+      image: Path3,
+      isLocked: true,
+      isActive: false,
+      isCompleted: false,
+      isSvg: true,
+      progress: 0,
+    },
+    {
+      id: '4',
+      title: 'The Validator',
+      subtitle: 'Distributed Systems',
+      image: Path4,
+      isLocked: true,
+      isActive: false,
+      isCompleted: false,
+      isSvg: true,
+      progress: 0,
+    },
+  ])
 
   useEffect(() => {
     loadPersistedData()
@@ -291,7 +288,6 @@ const ContextProvider = ({ children }: { children: React.ReactNode }) => {
           setCurrentScreen,
           paths,
           setPaths,
-          
         },
       }}
     >

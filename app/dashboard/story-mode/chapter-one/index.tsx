@@ -6,13 +6,12 @@ import ChapterIntro from './intro'
 
 import { CreateContext } from '@/context/Context'
 import PathScreen from './path'
-import QuizSample from './QuizSample'
 
 const ChapterOne = () => {
   const [selectedPathId, setSelectedPathId] = useState<string>('1')
-  
+
   const { onboarding, path } = useContext(CreateContext)
-  const {currentScreen, setCurrentScreen} = path
+  const { currentScreen, setCurrentScreen } = path
   const { selectedCharacter } = onboarding
 
   const handleBackFromIntro = () => router.push('/dashboard/story-mode/roadmap')
@@ -47,7 +46,7 @@ const ChapterOne = () => {
 
   // Select image set based on pathId
   const backgroundImages = ['3', '4'].includes(selectedPathId) ? graveImages : factoryImages
-  const customEntities = {} // Add path-specific entities if needed
+  const customEntities = {} 
 
   return (
     <View style={styles.container}>
@@ -63,7 +62,6 @@ const ChapterOne = () => {
           customEntities={customEntities}
         />
       )}
-      {currentScreen === "quiz"  && (<QuizSample onComplete={handleIntroComplete} onBack={handleBackFromPath}/>)}
     </View>
   )
 }

@@ -109,10 +109,10 @@ const Character: React.FC<CharacterPropsWithCamera> = ({ body, size, characterCl
 const styles = StyleSheet.create({
   fallback: {
     position: 'absolute',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: 'rgba(200, 116, 35, 0.8)',
     borderRadius: 5,
     borderWidth: 2,
-    borderColor: '#C92A2A',
+    borderColor: 'rgba(200, 116, 35, 0.6)',
   },
 })
 

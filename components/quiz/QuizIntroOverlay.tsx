@@ -1,8 +1,7 @@
 import { GameTypewriterPresets, TypewriterText } from '@/components/common/Typewrite'
 import { GameFonts } from '@/constants/GameFonts'
-import { UNDEAD_MESSAGES } from '@/utils/path'
 import { MaterialIcons } from '@expo/vector-icons'
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import {
   Dimensions,
   Image,
@@ -14,49 +13,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { LearningContent } from '../GameCard/CheckpointModal'
 
-interface ConversationScreenProps {
-  title: string
-  message: string
-  buttonText: string
-  playerName?: string
-  guideName?: string
+interface QuizIntroOverlayProps {
+  playerName: string
   guideImage: ImageSourcePropType
-  contentid?: number
-  badgeText?: string
-  backgroundImage?: ImageSourcePropType
-  dialogBackgroundImage: ImageSourcePropType
-  titleBackgroundImage: ImageSourcePropType
   buttonBackgroundImage: ImageSourcePropType
-  onBack?: () => void
   onContinue: () => void
-  showMuteButton?: boolean
-  showBackButton?: boolean
-  typewriterDelay?: number
-  autoShowButton?: boolean
   overlayOpacity?: number
-  learningContent: LearningContent
 }
 
-const OverlayScreen: React.FC<ConversationScreenProps> = ({
-  title,
-  message,
-  buttonText,
-  guideImage,
-  learningContent,
+const QuizIntroOverlay: React.FC<QuizIntroOverlayProps> = ({
   playerName,
+  guideImage,
   buttonBackgroundImage,
-  contentid,
   onContinue,
-
-  typewriterDelay = 300,
-  autoShowButton = false,
   overlayOpacity = 0.99,
 }) => {
-  const [showButton, setShowButton] = useState(autoShowButton)
+  const [showButton, setShowButton] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
-  const [showIntro, setShowIntro] = useState(true)
+
   const handleTypewriterCompleteRef = useRef(() => {
     setShowButton(true)
   })
@@ -65,29 +40,14 @@ const OverlayScreen: React.FC<ConversationScreenProps> = ({
     setIsMuted(!isMuted)
   }
 
-  console.log('current index', contentid)
-
   const screenHeight = Dimensions.get('window').height
 
-  const currentMessages = useMemo(() => {
-    if (contentid && playerName) {
-      return UNDEAD_MESSAGES[contentid - 1](
-        playerName,
-        title,
-        learningContent.summary,
-        learningContent.battle_relevance,
-      )
-    }
-    return ''
-  }, [contentid, playerName, title, learningContent])
+  const quizIntroMessage = `${playerName}, you have consumed the ancient knowledge. Now the spirits demand proof of your mastery.
 
-  const handleContinue = () => {
-    if (showIntro) {
-      setShowIntro(false)
-    } else {
-      onContinue()
-    }
-  }
+Five trials await. Answer correctly and ascend. Fail, and be consumed.
+
+THE TRIAL BEGINS.`
+
   return (
     <View
       style={{
@@ -95,8 +55,6 @@ const OverlayScreen: React.FC<ConversationScreenProps> = ({
         flexDirection: 'column',
         height: screenHeight + 20,
         zIndex: 20,
-
-        // justifyContent: 'space-between',
       }}
     >
       <View style={[styles.blackOverlay, { backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})` }]} />
@@ -126,8 +84,6 @@ const OverlayScreen: React.FC<ConversationScreenProps> = ({
             paddingBottom: 15,
             paddingLeft: 20,
             paddingRight: 20,
-            // borderColor: 'white',
-            // borderWidth: 2,
           }}
         >
           <ScrollView
@@ -136,19 +92,19 @@ const OverlayScreen: React.FC<ConversationScreenProps> = ({
             persistentScrollbar={true}
           >
             <TypewriterText
-              text={showIntro ? currentMessages : message}
+              text={quizIntroMessage}
               style={[GameFonts.body, styles.typewriterText]}
               {...GameTypewriterPresets.narration}
-              delay={typewriterDelay}
+              delay={300}
               skipAnimation={false}
               onComplete={handleTypewriterCompleteRef.current}
             />
           </ScrollView>
 
           <View style={styles.buttonWrapper}>
-            <TouchableOpacity onPress={handleContinue} style={styles.buttonTouchable}>
+            <TouchableOpacity onPress={onContinue} style={styles.buttonTouchable}>
               <ImageBackground source={buttonBackgroundImage} style={styles.buttonBackground} resizeMode="contain">
-                <Text style={[GameFonts.button, styles.buttonText]}>{buttonText}</Text>
+                <Text style={[GameFonts.button, styles.buttonText]}>BEGIN TRIAL</Text>
               </ImageBackground>
             </TouchableOpacity>
           </View>
@@ -159,48 +115,9 @@ const OverlayScreen: React.FC<ConversationScreenProps> = ({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    zIndex: 20,
-  },
   blackOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#00000091',
-  },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  titleContainer: {
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    minWidth: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleText: {
-    fontSize: 20,
-    color: '#E0E0E0',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  dialogHeader: {
-    flexDirection: 'row',
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    zIndex: 20,
+    backgroundColor: '#00000071',
   },
   headerButton: {
     width: 44,
@@ -209,7 +126,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconBackground: {
-    backgroundColor: 'rgba(19, 19, 19, 0.9)',
+    backgroundColor: 'rgba(19, 19, 19, 0.7)',
     borderRadius: 22,
     padding: 12,
     justifyContent: 'center',
@@ -220,33 +137,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  centeredContent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    borderColor: 'red',
-    borderRadius: 20,
-  },
-  dialogContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  contentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    maxWidth: 1200,
-    paddingHorizontal: 40,
-    height: 500,
-  },
   guideImageContainer: {
     height: '45%',
     width: '20%',
@@ -255,29 +145,6 @@ const styles = StyleSheet.create({
   guideImage: {
     width: '100%',
     height: '100%',
-  },
-  textContainer: {
-    flex: 1,
-    maxWidth: 600,
-    paddingHorizontal: 30,
-    paddingVertical: 40,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    marginBottom: 16,
-    borderColor: '#c873234d',
-    borderWidth: 1,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   typewriterText: {
     color: '#FFFFFF',
@@ -289,7 +156,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   buttonWrapper: {
-    // marginTop: 18,
     alignItems: 'flex-start',
     marginLeft: 'auto',
   },
@@ -313,4 +179,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default OverlayScreen
+export default QuizIntroOverlay
