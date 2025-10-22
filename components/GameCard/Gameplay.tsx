@@ -23,6 +23,7 @@ import GameLoadingScreen from '../ui/Loading'
 import Checkpoint from './Checkpoint'
 import CheckpointModal, { CheckpointContent } from './CheckpointModal'
 import { CheckpointSystem, completeCheckpoint, createCheckpoint } from './CheckpointSystem'
+import { BoundaryDetectionSystem } from '../game-engine/BoundaryDetectionSystem'
 
 interface BackgroundImages {
   layer1: any
@@ -74,6 +75,7 @@ const Gameplay: React.FC<GameplayProps> = ({
 
   const [modalVisible, setModalVisible] = useState(false)
   const [showMiniModal, setShowMiniModal] = useState(false)
+  const [miniModalType, setMiniModalType] = useState('checkpoint')
   const [showQuizIntro, setShowQuizIntro] = useState(false)
   const [currentCheckpointContent, setCurrentCheckpointContent] = useState<CheckpointContent | null>(null)
   const [currentCheckpointNumber, setCurrentCheckpointNumber] = useState<number | null>(null)
@@ -184,21 +186,30 @@ const Gameplay: React.FC<GameplayProps> = ({
   }, [])
 
   const handleOpenBox = useCallback(() => {
-    if (currentCheckpointNumber === 6) {
-      setShowQuizIntro(true)
-    }
-    setShowMiniModal(false)
-  }, [currentCheckpointNumber])
+    // Force state updates to be processed in the next tick
+    setTimeout(() => {
+      if (currentCheckpointNumber === 6) {
+        setShowQuizIntro(true)
+      }
+
+      if (miniModalType === 'chapter-end') {
+        setCurrentScreen('path')
+        setPaths(completePathAndUnlockNext(paths, activePathId))
+      }
+
+      setShowMiniModal(false)
+    }, 0)
+  }, [currentCheckpointNumber, miniModalType, paths, activePathId, setCurrentScreen, setPaths])
 
   const handleContinue = useCallback(() => {
     if (currentCheckpointNumber !== null && entitiesRef.current) {
       completeCheckpoint(entitiesRef.current, currentCheckpointNumber)
     }
 
-    if (currentCheckpointNumber === 6) {
-      setCurrentScreen('path')
-      setPaths(completePathAndUnlockNext(paths, activePathId))
-    }
+    // if (currentCheckpointNumber === 6) {
+    //   setCurrentScreen('path')
+    //   setPaths(completePathAndUnlockNext(paths, activePathId))
+    // }
     setModalVisible(false)
     setShowMiniModal(false)
     setShowQuizIntro(false)
@@ -242,11 +253,34 @@ const Gameplay: React.FC<GameplayProps> = ({
     })
   }, [])
 
+  // Callback when character reaches end of world
+  const handleReachEnd = useCallback(() => {
+    console.log('🏁 Reached end of world!')
+    // You can trigger onComplete or show a completion modal
+    // onComplete()
+
+    // Or show an alert
+    setShowMiniModal(true)
+    setModalVisible(true)
+    setMiniModalType('chapter-end')
+    // alert('Congratulations! You reached the end of the chapter!')
+  }, [])
+
+  // Optional: Callback when character reaches start
+  const handleReachStart = useCallback(() => {
+    console.log('🔙 Back at the start!')
+  }, [])
   const entitiesRef = useRef({
     physics: { engine, world },
     camera: cameraRef.current,
     setCameraOffset: handleSetCameraOffset,
     onCheckpointReached: handleCheckpointReached,
+    onReachEnd: handleReachEnd,
+    onReachStart: handleReachStart,
+    worldBounds: {
+      min: worldBounds.min,
+      max: worldBounds.max,
+    },
     character: {
       body: characterBody,
       size: [SPRITE_CONFIG.size.width, SPRITE_CONFIG.size.height] as [number, number],
@@ -458,7 +492,7 @@ const Gameplay: React.FC<GameplayProps> = ({
         <GameEngine
           ref={gameEngineRef}
           style={styles.gameContainer}
-          systems={[Physics, CheckpointSystem]}
+          systems={[Physics, CheckpointSystem, BoundaryDetectionSystem]}
           entities={entitiesRef.current}
           running={running}
         />
@@ -469,6 +503,7 @@ const Gameplay: React.FC<GameplayProps> = ({
           onContinue={handleContinue}
           onOpenBox={handleOpenBox}
           showMiniModal={showMiniModal}
+          miniModalType={miniModalType}
           showQuizIntro={showQuizIntro}
           allTopics={pathContents?.[pathIndex]?.checkpoints || []}
         />

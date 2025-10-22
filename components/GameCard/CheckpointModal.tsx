@@ -24,6 +24,7 @@ interface CheckpointModalProps {
   onContinue: () => void
   onOpenBox: () => void
   showMiniModal: boolean
+  miniModalType: string
   showQuizIntro?: boolean
   allTopics?: any[]
 }
@@ -54,6 +55,7 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
   onContinue,
   onOpenBox,
   showMiniModal,
+  miniModalType,
   showQuizIntro = false,
   allTopics = [],
 }) => {
@@ -63,9 +65,9 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
   const guideImage = GUIDE_IMAGES[selectedGuide?.id || '1'] || guide1
   const message = content?.learning_content?.big_note.join(',') || ''
 
-  if (!visible || !content) return null
+  if (!visible) return null
 
-  if (content.topic_id === 6) {
+  if (content?.topic_id === 6) {
     if (showMiniModal) {
       return (
         <View style={styles.miniModalOverlay}>
@@ -130,10 +132,14 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
               <MaterialIcons name="lock-open" size={48} color="rgba(200, 116, 35, 0.8)" />
             </View>
 
-            <Text style={[GameFonts.body, styles.miniModalTitle]}>Chest Found</Text>
+            <Text style={[GameFonts.body, styles.miniModalTitle]}>
+              {miniModalType === 'checkpoint' ? 'Chest Found' : 'Chapter Completed🎉'}
+            </Text>
 
             <Text style={[GameFonts.body, styles.miniModalText]}>
-              You've discovered a wisdom scroll. Open it to see what it says.
+              {miniModalType === 'checkpoint'
+                ? "You've discovered a wisdom scroll. Open it to see what it says."
+                : "You've done well. Proceed to the next chapter"}
             </Text>
 
             <TouchableOpacity onPress={onOpenBox} style={styles.miniModalButton}>
@@ -142,7 +148,9 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
                 style={styles.miniButtonBackground}
                 resizeMode="contain"
               >
-                <Text style={[GameFonts.button, styles.miniButtonText]}>Open Chest</Text>
+                <Text style={[GameFonts.button, styles.miniButtonText]}>
+                  {miniModalType === 'checkpoint' ? 'Open Chest' : 'Proceed'}
+                </Text>
               </ImageBackground>
             </TouchableOpacity>
           </View>
@@ -153,13 +161,13 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
 
   return (
     <OverlayScreen
-      title={content.title || ''}
+      title={content?.title || ''}
       message={message}
-      learningContent={content.learning_content || { summary: '', big_note: [], battle_relevance: '' }}
+      learningContent={content?.learning_content || { summary: '', big_note: [], battle_relevance: '' }}
       buttonText="Continue"
       playerName={playerName}
       guideImage={guideImage}
-      contentid={content.topic_id}
+      contentid={content?.topic_id}
       dialogBackgroundImage={require('../../assets/onboarding/dialog-bg-2.png')}
       titleBackgroundImage={require('../../assets/onboarding/dialog-bg-1.png')}
       buttonBackgroundImage={require('../../assets/onboarding/button-bg-main.png')}

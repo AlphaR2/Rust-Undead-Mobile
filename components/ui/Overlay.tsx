@@ -15,6 +15,8 @@ import {
   View,
 } from 'react-native'
 import { LearningContent } from '../GameCard/CheckpointModal'
+import Clipboard from '@react-native-clipboard/clipboard'
+import { Alert } from 'react-native'
 
 interface ConversationScreenProps {
   title: string
@@ -88,6 +90,20 @@ const OverlayScreen: React.FC<ConversationScreenProps> = ({
       onContinue()
     }
   }
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      Clipboard.setString(text)
+      // Optional: Show feedback to user
+      Alert.alert('Copied', 'Text copied to clipboard!')
+    } catch (error) {
+      console.error('Failed to copy text:', error)
+      Alert.alert('Error', 'Failed to copy text')
+    }
+  }
+
+  // Usage example:
+
   return (
     <View
       style={{
@@ -101,7 +117,7 @@ const OverlayScreen: React.FC<ConversationScreenProps> = ({
     >
       <View style={[styles.blackOverlay, { backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})` }]} />
       <View style={{ display: 'flex', marginLeft: 'auto', flexDirection: 'row' }}>
-        <TouchableOpacity style={styles.headerButton}>
+        <TouchableOpacity onPress={() => copyToClipboard(showIntro ? currentMessages : message)}>
           <View style={styles.iconBackground}>
             <MaterialIcons name={'content-copy'} size={20} color="white" />
           </View>
