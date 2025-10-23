@@ -72,7 +72,7 @@ export const GAME_CONFIG = {
   WARRIOR_WIDTH: 128,
   WARRIOR_HEIGHT: 128,
   GROUND_Y_RATIO: 0.7, // 70% down the screen
-  MOVEMENT_SPEED: 20, // Max speed
+  MOVEMENT_SPEED: 30, // Max speed
   ANIMATION_FPS: {
     idle: 6, // 6 frames per second (slow, subtle)
     walking: 12, // 12 frames per second (smooth walking)

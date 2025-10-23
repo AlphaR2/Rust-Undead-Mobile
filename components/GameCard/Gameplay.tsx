@@ -17,7 +17,7 @@ import { GameEngine } from 'react-native-game-engine'
 import { Camera } from '../game-engine/camera'
 import Character from '../game-engine/character'
 import Ground from '../game-engine/ground'
-import { Physics } from '../game-engine/Physics'
+import { Physics } from '../game-engine/physics'
 import ScrollingBackground from '../game-engine/scrollingBackground'
 import GameLoadingScreen from '../ui/Loading'
 import Checkpoint from './Checkpoint'
@@ -45,18 +45,17 @@ interface GameplayProps {
 }
 
 const Gameplay: React.FC<GameplayProps> = ({
-  onComplete,
   onBack,
   selectedCharacter,
   backgroundImages,
-  pathId,
   customEntities = {},
   pathIndex = 0,
 }) => {
   const gameEngineRef = useRef<GameEngine | null>(null)
   const [running, setRunning] = useState<boolean>(true)
-  const moveIntervalRef = useRef<NodeJS.Timeout | any>(null)
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 })
+  // the part of the camera ref that does not render UI but the value is changing
+  const cameraOffsetRef = useRef({ x: 0, y: 0 })
   const [showInstructions, setShowInstructions] = useState<boolean>(true)
   const instructionTimerRef = useRef<NodeJS.Timeout | any>(null)
   const { setCurrentScreen, setPaths, paths } = useContext(CreateContext).path
@@ -80,7 +79,7 @@ const Gameplay: React.FC<GameplayProps> = ({
 
   const [activePathId, setActivePathId] = useState<string>('')
 
-  const { data, loading, error } = useFetchConcepts()
+  const { data, loading } = useFetchConcepts()
 
   useEffect(() => {
     if (data) {
@@ -120,9 +119,11 @@ const Gameplay: React.FC<GameplayProps> = ({
         label: 'character',
         isStatic: false,
         restitution: 0,
-        friction: 1,
-        frictionAir: 0.01,
+        friction: 0,
+        frictionAir: 0,
+        frictionStatic: 0,
         inertia: Infinity,
+        density: 0.001,
       },
     ),
   )
@@ -224,6 +225,7 @@ const Gameplay: React.FC<GameplayProps> = ({
         const checkpointData = createCheckpoint(world, pos.x, pos.y, index + 1, path.checkpoints[index])
         newCheckpointEntities[`checkpoint_${index + 1}`] = {
           ...checkpointData,
+          cameraOffsetRef: cameraOffsetRef,
           renderer: Checkpoint,
         }
       })
@@ -232,6 +234,10 @@ const Gameplay: React.FC<GameplayProps> = ({
       Object.assign(entitiesRef.current, newCheckpointEntities)
     }
   }, [checkpointPositions, path])
+
+  const handleSetCameraOffsetRef = useCallback((newOffset: { x: number; y: number }) => {
+    cameraOffsetRef.current = newOffset
+  }, [])
 
   const handleSetCameraOffset = useCallback((newOffset: { x: number; y: number }) => {
     setCameraOffset((prevOffset) => {
@@ -245,19 +251,21 @@ const Gameplay: React.FC<GameplayProps> = ({
   const entitiesRef = useRef({
     physics: { engine, world },
     camera: cameraRef.current,
+    cameraOffsetRef: cameraOffsetRef,
     setCameraOffset: handleSetCameraOffset,
+    setCameraOffsetRef: handleSetCameraOffsetRef,
     onCheckpointReached: handleCheckpointReached,
     character: {
       body: characterBody,
       size: [SPRITE_CONFIG.size.width, SPRITE_CONFIG.size.height] as [number, number],
       characterClass: selectedCharacter,
-      cameraOffset: { x: 0, y: 0 },
+      cameraOffsetRef: cameraOffsetRef,
       renderer: Character,
     },
     ground: {
       body: groundBody,
       size: [worldWidth, 100] as [number, number],
-      cameraOffset: { x: 0, y: 0 },
+      cameraOffsetRef: cameraOffsetRef,
       renderer: Ground,
     },
     leftWall: {
@@ -271,73 +279,26 @@ const Gameplay: React.FC<GameplayProps> = ({
     ...customEntities,
   })
 
-  useEffect(() => {
-    if (entitiesRef.current.character) {
-      entitiesRef.current.character.cameraOffset = cameraOffset
-    }
-    if (entitiesRef.current.ground) {
-      entitiesRef.current.ground.cameraOffset = cameraOffset
-    }
-
-    Object.keys(entitiesRef.current).forEach((key) => {
-      if (key.startsWith('checkpoint_')) {
-        entitiesRef.current[key].cameraOffset = cameraOffset
-      }
-    })
-  }, [cameraOffset])
-
-  const clearMoveInterval = useCallback(() => {
-    if (moveIntervalRef.current) {
-      clearInterval(moveIntervalRef.current)
-      moveIntervalRef.current = null
-    }
-  }, [])
-
   const moveForward = useCallback(() => {
-    clearMoveInterval()
-
     Matter.Body.setVelocity(characterBody, {
       x: GAME_CONFIG.MOVEMENT_SPEED,
       y: characterBody.velocity.y,
     })
-
-    moveIntervalRef.current = setInterval(() => {
-      Matter.Body.setVelocity(characterBody, {
-        x: GAME_CONFIG.MOVEMENT_SPEED,
-        y: characterBody.velocity.y,
-      })
-    }, 16)
-  }, [characterBody, clearMoveInterval])
+  }, [characterBody])
 
   const moveBackward = useCallback(() => {
-    clearMoveInterval()
-
     Matter.Body.setVelocity(characterBody, {
       x: -GAME_CONFIG.MOVEMENT_SPEED,
       y: characterBody.velocity.y,
     })
-
-    moveIntervalRef.current = setInterval(() => {
-      Matter.Body.setVelocity(characterBody, {
-        x: -GAME_CONFIG.MOVEMENT_SPEED,
-        y: characterBody.velocity.y,
-      })
-    }, 16)
-  }, [characterBody, clearMoveInterval])
+  }, [characterBody])
 
   const stopMovement = useCallback(() => {
-    clearMoveInterval()
     Matter.Body.setVelocity(characterBody, {
       x: 0,
       y: characterBody.velocity.y,
     })
-  }, [characterBody, clearMoveInterval])
-
-  useEffect(() => {
-    return () => {
-      clearMoveInterval()
-    }
-  }, [clearMoveInterval])
+  }, [characterBody])
 
   const panResponder = useRef(
     PanResponder.create({

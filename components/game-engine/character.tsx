@@ -7,12 +7,13 @@ import { useSharedValue } from 'react-native-reanimated'
 
 // Extend props to include cameraOffset
 interface CharacterPropsWithCamera extends CharacterProps {
-  cameraOffset: { x: number; y: number }
+  cameraOffsetRef: React.RefObject<{ x: number; y: number }>
 }
 
-const Character: React.FC<CharacterPropsWithCamera> = ({ body, size, characterClass = 'oracle', cameraOffset }) => {
+const Character: React.FC<CharacterPropsWithCamera> = ({ body, size, characterClass = 'oracle', cameraOffsetRef }) => {
   const frameCounter = useSharedValue(0)
   const animationRef = useRef<NodeJS.Timeout | any>(null)
+  const cameraOffset = cameraOffsetRef.current
 
   // Determine animation based on velocity
   const isMoving = Math.abs(body.velocity.x) > 0.5

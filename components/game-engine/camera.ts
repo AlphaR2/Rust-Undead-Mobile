@@ -17,7 +17,7 @@ export class Camera {
 
     // Clamp camera to world bounds (don't show beyond edges)
     this.x = Math.max(0, Math.min(this.x, this.worldWidth - this.screenWidth))
-    
+
     // Keep Y fixed for side-scroller
     this.y = 0
   }

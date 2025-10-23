@@ -3,11 +3,12 @@ import React from 'react'
 import { StyleSheet, View } from 'react-native'
 
 interface UpdatedGroundProps extends GroundProps {
-  cameraOffset: { x: number; y: number }
+  cameraOffsetRef: React.RefObject<{ x: number; y: number }>
 }
 
 const Ground: React.FC<UpdatedGroundProps> = React.memo(
-  ({ body, size, cameraOffset }) => {
+  ({ body, size, cameraOffsetRef }) => {
+    const cameraOffset = cameraOffsetRef.current
     const width = size[0] + 100
     const height = size[1]
 
@@ -33,8 +34,8 @@ const Ground: React.FC<UpdatedGroundProps> = React.memo(
     return (
       prevProps.body.position.x === nextProps.body.position.x &&
       prevProps.body.position.y === nextProps.body.position.y &&
-      prevProps.cameraOffset.x === nextProps.cameraOffset.x &&
-      prevProps.cameraOffset.y === nextProps.cameraOffset.y
+      prevProps.cameraOffsetRef.current.x === nextProps.cameraOffsetRef.current.x &&
+      prevProps.cameraOffsetRef.current.y === nextProps.cameraOffsetRef.current.y
     )
   },
 )

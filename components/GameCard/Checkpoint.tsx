@@ -6,15 +6,15 @@ import { Image, StyleSheet, View } from 'react-native'
 interface CheckpointProps {
   body: any
   size: [number, number]
-  cameraOffset: { x: number; y: number }
+  cameraOffsetRef: React.RefObject<{ x: number; y: number }>
   isCompleted: boolean
   checkpointNumber: number
 }
 
-const Checkpoint: React.FC<CheckpointProps> = ({ body, size, cameraOffset, isCompleted}) => {
+const Checkpoint: React.FC<CheckpointProps> = ({ body, size, cameraOffsetRef, isCompleted }) => {
   const [width, height] = size
-  const x = body.position.x - width / 1 + cameraOffset.x
-  const y = body.position.y - height / 1.7 + cameraOffset.y
+  const x = body.position.x - width / 1 + cameraOffsetRef.current.x
+  const y = body.position.y - height / 1.7 + cameraOffsetRef.current.y
 
   return (
     <View
