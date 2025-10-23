@@ -30,6 +30,7 @@ import guide4 from '../../assets/images/guides/guide-daemon.png'
 import guide3 from '../../assets/images/guides/guide-guard.png'
 import guide2 from '../../assets/images/guides/guide-oracle.png'
 import guide1 from '../../assets/images/guides/guide-val.png'
+import Clipboard from '@react-native-clipboard/clipboard'
 
 const GUIDE_IMAGES: Record<string, any> = {
   '1': guide1,
@@ -153,6 +154,18 @@ const Index = () => {
     return balance.toFixed(BALANCE_DECIMALS)
   }
 
+  const copyToClipboard = async (text: string) => {
+  try {
+     Clipboard.setString(text)
+    // Optional: Show feedback to user
+    Alert.alert('Copied', 'Text copied to clipboard!')
+  } catch (error) {
+    console.error('Failed to copy text:', error)
+    Alert.alert('Error', 'Failed to copy text')
+  }
+}
+
+
   return (
     <ImageBackground source={DASHBOARD_BACKGROUND} style={styles.container} resizeMode="cover">
       <View style={styles.overlay} />
@@ -173,8 +186,8 @@ const Index = () => {
                   <View style={styles.addressRow}>
                     <MaterialIcons name="account-balance-wallet" size={12} color="#9CA3AF" />
                     <Text style={styles.addressText}>{formatAddress(userAddress)}</Text>
-                    <TouchableOpacity style={styles.copyButton}>
-                      <MaterialIcons name="content-copy" size={10} color="#9CA3AF" />
+                    <TouchableOpacity onPress={()=> copyToClipboard(userAddress ?? "")} style={styles.copyButton}>
+                      <MaterialIcons name="content-copy" size={16} color="#9CA3AF" />
                     </TouchableOpacity>
                   </View>
                 </View>

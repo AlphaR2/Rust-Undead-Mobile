@@ -50,7 +50,10 @@ const GuideSelection = () => {
   const [fadeAnim] = useState(new Animated.Value(0))
   const [slideAnim] = useState(new Animated.Value(50))
   const [textDelayAnim] = useState(new Animated.Value(0))
-
+  const { userAddress } = useBasicGameData()
+  useContext(CreateContext).onboarding
+  const { accessToken } = useContext(CreateContext).auth
+  const { selectedGuide, playerName } = useContext(CreateContext).onboarding
   useEffect(() => {
     const loadUserProfile = async () => {
       if (userProfile?.username) {
@@ -112,9 +115,43 @@ const GuideSelection = () => {
     ]).start()
   }
 
-  const handleNext = () => {
-    if (userProfile?.username) {
+  const saveProfile = async () => {
+    console.log('saving profile')
+    try {
+      const response = await fetch(`https://undead-protocol.onrender.com/user`, {
+        method: 'POST',
+        body: JSON.stringify({
+          walletAddress: userAddress,
+          profileName: playerName,
+          choosenGuide: selectedGuide?.name,
+          avatar: 'https://example.com/avatars/user1.png',
+          userProgress: {
+            chapter: 1,
+            path: 1,
+          },
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      const responseData = await response.json()
+      if (!response.ok) {
+        if (responseData.message === 'Undead User exists already') {
+          router.push('/dashboard')
+          return
+        }
+        throw new Error(responseData.message ?? 'An error occured')
+      }
+      console.log('saving profile successful')
       router.push('/dashboard')
+    } catch (err: any) {
+      console.log(err?.message)
+    }
+  }
+  const handleNext = () => {
+    if (userProfile?.username && selectedGuide && selectedGuide.name) {
+      saveProfile()
     } else {
       setCurrentOnboardingScreen('selection')
     }
