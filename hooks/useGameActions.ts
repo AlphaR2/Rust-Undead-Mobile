@@ -9,9 +9,6 @@ import { buildAndExecuteTransaction } from './utils/useHelpers'
 type UndeadProgram = Program<UndeadTypes>
 
 const minimumBalance = 0.002 * LAMPORTS_PER_SOL
-
-// ============ TYPE DEFINITIONS ============
-
 export interface CreateWarriorParams {
   program: UndeadProgram
   userPublicKey: PublicKey
@@ -20,7 +17,6 @@ export interface CreateWarriorParams {
   warriorPda: PublicKey
   configPda: PublicKey
   profilePda: PublicKey
-  userAchievementsPda: PublicKey
   warriorClass: WarriorClass
   sessionInfo?: {
     sessionToken: PublicKey
@@ -38,6 +34,44 @@ export interface CreateUserProfileParams {
   userPersona: UserPersona
   profilePda: PublicKey
   userRegistryPda: PublicKey
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+}
+
+export interface BuildGamingProfileParams {
+  program: UndeadProgram
+  userPublicKey: PublicKey
+  characterClass: WarriorClass
+  gamerProfilePda: PublicKey
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+}
+
+export interface GameProfileToRollupParams {
+  program: UndeadProgram
+  userPublicKey: PublicKey
+  gamerProfilePda: PublicKey
+  sessionInfo?: {
+    sessionToken: PublicKey
+    sessionSigner: {
+      publicKey: PublicKey
+    }
+  } | null
+}
+
+export interface WorldToRollupParams {
+  program: UndeadProgram
+  userPublicKey: PublicKey
+  worldId: Uint8Array
+  undeadWorldPda: PublicKey
   sessionInfo?: {
     sessionToken: PublicKey
     sessionSigner: {
@@ -64,8 +98,6 @@ export interface WarriorCreationResult {
   warrior?: Warrior | null
 }
 
-// ============ CREATE WARRIOR ============
-
 export const createWarriorWithVRF = async ({
   program,
   userPublicKey,
@@ -74,7 +106,6 @@ export const createWarriorWithVRF = async ({
   warriorPda,
   profilePda,
   configPda,
-  userAchievementsPda,
   warriorClass,
   sessionInfo,
   onProgress,
@@ -104,7 +135,7 @@ export const createWarriorWithVRF = async ({
   let signature: string | undefined
 
   try {
-    onProgress?.({ stage: 'initializing', progress: 10 }, '🔧 Preparing warrior forge...')
+    onProgress?.({ stage: 'initializing', progress: 10 }, 'Preparing warrior forge...')
 
     try {
       await program.account.undeadWarrior.fetch(warriorPda)
@@ -129,7 +160,7 @@ export const createWarriorWithVRF = async ({
       }
     }
 
-    onProgress?.({ stage: 'submitting', progress: 20 }, '⚡ Submitting creation transaction...')
+    onProgress?.({ stage: 'submitting', progress: 20 }, 'Submitting creation transaction...')
 
     const dnaBytes = Array.from(dna).map((char) => char.charCodeAt(0))
     if (dnaBytes.length !== 8) {
@@ -140,35 +171,33 @@ export const createWarriorWithVRF = async ({
     const clientSeed = Math.floor(Math.random() * 256)
 
     const transaction = await program.methods
-      .createWarrior(name.trim(), dnaBytes, classVariant, clientSeed)
+      .createWarrior(name.trim(), dnaBytes, classVariant, clientSeed, false)
       .accountsPartial({
         signer: payerPublicKey,
         player: userPublicKey,
         authority: authority,
         warrior: warriorPda,
         userProfile: profilePda,
-        userAchievements: userAchievementsPda,
-        config: configPda,
-        sessionToken: hasActiveSession ? sessionInfo.sessionToken : null,
+        gameConfig: configPda,
         systemProgram: SystemProgram.programId,
       })
       .transaction()
 
     signature = await buildAndExecuteTransaction(program, transaction, payerPublicKey)
 
-    onProgress?.({ stage: 'waiting_vrf', progress: 40 }, '🎲 Transaction confirmed! Waiting for ancient magic (VRF)...')
+    onProgress?.({ stage: 'waiting_vrf', progress: 40 }, 'Transaction confirmed, waiting for VRF...')
 
-    onProgress?.({ stage: 'polling', progress: 50 }, '🔮 The cosmic forge is awakening...')
+    onProgress?.({ stage: 'polling', progress: 50 }, 'Processing VRF request...')
 
     const vrfMessages = [
-      '⚡ Lightning crackles through the ethereal realm...',
-      '🌟 Star-forged essence flows into your warrior...',
-      '🔥 Ancient runes are being inscribed...',
-      '💎 Crystallizing combat prowess...',
-      '🧠 Infusing tactical knowledge...',
-      '⚔️ Sharpening battle instincts...',
-      '🛡️ Hardening defensive capabilities...',
-      '🎨 Manifesting visual form...',
+      'Lightning crackles through the ethereal realm...',
+      'Star-forged essence flows into your warrior...',
+      'Ancient runes are being inscribed...',
+      'Crystallizing combat prowess...',
+      'Infusing tactical knowledge...',
+      'Sharpening battle instincts...',
+      'Hardening defensive capabilities...',
+      'Manifesting visual form...',
     ]
 
     let retryCount = 0
@@ -193,10 +222,7 @@ export const createWarriorWithVRF = async ({
           warriorAccount.imageUri &&
           warriorAccount.imageUri.length > 0
         ) {
-          onProgress?.(
-            { stage: 'completed', progress: 100 },
-            '🎉 Warrior forged successfully! Stats and appearance manifested!',
-          )
+          onProgress?.({ stage: 'completed', progress: 100 }, 'Warrior forged successfully')
 
           return {
             success: true,
@@ -233,7 +259,7 @@ export const createWarriorWithVRF = async ({
       }
     }
 
-    onProgress?.({ stage: 'error', progress: 90 }, '⚠️ VRF timeout - warrior created but stats pending...')
+    onProgress?.({ stage: 'error', progress: 90 }, 'VRF timeout - warrior created but stats pending...')
 
     try {
       const warriorAccount = await program.account.undeadWarrior.fetch(warriorPda)
@@ -282,15 +308,12 @@ export const createWarriorWithVRF = async ({
     }
   } catch (error: any) {
     if (error instanceof SendTransactionError) {
-      console.error('SendTransactionError details:', error.message)
       try {
-        const logs = await error.getLogs(program.provider.connection)
-        console.error('Transaction logs:', logs)
+        await error.getLogs(program.provider.connection)
       } catch {}
     }
-    console.error('Error creating warrior:', error)
 
-    onProgress?.({ stage: 'error', progress: 0 }, `❌ Creation failed: ${error.message}`)
+    onProgress?.({ stage: 'error', progress: 0 }, `Creation failed: ${error.message}`)
 
     let errorMessage = error.message || 'Unknown error occurred'
     if (error.message.includes('unknown signer')) {
@@ -344,8 +367,6 @@ export const createWarriorWithVRF = async ({
   }
 }
 
-// ============ USER PROFILE ACTIONS ============
-
 export const createUserProfile = async ({
   program,
   userPublicKey,
@@ -353,7 +374,6 @@ export const createUserProfile = async ({
   userPersona,
   profilePda,
   userRegistryPda,
-  sessionInfo,
 }: CreateUserProfileParams): Promise<UserProfileResult> => {
   if (!program || !userPublicKey) {
     return { success: false, error: 'Program or user public key required' }
@@ -379,14 +399,11 @@ export const createUserProfile = async ({
       // Profile doesn't exist, continue
     }
 
-    const hasActiveSession = !!sessionInfo
-    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
-
-    const payerBalance = await program.provider.connection.getBalance(payerPublicKey)
+    const payerBalance = await program.provider.connection.getBalance(userPublicKey)
     if (payerBalance < minimumBalance) {
       return {
         success: false,
-        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
+        error: `Insufficient funds in ${userPublicKey ? 'session signer' : 'player'} wallet (${
           payerBalance / LAMPORTS_PER_SOL
         } SOL). Need ~0.002 SOL for transaction.`,
       }
@@ -395,29 +412,25 @@ export const createUserProfile = async ({
     const personaVariant = getUserPersonaVariant(userPersona)
 
     const transaction = await program.methods
-      .userdata(username, personaVariant)
+      .buildUserProfile(username, personaVariant)
       .accountsPartial({
-        signer: payerPublicKey,
+        signer: userPublicKey,
         player: userPublicKey,
         userRegistry: userRegistryPda,
         userProfile: profilePda,
-        sessionToken: hasActiveSession ? sessionInfo.sessionToken : null,
         systemProgram: SystemProgram.programId,
       })
       .transaction()
 
-    signature = await buildAndExecuteTransaction(program, transaction, payerPublicKey)
+    signature = await buildAndExecuteTransaction(program, transaction, userPublicKey)
 
     return { success: true, signature }
   } catch (error: any) {
     if (error instanceof SendTransactionError) {
-      console.error('SendTransactionError details:', error.message)
       try {
-        const logs = await error.getLogs(program.provider.connection)
-        console.error('Transaction logs:', logs)
+        await error.getLogs(program.provider.connection)
       } catch {}
     }
-    console.error('Error creating user profile:', error)
 
     let errorMessage = error.message || 'Failed to create user profile'
     if (error.message.includes('unknown signer')) {
@@ -445,7 +458,206 @@ export const createUserProfile = async ({
   }
 }
 
-// ============ BATTLE ROOM ACTIONS ============
-// ============ MAGIC BLOCK ER INTEGRATION ============
+export const buildGamingProfile = async ({
+  program,
+  userPublicKey,
+  characterClass,
+  gamerProfilePda,
+  sessionInfo,
+}: BuildGamingProfileParams): Promise<UserProfileResult> => {
+  if (!program || !userPublicKey) {
+    return { success: false, error: 'Program or user public key required' }
+  }
 
-// ============ BATTLE ON ER ============
+  let signature: string | undefined
+
+  try {
+    try {
+      await program.account.gamerProfile.fetch(gamerProfilePda)
+      return { success: false, error: 'Gaming profile already exists' }
+    } catch {
+      // Profile doesn't exist, continue
+    }
+
+    const hasActiveSession = !!sessionInfo
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+
+    const payerBalance = await program.provider.connection.getBalance(payerPublicKey)
+    if (payerBalance < minimumBalance) {
+      return {
+        success: false,
+        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
+          payerBalance / LAMPORTS_PER_SOL
+        } SOL). Need ~0.002 SOL for transaction.`,
+      }
+    }
+
+    const classVariant = getWarriorClassVariant(characterClass)
+
+    const transaction = await program.methods
+      .buildGamingProfile(classVariant)
+      .accountsPartial({
+        signer: payerPublicKey,
+        player: userPublicKey,
+        gamerProfile: gamerProfilePda,
+        systemProgram: SystemProgram.programId,
+      })
+      .transaction()
+
+    signature = await buildAndExecuteTransaction(program, transaction, payerPublicKey)
+
+    return { success: true, signature }
+  } catch (error: any) {
+    if (error instanceof SendTransactionError) {
+      try {
+        await error.getLogs(program.provider.connection)
+      } catch {}
+    }
+
+    let errorMessage = error.message || 'Failed to create gaming profile'
+    if (error.message.includes('unknown signer')) {
+      errorMessage = 'Session authentication failed. Please try again or connect your wallet directly.'
+    } else if (error.message.includes('insufficient funds')) {
+      errorMessage = 'Insufficient SOL balance for transaction or rent'
+    } else if (error.message.includes('blockhash not found')) {
+      errorMessage = 'Network congestion - please try again'
+    } else if (error.message.includes('already in use')) {
+      errorMessage = 'Gaming profile already exists'
+    } else if (error.message.includes('User rejected')) {
+      errorMessage = 'Transaction cancelled by user'
+    } else if (error.message.includes('already processed')) {
+      try {
+        await program.account.gamerProfile.fetch(gamerProfilePda)
+        return { success: true, signature }
+      } catch (fetchError) {
+        errorMessage = 'Transaction already processed - please check wallet'
+      }
+    }
+
+    return { success: false, error: errorMessage }
+  }
+}
+
+export const gameProfileToRollup = async ({
+  program,
+  userPublicKey,
+  gamerProfilePda,
+  sessionInfo,
+}: GameProfileToRollupParams): Promise<UserProfileResult> => {
+  if (!program || !userPublicKey) {
+    return { success: false, error: 'Program or user public key required' }
+  }
+
+  let signature: string | undefined
+
+  try {
+    const hasActiveSession = !!sessionInfo
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+
+    const payerBalance = await program.provider.connection.getBalance(payerPublicKey)
+    if (payerBalance < minimumBalance) {
+      return {
+        success: false,
+        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
+          payerBalance / LAMPORTS_PER_SOL
+        } SOL). Need ~0.002 SOL for transaction.`,
+      }
+    }
+    const transaction = await program.methods
+      .gameProfileToRollup(userPublicKey)
+      .accountsPartial({
+        signer: payerPublicKey,
+        userGameProfile: gamerProfilePda,
+      })
+      .transaction()
+
+    signature = await buildAndExecuteTransaction(program, transaction, payerPublicKey)
+
+    return { success: true, signature }
+  } catch (error: any) {
+    if (error instanceof SendTransactionError) {
+      try {
+        await error.getLogs(program.provider.connection)
+      } catch {}
+    }
+
+    let errorMessage = error.message || 'Failed to delegate game profile'
+    if (error.message.includes('unknown signer')) {
+      errorMessage = 'Session authentication failed. Please try again or connect your wallet directly.'
+    } else if (error.message.includes('insufficient funds')) {
+      errorMessage = 'Insufficient SOL balance for transaction or rent'
+    } else if (error.message.includes('blockhash not found')) {
+      errorMessage = 'Network congestion - please try again'
+    } else if (error.message.includes('User rejected')) {
+      errorMessage = 'Transaction cancelled by user'
+    }
+
+    return { success: false, error: errorMessage }
+  }
+}
+
+export const worldToRollup = async ({
+  program,
+  userPublicKey,
+  worldId,
+  undeadWorldPda,
+  sessionInfo,
+}: WorldToRollupParams): Promise<UserProfileResult> => {
+  if (!program || !userPublicKey) {
+    return { success: false, error: 'Program or user public key required' }
+  }
+
+  if (worldId.length !== 32) {
+    return { success: false, error: 'Invalid world ID length' }
+  }
+
+  let signature: string | undefined
+
+  try {
+    const hasActiveSession = !!sessionInfo
+    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+
+    const payerBalance = await program.provider.connection.getBalance(payerPublicKey)
+    if (payerBalance < minimumBalance) {
+      return {
+        success: false,
+        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
+          payerBalance / LAMPORTS_PER_SOL
+        } SOL). Need ~0.002 SOL for transaction.`,
+      }
+    }
+
+    const worldIdArray = Array.from(worldId)
+
+    const transaction = await program.methods
+      .worldToRollup(worldIdArray)
+      .accountsPartial({
+        signer: payerPublicKey,
+        undeadWorld: undeadWorldPda,
+      })
+      .transaction()
+
+    signature = await buildAndExecuteTransaction(program, transaction, payerPublicKey)
+
+    return { success: true, signature }
+  } catch (error: any) {
+    if (error instanceof SendTransactionError) {
+      try {
+        await error.getLogs(program.provider.connection)
+      } catch {}
+    }
+
+    let errorMessage = error.message || 'Failed to delegate world'
+    if (error.message.includes('unknown signer')) {
+      errorMessage = 'Session authentication failed. Please try again or connect your wallet directly.'
+    } else if (error.message.includes('insufficient funds')) {
+      errorMessage = 'Insufficient SOL balance for transaction or rent'
+    } else if (error.message.includes('blockhash not found')) {
+      errorMessage = 'Network congestion - please try again'
+    } else if (error.message.includes('User rejected')) {
+      errorMessage = 'Transaction cancelled by user'
+    }
+
+    return { success: false, error: errorMessage }
+  }
+}

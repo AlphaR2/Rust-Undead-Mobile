@@ -1,11 +1,12 @@
-export type CharacterClass = 'oracle' | 'validator' | 'guardian' | 'daemon'
+import { WarriorClass } from '@/types/undead'
+
 export type AnimationType = 'idle' | 'walking' | 'interact'
 
 export type ItemType = 'obstacle' | 'checkpoint' | 'chest'
 
 export interface CharacterConfig {
   name: string
-  class: CharacterClass
+  class: WarriorClass
   description: string
   frames: {
     idle: number
@@ -27,7 +28,7 @@ export interface ItemsConfig {
 export const CHARACTERS: Record<string, CharacterConfig> = {
   oracle: {
     name: 'Jarek',
-    class: 'oracle',
+    class: WarriorClass.Oracle,
     description: 'Knowledge Specialist - Master of ancient wisdom',
     frames: {
       idle: 18,
@@ -37,7 +38,7 @@ export const CHARACTERS: Record<string, CharacterConfig> = {
   },
   validator: {
     name: 'Janus',
-    class: 'validator',
+    class: WarriorClass.Validator,
     description: 'Balanced Fighter - Professional and reliable',
     frames: {
       idle: 18,
@@ -47,7 +48,7 @@ export const CHARACTERS: Record<string, CharacterConfig> = {
   },
   guardian: {
     name: 'Gaius',
-    class: 'guardian',
+    class: WarriorClass.Guardian,
     description: 'Tank - Fortress of protection',
     frames: {
       idle: 18,
@@ -57,7 +58,7 @@ export const CHARACTERS: Record<string, CharacterConfig> = {
   },
   daemon: {
     name: 'Bryn',
-    class: 'daemon',
+    class: WarriorClass.Daemon,
     description: 'Glass Cannon - High-tech aggression',
     frames: {
       idle: 18,
@@ -72,7 +73,7 @@ export const GAME_CONFIG = {
   WARRIOR_WIDTH: 128,
   WARRIOR_HEIGHT: 128,
   GROUND_Y_RATIO: 0.7, // 70% down the screen
-  MOVEMENT_SPEED: 30, // Max speed
+  MOVEMENT_SPEED: 3, // Max speed
   ANIMATION_FPS: {
     idle: 6, // 6 frames per second (slow, subtle)
     walking: 12, // 12 frames per second (smooth walking)

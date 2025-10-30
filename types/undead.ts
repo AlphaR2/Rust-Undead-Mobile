@@ -1,7 +1,6 @@
 import { BN } from '@coral-xyz/anchor'
 import { PublicKey } from '@solana/web3.js'
 
-// Achievement Level
 export enum AchievementLevel {
   None = 'none',
   Bronze = 'bronze',
@@ -11,7 +10,6 @@ export enum AchievementLevel {
   Diamond = 'diamond',
 }
 
-// Warrior Class
 export enum WarriorClass {
   Validator = 'validator',
   Oracle = 'oracle',
@@ -19,14 +17,12 @@ export enum WarriorClass {
   Daemon = 'daemon',
 }
 
-// Image Rarity
 export enum ImageRarity {
   Common = 'common',
   Uncommon = 'uncommon',
   Rare = 'rare',
 }
 
-// Warrior class information for UI
 export const WARRIOR_CLASS_INFO = {
   [WarriorClass.Validator]: {
     title: 'Validator',
@@ -70,7 +66,6 @@ export const WARRIOR_CLASS_INFO = {
   },
 }
 
-// user persona
 export enum UserPersona {
   TreasureHunter = 'TreasureHunter',
   BoneSmith = 'BoneSmith',
@@ -81,52 +76,6 @@ export enum UserPersona {
   CovenCaller = 'CovenCaller',
   SeerOfAsh = 'SeerOfAsh',
   Cerberus = 'Cerberus',
-}
-
-export interface AnchorUndeadWarrior {
-  name: string
-  owner: PublicKey
-  dna: number[]
-  createdAt: BN
-  baseAttack: number
-  baseDefense: number
-  baseKnowledge: number
-  currentHp: number
-  maxHp: number
-  warriorClass: WarriorClass | any
-  battlesWon: number
-  battlesLost: number
-  experiencePoints: BN
-  level: number
-  lastBattleAt: BN
-  cooldownExpiresAt: BN
-  bump: number
-  imageRarity: ImageRarity | any
-  imageIndex: number
-  imageUri: string
-  address: PublicKey
-}
-
-export interface AnchorUserProfile {
-  owner: PublicKey
-  username: any
-  userPersona: UserPersona | any
-  warriorsCreated: number
-  totalBattlesWon: number
-  totalBattlesLost: number
-  totalBattlesFought: number
-  joinDate: BN
-  totalPoints: BN | number
-  bump: number
-}
-
-export interface PersonaInfo {
-  title: string
-  icon: string
-  description: string
-  traits: string
-  color: string
-  glowColor: string
 }
 
 export const PERSONA_INFO: Record<UserPersona, PersonaInfo> = {
@@ -204,45 +153,46 @@ export const PERSONA_INFO: Record<UserPersona, PersonaInfo> = {
   },
 }
 
+export interface PersonaInfo {
+  title: string
+  icon: string
+  description: string
+  traits: string
+  color: string
+  glowColor: string
+}
+
 export interface AnchorGameConfig {
-  admin: PublicKey
-  totalWarriors: BN
-  cooldownTime: BN
-  totalBattles: number
-  isPaused: boolean
-  createdAt: BN
+  authority: PublicKey
+  releasedChapters: number
+  totalWarriors: number
+  bossBattlesEnabled: boolean
+  paused: boolean
   bump: number
 }
 
-export interface AnchorUserAchievements {
+export interface AnchorGamerProfile {
   owner: PublicKey
-  overallAchievements: AchievementLevel
-  warriorAchivement: AchievementLevel
-  winnerAchievement: AchievementLevel
-  battleAchievement: AchievementLevel
-  firstWarriorDate: BN
+  characterClass: WarriorClass | any
+  currentChapter: number
+  chaptersCompleted: number
+  currentPosition: number
+  totalBattlesWon: BN
+  totalBattlesLost: BN
+  totalBattlesFought: BN
+  quizzesTaken: number
+  totalQuizScore: number
+  undeadScore: number
   bump: number
+  createdAt: BN
 }
 
-export interface AnchorLeaderboard {
-  topPlayers: PublicKey[] // [pubkey; 20]
-  topScores: number[] // [u32; 20]
-  lastUpdated: BN
-  bump: number
-}
-
-// Utility interface for program accounts
-export interface ProgramAccount<T> {
-  publicKey: PublicKey
-  account: T
-}
-
-// Processed/formatted types for frontend use
-export interface Warrior {
+export interface AnchorUndeadWarrior {
   name: string
+  address: PublicKey
   owner: PublicKey
   dna: number[]
-  createdAt: BN | number
+  createdAt: BN
   baseAttack: number
   baseDefense: number
   baseKnowledge: number
@@ -251,51 +201,117 @@ export interface Warrior {
   warriorClass: WarriorClass | any
   battlesWon: number
   battlesLost: number
-  experiencePoints: BN | any
+  experiencePoints: BN
   level: number
   lastBattleAt: BN
   cooldownExpiresAt: BN
+  bump: number
   imageRarity: ImageRarity | any
   imageIndex: number
   imageUri: string
-  isOnCooldown?: boolean
+}
+
+export interface AnchorUndeadWorld {
+  worldId: number[]
+  activePlayers: number
+  totalPlayers: number
+  totalCompletions: number
+  highestUndeadScoreAverage: number
+  topCommander: PublicKey
+  createdAt: BN
+  bump: number
+}
+
+export interface AnchorUserProfile {
+  owner: PublicKey
+  username: string | null
+  userPersona: UserPersona | any | null
+  warriors: number
+  achievementLevel: AchievementLevel | any
+  joinDate: BN
+  bump: number
+}
+
+export interface AnchorUsernameRegistry {
+  claimed: boolean
+  owner: PublicKey
+  bump: number
+}
+
+export interface ProgramAccount<T> {
+  publicKey: PublicKey
+  account: T
+}
+
+export interface GameConfig {
+  authority: PublicKey
+  releasedChapters: number
+  totalWarriors: number
+  bossBattlesEnabled: boolean
+  paused: boolean
+}
+
+export interface GamerProfile {
+  owner: PublicKey
+  characterClass: WarriorClass
+  currentChapter: number
+  chaptersCompleted: number
+  currentPosition: number
+  totalBattlesWon: number
+  totalBattlesLost: number
+  totalBattlesFought: number
+  quizzesTaken: number
+  totalQuizScore: number
+  undeadScore: number
+  createdAt: number
+}
+
+export interface Warrior {
+  name: string
   address: PublicKey
+  owner: PublicKey
+  dna: number[]
+  createdAt: number
+  baseAttack: number
+  baseDefense: number
+  baseKnowledge: number
+  currentHp: number
+  maxHp: number
+  warriorClass: WarriorClass
+  battlesWon: number
+  battlesLost: number
+  experiencePoints: number
+  level: number
+  lastBattleAt: number
+  cooldownExpiresAt: number
+  imageRarity: ImageRarity
+  imageIndex: number
+  imageUri: string
+  isOnCooldown?: boolean
+}
+
+export interface UndeadWorld {
+  worldId: number[]
+  activePlayers: number
+  totalPlayers: number
+  totalCompletions: number
+  highestUndeadScoreAverage: number
+  topCommander: PublicKey
+  createdAt: number
 }
 
 export interface UserProfile {
   owner: PublicKey
-  username: any
-  userPersona: UserPersona
-  warriorsCreated: number
-  totalBattlesWon: number
-  totalBattlesLost: number
-  totalBattlesFought: number
-  joinDate: BN
-  totalPoints: BN
+  username: string | null
+  userPersona: UserPersona | null
+  warriors: number
+  achievementLevel: AchievementLevel
+  joinDate: number
 }
 
-export interface GameConfig {
-  admin: PublicKey
-  totalWarriors: BN
-  cooldownTime: BN
-  totalBattles: number
-  isPaused: boolean
-  createdAt: BN
-}
-
-export interface UserAchievements {
+export interface UsernameRegistry {
+  claimed: boolean
   owner: PublicKey
-  overallAchievements: AchievementLevel
-  warriorAchivement: AchievementLevel
-  winnerAchievement: AchievementLevel
-  battleAchievement: AchievementLevel
-  firstWarriorDate: BN
-}
-
-export interface Leaderboard {
-  topPlayers: PublicKey[]
-  topScores: number[]
-  lastUpdated: BN
 }
 
 export interface WarriorInfo {
@@ -320,7 +336,6 @@ export interface BattleQuizProps {
   onExit?: () => void
 }
 
-// Type guards for better type safety
 export const isWarriorClass = (value: string): value is WarriorClass => {
   return Object.values(WarriorClass).includes(value as WarriorClass)
 }
@@ -329,12 +344,12 @@ export const isAchievementLevel = (value: string): value is AchievementLevel => 
   return Object.values(AchievementLevel).includes(value as AchievementLevel)
 }
 
-export const convertUserPersona = (anchorPersona: any): UserPersona => {
-  // Anchor returns enums as objects like { treasureHunter: {} }
+export const convertUserPersona = (anchorPersona: any): UserPersona | null => {
+  if (anchorPersona === null) return null
+  
   if (typeof anchorPersona === 'object' && anchorPersona !== null) {
     const key = Object.keys(anchorPersona)[0]
 
-    // Map Anchor enum keys to TypeScript enum values
     const personaMap: Record<string, UserPersona> = {
       treasureHunter: UserPersona.TreasureHunter,
       boneSmith: UserPersona.BoneSmith,
@@ -347,17 +362,16 @@ export const convertUserPersona = (anchorPersona: any): UserPersona => {
       cerberus: UserPersona.Cerberus,
     }
 
-    return personaMap[key] || UserPersona.TreasureHunter
+    return personaMap[key] || null
   }
 
-  return UserPersona.TreasureHunter
+  return null
 }
 
 interface MongoEntity {
   _id: string
 }
 
-// Question interface
 export interface Question extends MongoEntity {
   question_id: number
   text: string
@@ -365,14 +379,12 @@ export interface Question extends MongoEntity {
   explanation: string
 }
 
-// Learning content interface
 interface LearningContent extends MongoEntity {
   summary: string
   big_note: string[]
   battle_relevance: string
 }
 
-// Topic interface
 interface Topic extends MongoEntity {
   topic_id: number
   title: string
@@ -380,11 +392,10 @@ interface Topic extends MongoEntity {
   questions: Question[]
 }
 
-// Main concept interface
 export interface Concept extends MongoEntity {
   concept_id: number
   title: string
   description: string
   topics: Topic[]
-  __v: number // MongoDB version key
+  __v: number
 }

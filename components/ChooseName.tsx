@@ -2,12 +2,13 @@ import { toast } from '@/components/ui/Toast'
 import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
 import React, { useContext, useMemo, useRef, useState } from 'react'
-import { Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Image, ImageBackground, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+
 import guide4 from '../assets/images/guides/guide-daemon.png'
 import guide3 from '../assets/images/guides/guide-guard.png'
 import guide2 from '../assets/images/guides/guide-oracle.png'
 import guide1 from '../assets/images/guides/guide-val.png'
-import { GameTypewriterPresets, TypewriterText } from './common/Typewrite'
+import { GameTypewriterPresets, TypewriterText, TypewriterTextRef } from './common/Typewrite'
 
 const GUIDE_GREETINGS: Record<string, string> = {
   'JANUS THE BUILDER':
@@ -64,6 +65,13 @@ const ChooseName = () => {
   const handleTypewriterCompleteRef = useRef(() => {
     setShowInputSection(true)
   })
+  const typewriterRef = useRef<TypewriterTextRef>(null)
+
+  const handleScreenTap = () => {
+    if (!showInputSection) {
+      typewriterRef.current?.skipToEnd()
+    }
+  }
 
   const handleContinue = async () => {
     const nameToUse = playerName.trim()
@@ -98,53 +106,56 @@ const ChooseName = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.contentWrapper}>
-        <ImageBackground style={styles.dialogBackground} source={require('../assets/onboarding/dialog-bg-2.png')}>
-          <View style={styles.guideImageContainer}>
-            <Image source={getGuideImage()} style={styles.guideImage} resizeMode="contain" />
-          </View>
-          <View style={styles.textContainer}>
-            <TouchableOpacity style={styles.badge} disabled>
-              <Text style={styles.badgeText}>{getGuideTitle(selectedGuide?.name)}</Text>
-            </TouchableOpacity>
-            <TypewriterText
-              key={`typewriter-${selectedGuide?.id}`}
-              text={greetingText}
-              style={[GameFonts.body, styles.typewriterText]}
-              {...GameTypewriterPresets.dialogue}
-              delay={500}
-              skipAnimation={false}
-              onComplete={handleTypewriterCompleteRef.current}
-            />
-            {showInputSection && (
-              <View style={styles.inputRow}>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    value={playerName}
-                    onChangeText={handleNameChange}
-                    placeholder="Enter your name..."
-                    placeholderTextColor="#666"
-                    style={styles.textInput}
-                    maxLength={MAX_NAME_LENGTH}
-                    editable={!isCreating}
-                  />
+      <Pressable style={styles.contentWrapper} onPress={handleScreenTap}>
+        <View style={styles.contentWrapper}>
+          <ImageBackground style={styles.dialogBackground} source={require('../assets/onboarding/dialog-bg-2.png')}>
+            <View style={styles.guideImageContainer}>
+              <Image source={getGuideImage()} style={styles.guideImage} resizeMode="contain" />
+            </View>
+            <View style={styles.textContainer}>
+              <TouchableOpacity style={styles.badge} disabled>
+                <Text style={styles.badgeText}>{getGuideTitle(selectedGuide?.name)}</Text>
+              </TouchableOpacity>
+              <TypewriterText
+                ref={typewriterRef}
+                key={`typewriter-${selectedGuide?.id}`}
+                text={greetingText}
+                style={[GameFonts.body, styles.typewriterText]}
+                {...GameTypewriterPresets.dialogue}
+                delay={500}
+                skipAnimation={false}
+                onComplete={handleTypewriterCompleteRef.current}
+              />
+              {showInputSection && (
+                <View style={styles.inputRow}>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      value={playerName}
+                      onChangeText={handleNameChange}
+                      placeholder="Enter your name..."
+                      placeholderTextColor="#666"
+                      style={styles.textInput}
+                      maxLength={MAX_NAME_LENGTH}
+                      editable={!isCreating}
+                    />
+                  </View>
+                  <TouchableOpacity onPress={handleContinue} disabled={isButtonDisabled} style={styles.buttonTouchable}>
+                    <ImageBackground
+                      source={require('../assets/onboarding/button-bg-main.png')}
+                      style={styles.buttonBackground}
+                      resizeMode="contain"
+                    >
+                      <Text style={[GameFonts.button, styles.buttonText, { opacity: isButtonDisabled ? 0.5 : 1 }]}>
+                        {isCreating ? 'Creating...' : 'Continue'}
+                      </Text>
+                    </ImageBackground>
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={handleContinue} disabled={isButtonDisabled} style={styles.buttonTouchable}>
-                  <ImageBackground
-                    source={require('../assets/onboarding/button-bg-main.png')}
-                    style={styles.buttonBackground}
-                    resizeMode="contain"
-                  >
-                    <Text style={[GameFonts.button, styles.buttonText, { opacity: isButtonDisabled ? 0.5 : 1 }]}>
-                      {isCreating ? 'Creating...' : 'Continue'}
-                    </Text>
-                  </ImageBackground>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </ImageBackground>
-      </View>
+              )}
+            </View>
+          </ImageBackground>
+        </View>
+      </Pressable>
     </View>
   )
 }

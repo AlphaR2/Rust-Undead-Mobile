@@ -1,5 +1,5 @@
-import { CharacterClass } from '@/constants/characters'
 import { CreateContext } from '@/context/Context'
+import { WarriorClass as CharacterClass } from '@/types/undead'
 import { router } from 'expo-router'
 import React, { useContext, useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'

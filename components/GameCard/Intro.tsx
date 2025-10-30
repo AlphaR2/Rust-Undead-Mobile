@@ -1,5 +1,7 @@
 import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
+import { useBasicGameData } from '@/hooks/game/useBasicGameData'
+import { router } from 'expo-router'
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import guide4 from '../../assets/images/guides/guide-daemon.png'
@@ -7,6 +9,7 @@ import guide3 from '../../assets/images/guides/guide-guard.png'
 import guide2 from '../../assets/images/guides/guide-oracle.png'
 import guide1 from '../../assets/images/guides/guide-val.png'
 import { GameTypewriterPresets, TypewriterText } from '../common/Typewrite'
+import { toast } from '../ui/Toast'
 
 const GUIDE_IMAGES: Record<string, any> = {
   '1': guide1,
@@ -31,11 +34,55 @@ const GUIDE_NAMES: Record<string, string> = {
 
 const GameCardIntro = () => {
   const [showNextButton, setShowNextButton] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
-  const { setCurrentOnboardingScreen, selectedGuide, playerName, selectedPersona } =
-    useContext(CreateContext).onboarding
+  const { selectedGuide, playerName, setCurrentOnboardingScreen } = useContext(CreateContext).onboarding
+  const { accessToken } = useContext(CreateContext).auth
+  const { userAddress } = useBasicGameData()
 
   const shouldSkipAnimation = useMemo(() => false, [playerName])
+
+  const saveProfile = async () => {
+    if (isSaving) return
+
+    setIsSaving(true)
+    try {
+      const response = await fetch(`https://undead-protocol.onrender.com/user`, {
+        method: 'POST',
+        body: JSON.stringify({
+          walletAddress: userAddress,
+          profileName: playerName,
+          choosenGuide: selectedGuide?.name,
+          avatar: 'https://example.com/avatars/user1.png',
+          userProgress: {
+            chapter: 0,
+            path: 0,
+          },
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      const responseData = await response.json()
+
+      if (!response.ok) {
+        if (responseData.message === 'Undead User exists already') {
+          setCurrentOnboardingScreen('game-card-carousel')
+          return
+        }
+        throw new Error(responseData.message ?? 'An error occurred')
+      }
+
+      toast.success('Success', 'Profile saved successfully')
+      setCurrentOnboardingScreen('game-card-carousel')
+    } catch (err: any) {
+      toast.error('Error', err?.message || 'Failed to save profile')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const getGuideImage = () => {
     return GUIDE_IMAGES[selectedGuide?.id || '1'] || guide1
@@ -51,17 +98,12 @@ const GameCardIntro = () => {
     return `Welcome, ${name}. Before we begin, let me explain what lies ahead... Your journey begins with forging your first warrior from the essence of ancient powers. This cursed champion will embody your fighting spirit and supernatural gifts.`
   }, [playerName])
 
-  const getGuideName = (): string => {
-    if (!selectedGuide?.name) return 'Guide'
-    return GUIDE_NAMES[selectedGuide.name] || selectedGuide.name.split(' ')[0] || 'Guide'
-  }
-
   const handleTypewriterCompleteRef = useRef(() => {
     setShowNextButton(true)
   })
 
-  const handleNext = () => {
-    setCurrentOnboardingScreen('game-card-carousel')
+  const handleNext = async () => {
+    await saveProfile()
   }
 
   useEffect(() => {
@@ -95,13 +137,15 @@ const GameCardIntro = () => {
 
             {showNextButton && (
               <View style={styles.buttonWrapper}>
-                <TouchableOpacity onPress={handleNext} style={styles.buttonTouchable}>
+                <TouchableOpacity onPress={handleNext} style={styles.buttonTouchable} disabled={isSaving}>
                   <ImageBackground
                     source={require('../../assets/onboarding/button-bg-main.png')}
                     style={styles.buttonBackground}
                     resizeMode="contain"
                   >
-                    <Text style={[GameFonts.button, styles.buttonText]}>Next</Text>
+                    <Text style={[GameFonts.button, styles.buttonText, { opacity: isSaving ? 0.5 : 1 }]}>
+                      {isSaving ? 'Saving...' : 'Next'}
+                    </Text>
                   </ImageBackground>
                 </TouchableOpacity>
               </View>
@@ -131,7 +175,6 @@ const styles = StyleSheet.create({
     bottom: -8,
     right: -30,
     flexDirection: 'row',
-    // paddingHorizontal: 32,
     height: 180,
   },
   guideImageContainer: {

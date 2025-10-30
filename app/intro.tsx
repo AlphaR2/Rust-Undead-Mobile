@@ -214,7 +214,6 @@ const styles = StyleSheet.create({
   content: {
     position: 'relative',
     flex: 1,
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   mainContainer: {
@@ -235,7 +234,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     position: 'absolute',
-    bottom: 120,
+    bottom: 100,
     width: '100%',
     alignItems: 'center',
     paddingHorizontal: 40,

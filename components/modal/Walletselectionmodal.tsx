@@ -157,7 +157,7 @@ export const AuthBottomSheet = forwardRef<AuthBottomSheetRef, AuthBottomSheetPro
         handleSendCode()
       }
     } else {
-      handleMWAConnect()
+      // handleMWAConnect()
     }
   }
 
@@ -183,7 +183,7 @@ export const AuthBottomSheet = forwardRef<AuthBottomSheetRef, AuthBottomSheetPro
       return showCodeInput ? 'ENTER THE REALM' : 'SUMMON PORTAL KEY'
     }
     if (isConnectingMWA) return 'AWAKENING...'
-    return hasWalletsInstalled ? 'CONNECT WALLET' : 'NO WALLETS DETECTED'
+    return hasWalletsInstalled ? 'COMING SOON' : 'NO WALLETS DETECTED'
   }
 
   return (
@@ -320,7 +320,7 @@ export const AuthBottomSheet = forwardRef<AuthBottomSheetRef, AuthBottomSheetPro
             <ImageBackground
               source={require('../../assets/onboarding/button-bg-main.png')}
               style={styles.gameButton}
-              resizeMode="stretch"
+              resizeMode="contain"
             >
               {isEmailLoading || isConnectingMWA ? (
                 <View style={styles.loadingContainer}>
@@ -349,6 +349,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 12,
   },
+  buttonDesign: {},
   bottomSheetBackground: {
     backgroundColor: '#0a0a0a',
     borderTopLeftRadius: 24,
@@ -362,6 +363,7 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 3,
   },
+
   contentContainer: {
     flex: 1,
     paddingHorizontal: 24,
@@ -568,7 +570,7 @@ const styles = StyleSheet.create({
   },
   gameButton: {
     paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 54,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 64,

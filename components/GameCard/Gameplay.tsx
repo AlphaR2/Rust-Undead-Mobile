@@ -1,19 +1,18 @@
-import {
-  CharacterClass,
-  GAME_CONFIG,
-  INSTRUCTION_AUTO_HIDE_DURATION,
-  SPRITE_CONFIG,
-  WORLD_CONFIG,
-} from '@/constants/characters'
+import { GAME_CONFIG, INSTRUCTION_AUTO_HIDE_DURATION, SPRITE_CONFIG, WORLD_CONFIG } from '@/constants/characters'
 import { PathContent, getCheckpointPositions } from '@/constants/Paths'
 import { CreateContext } from '@/context/Context'
+import { updatePosition } from '@/hooks/Rollup/useUndeadActions'
 import useFetchConcepts from '@/hooks/useFetchConcepts'
+import { useEphemeralProgram, useMagicBlockProvider, useWalletInfo } from '@/hooks/useUndeadProgram'
+import { usePDAs } from '@/hooks/utils/useHelpers'
+import { WarriorClass as CharacterClass } from '@/types/undead'
 import { completePathAndUnlockNext, getActivePath } from '@/utils/path'
 import { MaterialIcons } from '@expo/vector-icons'
 import Matter from 'matter-js'
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { Dimensions, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Dimensions, PanResponder, StyleSheet, Text, TouchableOpacity, View, Animated } from 'react-native'
 import { GameEngine } from 'react-native-game-engine'
+import { BoundaryDetectionSystem } from '../game-engine/BoundaryDetectionSystem'
 import { Camera } from '../game-engine/camera'
 import Character from '../game-engine/character'
 import Ground from '../game-engine/ground'
@@ -23,7 +22,6 @@ import GameLoadingScreen from '../ui/Loading'
 import Checkpoint from './Checkpoint'
 import CheckpointModal, { CheckpointContent } from './CheckpointModal'
 import { CheckpointSystem, completeCheckpoint, createCheckpoint } from './CheckpointSystem'
-import { BoundaryDetectionSystem } from '../game-engine/BoundaryDetectionSystem'
 
 interface BackgroundImages {
   layer1: any
@@ -55,11 +53,15 @@ const Gameplay: React.FC<GameplayProps> = ({
   const gameEngineRef = useRef<GameEngine | null>(null)
   const [running, setRunning] = useState<boolean>(true)
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 })
-  // the part of the camera ref that does not render UI but the value is changing
   const cameraOffsetRef = useRef({ x: 0, y: 0 })
   const [showInstructions, setShowInstructions] = useState<boolean>(true)
   const instructionTimerRef = useRef<NodeJS.Timeout | any>(null)
   const { setCurrentScreen, setPaths, paths } = useContext(CreateContext).path
+  const { publicKey } = useWalletInfo()
+  const ephemeralProgram = useEphemeralProgram()
+  const { gamerProfilePda } = usePDAs(publicKey)
+  const magicBlockProvider = useMagicBlockProvider()
+
   const [pathContents, setPathContents] = useState<PathContent>()
   const [path, setPath] = useState<{
     checkpoints: CheckpointContent[]
@@ -82,6 +84,44 @@ const Gameplay: React.FC<GameplayProps> = ({
   const [activePathId, setActivePathId] = useState<string>('')
 
   const { data, loading } = useFetchConcepts()
+
+  // Position tracking state
+  const positionUpdateQueue = useRef<number[]>([])
+  const isUpdatingPosition = useRef(false)
+  const lastRecordedPosition = useRef<number>(0)
+
+  // Transaction toast state
+  const [txToast, setTxToast] = useState<{ signature: string; visible: boolean }>({ signature: '', visible: false })
+  const toastOpacity = useRef(new Animated.Value(0)).current
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const showTxToast = useCallback((signature: string) => {
+    console.log('🎨 Showing toast for signature:', signature)
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current)
+    }
+
+    const truncated = `${signature.slice(0, 4)}...${signature.slice(-4)}`
+    console.log('✂️ Truncated signature:', truncated)
+    setTxToast({ signature: truncated, visible: true })
+
+    Animated.sequence([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.delay(3000),
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      console.log('🎨 Toast animation complete')
+      setTxToast({ signature: '', visible: false })
+    })
+  }, [toastOpacity])
 
   useEffect(() => {
     if (data) {
@@ -155,6 +195,80 @@ const Gameplay: React.FC<GameplayProps> = ({
   )
   const rightWall = rightWallRef.current
 
+  const syncPositionToBlockchain = useCallback(
+    async (position: number) => {
+      if (!ephemeralProgram || !publicKey || !gamerProfilePda || !magicBlockProvider) {
+        console.warn('⚠️ Solana context not ready for position update')
+        console.log('ephemeralProgram:', !!ephemeralProgram)
+        console.log('publicKey:', publicKey?.toString())
+        console.log('gamerProfilePda:', gamerProfilePda?.toString())
+        console.log('magicBlockProvider:', !!magicBlockProvider)
+        return
+      }
+
+      if (isUpdatingPosition.current) {
+        console.log('⏳ Position update in progress, queuing:', position)
+        positionUpdateQueue.current.push(position)
+        return
+      }
+
+      isUpdatingPosition.current = true
+
+      try {
+        const roundedPosition = Math.round(position)
+        console.log('📍 Syncing position to blockchain:', roundedPosition)
+
+        const result = await updatePosition({
+          ephemeralProgram,
+          playerPublicKey: publicKey,
+          gamerProfilePda,
+          position: roundedPosition,
+          magicBlockProvider,
+        })
+
+        if (result.success && result.signature) {
+          console.log('✅ Position synced:', roundedPosition, 'Sig:', result.signature)
+          lastRecordedPosition.current = roundedPosition
+          showTxToast(result.signature)
+        } else {
+          console.error('❌ Position sync failed:', result.error)
+        }
+      } catch (error) {
+        console.error('❌ Error syncing position:', error)
+      } finally {
+        isUpdatingPosition.current = false
+
+        if (positionUpdateQueue.current.length > 0) {
+          const nextPosition = positionUpdateQueue.current.pop()!
+          console.log('📥 Processing queued position:', nextPosition)
+          positionUpdateQueue.current = []
+          syncPositionToBlockchain(nextPosition)
+        }
+      }
+    },
+    [ephemeralProgram, publicKey, gamerProfilePda, magicBlockProvider, showTxToast],
+  )
+
+  useEffect(() => {
+    console.log('🎮 Position tracking started')
+    const interval = setInterval(() => {
+      if (characterBody && running) {
+        const currentPosition = Math.round(characterBody.position.x)
+        console.log('📊 Current position:', currentPosition, 'Last recorded:', lastRecordedPosition.current)
+
+        if (currentPosition !== lastRecordedPosition.current) {
+          console.log('🔄 Position changed, syncing...')
+          syncPositionToBlockchain(currentPosition)
+        }
+      }
+    }, 1000)
+
+    return () => {
+      console.log('🛑 Position tracking stopped')
+      clearInterval(interval)
+    }
+  }, [characterBody, running, syncPositionToBlockchain])
+
   useEffect(() => {
     Matter.World.add(world, [characterBody, groundBody, leftWall, rightWall])
 
@@ -178,16 +292,25 @@ const Gameplay: React.FC<GameplayProps> = ({
 
   const cameraRef = useRef(new Camera(screenWidth, screenHeight, worldWidth))
 
-  const handleCheckpointReached = useCallback((checkpointNumber: number, content: CheckpointContent) => {
-    setCurrentCheckpointNumber(checkpointNumber)
-    setCurrentCheckpointContent(content)
-    setShowMiniModal(true)
-    setModalVisible(true)
-    setRunning(false)
-  }, [])
+  const handleCheckpointReached = useCallback(
+    (checkpointNumber: number, content: CheckpointContent) => {
+      console.log('🎯 Checkpoint reached:', checkpointNumber)
+      setCurrentCheckpointNumber(checkpointNumber)
+      setCurrentCheckpointContent(content)
+      setShowMiniModal(true)
+      setModalVisible(true)
+      setRunning(false)
+
+      if (characterBody) {
+        const position = Math.round(characterBody.position.x)
+        console.log('📍 Syncing position at checkpoint:', position)
+        syncPositionToBlockchain(position)
+      }
+    },
+    [characterBody, syncPositionToBlockchain],
+  )
 
   const handleOpenBox = useCallback(() => {
-    // Force state updates to be processed in the next tick
     setTimeout(() => {
       if (currentCheckpointNumber === 6) {
         setShowQuizIntro(true)
@@ -207,10 +330,6 @@ const Gameplay: React.FC<GameplayProps> = ({
       completeCheckpoint(entitiesRef.current, currentCheckpointNumber)
     }
 
-    // if (currentCheckpointNumber === 6) {
-    //   setCurrentScreen('path')
-    //   setPaths(completePathAndUnlockNext(paths, activePathId))
-    // }
     setModalVisible(false)
     setShowMiniModal(false)
     setShowQuizIntro(false)
@@ -259,23 +378,22 @@ const Gameplay: React.FC<GameplayProps> = ({
     })
   }, [])
 
-  // Callback when character reaches end of world
   const handleReachEnd = useCallback(() => {
     console.log('🏁 Reached end of world!')
-    // You can trigger onComplete or show a completion modal
-    // onComplete()
+    
+    if (characterBody) {
+      const position = Math.round(characterBody.position.x)
+      console.log('📍 Syncing final position:', position)
+      syncPositionToBlockchain(position)
+    }
 
-    // Or show an alert
     setShowMiniModal(true)
     setModalVisible(true)
     setMiniModalType('chapter-end')
-    // alert('Congratulations! You reached the end of the chapter!')
-  }, [])
+  }, [characterBody, syncPositionToBlockchain])
 
-  // Optional: Callback when character reaches start
-  const handleReachStart = useCallback(() => {
-    console.log('🔙 Back at the start!')
-  }, [])
+  const handleReachStart = useCallback(() => {}, [])
+
   const entitiesRef = useRef({
     physics: { engine, world },
     camera: cameraRef.current,
@@ -332,7 +450,14 @@ const Gameplay: React.FC<GameplayProps> = ({
       x: 0,
       y: characterBody.velocity.y,
     })
-  }, [characterBody])
+
+    console.log('🛑 Movement stopped')
+    if (characterBody) {
+      const position = Math.round(characterBody.position.x)
+      console.log('📍 Syncing position on stop:', position)
+      syncPositionToBlockchain(position)
+    }
+  }, [characterBody, syncPositionToBlockchain])
 
   const panResponder = useRef(
     PanResponder.create({
@@ -474,7 +599,7 @@ const Gameplay: React.FC<GameplayProps> = ({
         {showInstructions ? (
           <View style={styles.instructionsContainer}>
             <Text style={styles.instructionText}>Swipe left: Move back</Text>
-            <Text style={styles.instructionText}> Swipe right: Move forward</Text>
+            <Text style={styles.instructionText}>Swipe right: Move forward</Text>
           </View>
         ) : (
           <TouchableOpacity style={styles.infoButton} onPress={handleInfoPress}>
@@ -489,6 +614,13 @@ const Gameplay: React.FC<GameplayProps> = ({
             <MaterialIcons name="arrow-back" size={22} color="white" />
           </View>
         </TouchableOpacity>
+
+        {txToast.visible && (
+          <Animated.View style={[styles.txToast, { opacity: toastOpacity }]}>
+            <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
+            <Text style={styles.txToastText}>{txToast.signature}</Text>
+          </Animated.View>
+        )}
       </View>
     </View>
   )
@@ -548,20 +680,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  completeButton: {
+  txToast: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 100,
     right: 20,
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    zIndex: 100,
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+  txToastText: {
+    color: '#4CAF50',
+    fontSize: 11,
+    fontWeight: '600',
+    marginLeft: 6,
+    fontFamily: 'monospace',
   },
 })
 

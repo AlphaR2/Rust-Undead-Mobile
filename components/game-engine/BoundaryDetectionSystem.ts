@@ -40,7 +40,7 @@ export const BoundaryDetectionSystem = (entities: any, { time }: { time: any }) 
 
   // Optional: Detect reaching start
   if (distanceFromStart < BOUNDARY_THRESHOLD && !entities.reachedStart) {
-    console.log('🔙 Character reached the START of the world!')
+   
     entities.reachedStart = true
     
     if (entities.onReachStart) {

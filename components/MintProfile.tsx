@@ -3,15 +3,15 @@ import { CreateContext } from '@/context/Context'
 import { useBasicGameData } from '@/hooks/game/useBasicGameData'
 import { createUserProfile, UserProfileResult } from '@/hooks/useGameActions'
 import { useUndeadProgram, useWalletInfo } from '@/hooks/useUndeadProgram'
-import { useCurrentWallet, usePDAs } from '@/hooks/utils/useHelpers'
+import { usePDAs } from '@/hooks/utils/useHelpers'
 import { UserPersona } from '@/types/undead'
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Image, ImageBackground, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import guide4 from '../assets/images/guides/guide-daemon.png'
 import guide3 from '../assets/images/guides/guide-guard.png'
 import guide2 from '../assets/images/guides/guide-oracle.png'
 import guide1 from '../assets/images/guides/guide-val.png'
-import { GameTypewriterPresets, TypewriterText } from './common/Typewrite'
+import { GameTypewriterPresets, TypewriterText, TypewriterTextRef } from './common/Typewrite'
 import { toast } from './ui/Toast'
 
 const GUIDES = [
@@ -71,6 +71,8 @@ const ProfileCreation = () => {
   const [profileCreationError, setProfileCreationError] = useState('')
   const [profileCreated, setProfileCreated] = useState(false)
 
+  const typewriterRef = useRef<TypewriterTextRef>(null)
+
   const {
     setCurrentOnboardingScreen,
     selectedGuide,
@@ -83,12 +85,12 @@ const ProfileCreation = () => {
   const { publicKey, isConnected } = useWalletInfo()
   const { program } = useUndeadProgram()
   const { profilePda, getUsernameRegistryPda } = usePDAs(publicKey)
-  const { userProfile } = useBasicGameData()
+  const { userProfile, refreshData } = useBasicGameData()
 
   useEffect(() => {
     if (userProfile?.username) {
       setPlayerName(userProfile.username)
-      setSelectedPersona(userProfile.userPersona || 'BoneSmith')
+      setSelectedPersona(userProfile.userPersona || UserPersona.TreasureHunter)
       const matchingGuide = GUIDES.find((guide) => guide.name === 'JANUS THE BUILDER') || GUIDES[0]
       setSelectedGuide(matchingGuide)
       setCurrentOnboardingScreen('game-card-intro')
@@ -172,8 +174,15 @@ const ProfileCreation = () => {
     setShowMintButton(true)
   })
 
+  const handleScreenTap = () => {
+    if (!showMintButton) {
+      typewriterRef.current?.skipToEnd()
+    }
+  }
+
   const handleForgeProfile = async () => {
     if (userProfile?.username) {
+      toast.info('Debug', 'User profile already exists')
       setCurrentOnboardingScreen('game-card-intro')
       return
     }
@@ -183,15 +192,38 @@ const ProfileCreation = () => {
       return
     }
 
-    if (!program || !publicKey || !playerName || !selectedPersona) {
-      setProfileCreationError('Please ensure wallet is connected and all fields are filled')
-      toast.error('Error', 'Please ensure wallet is connected and all fields are filled')
+    if (!program || !publicKey) {
+      toast.error('Error', 'Please ensure your wallet is connected')
       return
     }
 
-    if (!profilePda || !getUsernameRegistryPda) {
-      setProfileCreationError('Unable to generate profile addresses')
-      toast.error('Error', 'Unable to generate profile addresses')
+    if (!playerName?.trim()) {
+      toast.error('Error', 'Please enter a username')
+      return
+    }
+
+    if (playerName.trim().length > 32) {
+      setProfileCreationError('Username must be 32 characters or less')
+      toast.error('Error', 'Username must be 32 characters or less')
+      return
+    }
+
+    if (!selectedPersona) {
+      setProfileCreationError('Please select a persona')
+      toast.error('Error', 'Please select a persona')
+      return
+    }
+
+    if (!profilePda) {
+      setProfileCreationError('Unable to generate profile address')
+      toast.error('Error', 'Unable to generate profile address')
+      return
+    }
+
+    const userRegistryPda = getUsernameRegistryPda?.(playerName.trim())
+    if (!userRegistryPda) {
+      setProfileCreationError('Unable to generate username registry address')
+      toast.error('Error', 'Unable to generate username registry address')
       return
     }
 
@@ -199,29 +231,36 @@ const ProfileCreation = () => {
     setProfileCreationError('')
 
     try {
-      const userRegistryPda = getUsernameRegistryPda(playerName)
       const userPersona = getUserPersona()
+
+      console.log('Creating profile with:', {
+        username: playerName.trim(),
+        userPersona,
+        publicKey,
+        profilePda: profilePda.toBase58(),
+        userRegistryPda: userRegistryPda.toBase58(),
+      })
 
       const result: UserProfileResult = await createUserProfile({
         program,
         userPublicKey: publicKey,
-        username: playerName,
+        username: playerName.trim(),
         userPersona,
         profilePda,
         userRegistryPda,
-        sessionInfo: null,
       })
 
       if (result.success) {
         setProfileCreated(true)
-        setPlayerName(playerName)
-        setSelectedGuide(selectedGuide || GUIDES[0])
-        setSelectedPersona(selectedPersona || 'BoneSmith')
-        setCurrentOnboardingScreen('game-card-intro')
         toast.success('Success', getGuideSuccessMessage())
+
+        await refreshData()
+
+        setCurrentOnboardingScreen('game-card-intro')
       } else {
-        setProfileCreationError(result.error || 'Failed to create profile')
-        toast.error('Error', result.error || 'Failed to create profile')
+        const errorMsg = result.error || 'Failed to create profile'
+        setProfileCreationError(errorMsg)
+        toast.error('Profile Creation Failed', errorMsg)
       }
     } catch (error: any) {
       const errorMessage = error?.message || 'Unexpected error occurred. Please try again.'
@@ -255,9 +294,11 @@ const ProfileCreation = () => {
     return buttonMap[selectedGuide?.name || ''] || 'Create Profile'
   }
 
+  const isButtonDisabled = isMinting || !isConnected || !playerName?.trim()
+
   return (
     <View style={styles.container}>
-      <View style={styles.contentWrapper}>
+      <Pressable style={styles.contentWrapper} onPress={handleScreenTap}>
         <ImageBackground style={styles.dialogBackground} source={require('../assets/onboarding/dialog-bg-2.png')}>
           <View style={styles.guideImageContainer}>
             <Image source={getGuideImage()} style={styles.guideImage} resizeMode="contain" />
@@ -267,6 +308,7 @@ const ProfileCreation = () => {
               <Text style={styles.badgeText}>{getGuideTitle()}</Text>
             </TouchableOpacity>
             <TypewriterText
+              ref={typewriterRef}
               key={`profile-typewriter-${selectedGuide?.id}`}
               text={profileMessage}
               style={[GameFonts.body, styles.typewriterText]}
@@ -280,7 +322,7 @@ const ProfileCreation = () => {
               <View style={styles.buttonWrapper}>
                 <TouchableOpacity
                   onPress={handleForgeProfile}
-                  disabled={isMinting || !isConnected}
+                  disabled={isButtonDisabled}
                   style={styles.buttonTouchable}
                 >
                   <ImageBackground
@@ -288,9 +330,7 @@ const ProfileCreation = () => {
                     style={styles.buttonBackground}
                     resizeMode="contain"
                   >
-                    <Text
-                      style={[GameFonts.button, styles.buttonText, { opacity: isMinting || !isConnected ? 0.7 : 1 }]}
-                    >
+                    <Text style={[GameFonts.button, styles.buttonText, { opacity: isButtonDisabled ? 0.5 : 1 }]}>
                       {getButtonText()}
                     </Text>
                   </ImageBackground>
@@ -299,7 +339,7 @@ const ProfileCreation = () => {
             )}
           </View>
         </ImageBackground>
-      </View>
+      </Pressable>
     </View>
   )
 }
@@ -323,7 +363,6 @@ const styles = StyleSheet.create({
     bottom: -8,
     left: 36,
     flexDirection: 'row',
-    // paddingHorizontal: 32,
     height: 180,
     overflow: 'visible',
   },
@@ -371,7 +410,7 @@ const styles = StyleSheet.create({
   buttonWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 32,
   },
   buttonTouchable: {
     marginLeft: 8,

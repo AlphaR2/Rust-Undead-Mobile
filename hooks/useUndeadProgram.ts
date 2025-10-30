@@ -298,8 +298,10 @@ export const useUndeadProgram = (): {
                   try {
                     const provider = await wallet.getProvider()
 
+                    const { blockhash } = await connection.getLatestBlockhash('confirmed')
+
                     if ('recentBlockhash' in tx) {
-                      tx.recentBlockhash = '11111111111111111111111111111111'
+                      tx.recentBlockhash = blockhash
                     }
 
                     await provider.request({
@@ -334,7 +336,7 @@ export const useUndeadProgram = (): {
 
                     for (const tx of txs) {
                       if ('recentBlockhash' in tx) {
-                        tx.recentBlockhash = '11111111111111111111111111111111'
+                        tx.recentBlockhash = blockhash
                       }
 
                       await provider.request({
@@ -469,15 +471,16 @@ export const useMagicBlockProvider = (): AnchorProvider | null => {
               return withDeduplication(operationKey, async () => {
                 const provider = await wallet.getProvider()
 
+                const { blockhash } = await createMagicBlockConnection().getLatestBlockhash('confirmed')
+
                 if ('recentBlockhash' in tx) {
-                  tx.recentBlockhash = '11111111111111111111111111111111'
+                  tx.recentBlockhash = blockhash
                 }
 
                 await provider.request({
                   method: 'signTransaction',
                   params: {
                     transaction: tx,
-                    // connection: createMagicBlockConnection(),
                   },
                 })
 
@@ -554,9 +557,10 @@ export async function sendERTransaction(
   return withDeduplication(operationKey, async () => {
     try {
       let tx = await methodBuilder.transaction()
+      let { blockhash } = await provider.connection.getLatestBlockhash('confirmed')
 
       tx.feePayer = provider.wallet.publicKey
-      tx.recentBlockhash = '11111111111111111111111111111111'
+      tx.recentBlockhash = blockhash
 
       tx = await provider.wallet.signTransaction(tx)
 

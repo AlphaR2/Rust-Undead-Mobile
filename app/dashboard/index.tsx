@@ -5,6 +5,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import Octicons from '@expo/vector-icons/Octicons'
 import { usePrivy } from '@privy-io/expo'
+import Clipboard from '@react-native-clipboard/clipboard'
 import { useRouter } from 'expo-router'
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import {
@@ -30,7 +31,6 @@ import guide4 from '../../assets/images/guides/guide-daemon.png'
 import guide3 from '../../assets/images/guides/guide-guard.png'
 import guide2 from '../../assets/images/guides/guide-oracle.png'
 import guide1 from '../../assets/images/guides/guide-val.png'
-import Clipboard from '@react-native-clipboard/clipboard'
 
 const GUIDE_IMAGES: Record<string, any> = {
   '1': guide1,
@@ -39,7 +39,7 @@ const GUIDE_IMAGES: Record<string, any> = {
   '4': guide4,
 }
 
-const DEFAULT_USERNAME = 'Harrison'
+const DEFAULT_USERNAME = '...loading'
 const ADDRESS_VISIBLE_START = 4
 const ADDRESS_VISIBLE_END = 4
 const BALANCE_DECIMALS = 6
@@ -155,16 +155,15 @@ const Index = () => {
   }
 
   const copyToClipboard = async (text: string) => {
-  try {
-     Clipboard.setString(text)
-    // Optional: Show feedback to user
-    Alert.alert('Copied', 'Text copied to clipboard!')
-  } catch (error) {
-    console.error('Failed to copy text:', error)
-    Alert.alert('Error', 'Failed to copy text')
+    try {
+      Clipboard.setString(text)
+      // Optional: Show feedback to user
+      Alert.alert('Copied', 'Text copied to clipboard!')
+    } catch (error) {
+      console.error('Failed to copy text:', error)
+      Alert.alert('Error', 'Failed to copy text')
+    }
   }
-}
-
 
   return (
     <ImageBackground source={DASHBOARD_BACKGROUND} style={styles.container} resizeMode="cover">
@@ -186,7 +185,7 @@ const Index = () => {
                   <View style={styles.addressRow}>
                     <MaterialIcons name="account-balance-wallet" size={12} color="#9CA3AF" />
                     <Text style={styles.addressText}>{formatAddress(userAddress)}</Text>
-                    <TouchableOpacity onPress={()=> copyToClipboard(userAddress ?? "")} style={styles.copyButton}>
+                    <TouchableOpacity onPress={() => copyToClipboard(userAddress ?? '')} style={styles.copyButton}>
                       <MaterialIcons name="content-copy" size={16} color="#9CA3AF" />
                     </TouchableOpacity>
                   </View>

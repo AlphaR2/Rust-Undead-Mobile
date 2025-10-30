@@ -58,7 +58,7 @@ const GuideSelection = () => {
     const loadUserProfile = async () => {
       if (userProfile?.username) {
         await setPlayerName(userProfile.username)
-        await setSelectedPersona(userProfile.userPersona || '')
+        await setSelectedPersona(userProfile.userPersona)
         const matchingGuide = GUIDES.find((guide) => guide.name === 'JANUS THE BUILDER') || GUIDES[0]
         await setSelectedGuide(matchingGuide)
       }
@@ -115,43 +115,10 @@ const GuideSelection = () => {
     ]).start()
   }
 
-  const saveProfile = async () => {
-    console.log('saving profile')
-    try {
-      const response = await fetch(`https://undead-protocol.onrender.com/user`, {
-        method: 'POST',
-        body: JSON.stringify({
-          walletAddress: userAddress,
-          profileName: playerName,
-          choosenGuide: selectedGuide?.name,
-          avatar: 'https://example.com/avatars/user1.png',
-          userProgress: {
-            chapter: 1,
-            path: 1,
-          },
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-      const responseData = await response.json()
-      if (!response.ok) {
-        if (responseData.message === 'Undead User exists already') {
-          router.push('/dashboard')
-          return
-        }
-        throw new Error(responseData.message ?? 'An error occured')
-      }
-      console.log('saving profile successful')
-      router.push('/dashboard')
-    } catch (err: any) {
-      console.log(err?.message)
-    }
-  }
   const handleNext = () => {
     if (userProfile?.username && selectedGuide && selectedGuide.name) {
-      saveProfile()
+      router.push('/dashboard')
+      // saveProfile()
     } else {
       setCurrentOnboardingScreen('selection')
     }
@@ -414,7 +381,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.60)',
   },
   overlay2: {
     ...StyleSheet.absoluteFillObject,
