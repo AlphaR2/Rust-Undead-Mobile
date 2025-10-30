@@ -33,9 +33,6 @@ export class RateLimiter {
           }
 
           const backoffDelay = this.retryDelay * Math.pow(2, attempts - 1);
-          // console.log(
-          //   `Rate limited, waiting ${backoffDelay}ms before retry ${attempts}/${maxAttempts}`
-          // );
           await new Promise((resolve) => setTimeout(resolve, backoffDelay));
         } else {
           throw error;

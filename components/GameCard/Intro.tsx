@@ -1,167 +1,249 @@
-import { CreateContext } from "@/context/Context";
-import { guideImages, SELECTION_BACKGROUND } from "@/utils/assets";
-import React, { useContext } from "react";
-import {
-  Dimensions,
-  Image,
-  ImageBackground,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { GameFonts } from '@/constants/GameFonts'
+import { CreateContext } from '@/context/Context'
+import { useBasicGameData } from '@/hooks/game/useBasicGameData'
+import { router } from 'expo-router'
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import guide4 from '../../assets/images/guides/guide-daemon.png'
+import guide3 from '../../assets/images/guides/guide-guard.png'
+import guide2 from '../../assets/images/guides/guide-oracle.png'
+import guide1 from '../../assets/images/guides/guide-val.png'
+import { GameTypewriterPresets, TypewriterText } from '../common/Typewrite'
+import { toast } from '../ui/Toast'
+
+const GUIDE_IMAGES: Record<string, any> = {
+  '1': guide1,
+  '2': guide2,
+  '3': guide3,
+  '4': guide4,
+}
+
+const GUIDE_TITLES: Record<string, string> = {
+  'JANUS THE BUILDER': 'BUILDER',
+  'JAREK THE ORACLE': 'ORACLE',
+  'GAIUS THE GUARDIAN': 'GUARDIAN',
+  'BRYN THE DAEMON': 'DAEMON',
+}
+
+const GUIDE_NAMES: Record<string, string> = {
+  'JANUS THE BUILDER': 'Janus',
+  'JAREK THE ORACLE': 'Jarek',
+  'GAIUS THE GUARDIAN': 'Gaius',
+  'BRYN THE DAEMON': 'Bryn',
+}
 
 const GameCardIntro = () => {
-  const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-  const {
-    setCurrentOnboardingScreen,
-    selectedGuide,
-    playerName,
-    selectedPersona,
-  } = useContext(CreateContext).onboarding;
+  const [showNextButton, setShowNextButton] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
-  // Get the guide image based on selected guide
-  const getGuideImage = (): string => {
-    if (selectedGuide?.id && guideImages[selectedGuide.id]) {
-      return guideImages[selectedGuide.id];
+  const { selectedGuide, playerName, setCurrentOnboardingScreen } = useContext(CreateContext).onboarding
+  const { accessToken } = useContext(CreateContext).auth
+  const { userAddress } = useBasicGameData()
+
+  const shouldSkipAnimation = useMemo(() => false, [playerName])
+
+  const saveProfile = async () => {
+    if (isSaving) return
+
+    setIsSaving(true)
+    try {
+      const response = await fetch(`https://undead-protocol.onrender.com/user`, {
+        method: 'POST',
+        body: JSON.stringify({
+          walletAddress: userAddress,
+          profileName: playerName,
+          choosenGuide: selectedGuide?.name,
+          avatar: 'https://example.com/avatars/user1.png',
+          userProgress: {
+            chapter: 0,
+            path: 0,
+          },
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      const responseData = await response.json()
+
+      if (!response.ok) {
+        if (responseData.message === 'Undead User exists already') {
+          setCurrentOnboardingScreen('game-card-carousel')
+          return
+        }
+        throw new Error(responseData.message ?? 'An error occurred')
+      }
+
+      toast.success('Success', 'Profile saved successfully')
+      setCurrentOnboardingScreen('game-card-carousel')
+    } catch (err: any) {
+      toast.error('Error', err?.message || 'Failed to save profile')
+    } finally {
+      setIsSaving(false)
     }
-    // Fallback image
-    return "https://res.cloudinary.com/deensvquc/image/upload/v1753436774/Mask_group_ilokc7.png";
-  };
+  }
 
-  // Get guide title for badge
+  const getGuideImage = () => {
+    return GUIDE_IMAGES[selectedGuide?.id || '1'] || guide1
+  }
+
   const getGuideTitle = (): string => {
-    if (!selectedGuide?.name) return "GUIDE";
+    if (!selectedGuide?.name) return 'GUIDE'
+    return GUIDE_TITLES[selectedGuide.name] || selectedGuide.title?.toUpperCase() || 'GUIDE'
+  }
 
-    switch (selectedGuide.name) {
-      case "JANUS THE BUILDER":
-        return "BUILDER";
-      case "JAREK THE ORACLE":
-        return "ORACLE";
-      case "GAIUS THE GUARDIAN":
-        return "GUARDIAN";
-      case "BRYN THE DAEMON":
-        return "DAEMON";
-      default:
-        return selectedGuide.title?.toUpperCase() || "GUIDE";
+  const introMessage = useMemo(() => {
+    const name = playerName || 'Warrior'
+    return `Welcome, ${name}. Before we begin, let me explain what lies ahead... Your journey begins with forging your first warrior from the essence of ancient powers. This cursed champion will embody your fighting spirit and supernatural gifts.`
+  }, [playerName])
+
+  const handleTypewriterCompleteRef = useRef(() => {
+    setShowNextButton(true)
+  })
+
+  const handleNext = async () => {
+    await saveProfile()
+  }
+
+  useEffect(() => {
+    if (shouldSkipAnimation) {
+      setShowNextButton(true)
     }
-  };
-
-  // Get personalized intro message
-  const getIntroMessage = (): { greeting: string; explanation: string } => {
-    const name = playerName || "Warrior";
-    const guideName = getGuideName();
-
-    return {
-      greeting: `Welcome, ${name}. Before we begin, let me explain what lies ahead...`,
-      explanation:
-        "Your journey begins with forging your first undead warrior ...",
-    };
-  };
-
-  // Get the guide's first name for speaking
-  const getGuideName = (): string => {
-    if (!selectedGuide?.name) return "Guide";
-
-    switch (selectedGuide.name) {
-      case "JANUS THE BUILDER":
-        return "Janus";
-      case "JAREK THE ORACLE":
-        return "Jarek";
-      case "GAIUS THE GUARDIAN":
-        return "Gaius";
-      case "BRYN THE DAEMON":
-        return "Bryn";
-      default:
-        return selectedGuide.name.split(" ")[0] || "Guide";
-    }
-  };
-
-  // Format persona for display
-  const formatPersonaName = (persona: string): string => {
-    return persona.replace(/([A-Z])/g, " $1").trim();
-  };
-
-  const handleNext = () => {
-    console.log("Moving to game card carousel with:", {
-      guide: selectedGuide?.name,
-      player: playerName,
-      persona: selectedPersona,
-    });
-    setCurrentOnboardingScreen("game-card-carousel");
-  };
-
-  const introContent = getIntroMessage();
+  }, [shouldSkipAnimation])
 
   return (
-    <View className="flex-1 h-full w-full flex justify-end items-end">
-      <ImageBackground
-        source={{ uri: SELECTION_BACKGROUND }}
-        resizeMode="cover"
-        className="w-full flex-1 z-40"
-        style={{
-          height: SCREEN_HEIGHT * 1.3,
-          width: "100%",
-        }}
-      >
-        <View className="flex-1 justify-end">
-          <View
-            className="bg-[#663200] border-t-4 border-[#CA7422] w-full flex flex-row px-8"
-            style={{
-              height: 120, // Increased for better content display
-              overflow: "visible",
-            }}
-          >
-            {/* Guide Image */}
-            <View className="w-[20%] relative" style={{ overflow: "visible" }}>
-              <Image
-                source={{ uri: getGuideImage() }}
-                className="w-[150px] h-[220px] relative z-20"
-                style={{
-                  position: "absolute",
-                  top: -70,
-                  left: 0,
-                }}
-                resizeMode="contain"
-              />
-            </View>
-
-            {/* Content Section */}
-            <View className="flex-1 pt-2 pr-4">
-              {/* Guide Badge */}
-              <TouchableOpacity
-                className="w-20 p-1 bg-[#CA7422] rounded-[20px] mb-2"
-                style={{ marginTop: -20 }}
-                disabled
-              >
-                <Text className="text-white text-xs text-center font-bold">
-                  {getGuideTitle()}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Dialog Text */}
-              <Text className="text-white pt-4 text-sm leading-4 mb-1">
-                {introContent.greeting}
-              </Text>
-              <Text className="text-white text-sm leading-4">
-                {introContent.explanation}
-              </Text>
-            </View>
-
-            {/* Next Button */}
-            <TouchableOpacity
-              onPress={handleNext}
-              style={{ marginTop: -26 }}
-              className=" px-2 py-1"
-            >
-              <Text className="text-[#CA7422] font-semibold text-base">
-                Next →
-              </Text>
-            </TouchableOpacity>
+    <View style={styles.container}>
+      <View style={styles.contentWrapper}>
+        <ImageBackground style={styles.dialogBackground} source={require('../../assets/onboarding/dialog-bg-2.png')}>
+          <View style={styles.guideImageContainer}>
+            <Image source={getGuideImage()} style={styles.guideImage} resizeMode="contain" />
           </View>
-        </View>
-      </ImageBackground>
-    </View>
-  );
-};
 
-export default GameCardIntro;
+          <View style={styles.textContainer}>
+            <TouchableOpacity style={styles.badge} disabled>
+              <Text style={styles.badgeText}>{getGuideTitle()}</Text>
+            </TouchableOpacity>
+
+            <TypewriterText
+              key={`intro-typewriter-${selectedGuide?.id}`}
+              text={introMessage}
+              style={[GameFonts.body, styles.typewriterText]}
+              {...GameTypewriterPresets.narration}
+              delay={300}
+              skipAnimation={shouldSkipAnimation}
+              onComplete={handleTypewriterCompleteRef.current}
+            />
+
+            {showNextButton && (
+              <View style={styles.buttonWrapper}>
+                <TouchableOpacity onPress={handleNext} style={styles.buttonTouchable} disabled={isSaving}>
+                  <ImageBackground
+                    source={require('../../assets/onboarding/button-bg-main.png')}
+                    style={styles.buttonBackground}
+                    resizeMode="contain"
+                  >
+                    <Text style={[GameFonts.button, styles.buttonText, { opacity: isSaving ? 0.5 : 1 }]}>
+                      {isSaving ? 'Saving...' : 'Next'}
+                    </Text>
+                  </ImageBackground>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </ImageBackground>
+      </View>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    height: '100%',
+    width: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+  },
+  contentWrapper: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    width: '100%',
+  },
+  dialogBackground: {
+    width: '100%',
+    bottom: -8,
+    right: -30,
+    flexDirection: 'row',
+    height: 180,
+  },
+  guideImageContainer: {
+    width: '30%',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  guideImage: {
+    width: 290,
+    height: 302,
+    position: 'absolute',
+    bottom: -45,
+    right: -6,
+    zIndex: 20,
+  },
+  textContainer: {
+    flex: 1,
+    paddingTop: 8,
+    paddingRight: 16,
+    width: '50%',
+  },
+  badge: {
+    width: 96,
+    padding: 4,
+    marginTop: -20,
+    borderColor: '#c873234d',
+    borderWidth: 1,
+    borderTopRightRadius: 10,
+    borderTopLeftRadius: 10,
+    backgroundColor: 'black',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  typewriterText: {
+    color: 'white',
+    fontSize: 12,
+    marginTop: 8,
+    lineHeight: 32,
+    marginBottom: 16,
+  },
+  buttonWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  buttonTouchable: {
+    marginLeft: 'auto',
+  },
+  buttonBackground: {
+    alignItems: 'center',
+    width: 'auto',
+    height: 'auto',
+    right: -40,
+    top: -26,
+    position: 'absolute',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 96,
+  },
+  buttonText: {
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: 'black',
+  },
+})
+
+export default GameCardIntro

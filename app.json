@@ -1,23 +1,48 @@
 {
   "expo": {
     "name": "Rust Undead",
-    "slug": "Rust_Undead",
+    "slug": "rustundead",
     "version": "1.0.0",
     "orientation": "landscape",
+    "statusBar": {
+      "hidden": true,
+      "style": "light"
+    },
     "icon": "./assets/images/damlogo.png",
     "scheme": "rustundead",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/bg-big.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "ios": {
       "supportsTablet": true,
-      "requireFullScreen": true
+      "requireFullScreen": true,
+      "infoPlist": {
+        "UIStatusBarHidden": true,
+        "UIViewControllerBasedStatusBarAppearance": false,
+        "UILaunchStoryboardName": "SplashScreen",
+        "UIRequiresFullScreen": true
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.alphar33.rustundead"
+      "package": "com.alphar33.rustundead",
+      "orientation": "landscape",
+      "screenOrientation": "landscape",
+      "navigationBar": {
+        "visible": "immersive"
+      },
+      "splash": {
+        "image": "./assets/images/bg-big.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#000000"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -38,11 +63,26 @@
           "supportsPictureInPicture": true
         }
       ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/bg-big.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      ],
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-navigation-bar"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f3390aa1-4f8f-4ebb-92e6-7690bb05f928"
+      }
     }
   }
 }

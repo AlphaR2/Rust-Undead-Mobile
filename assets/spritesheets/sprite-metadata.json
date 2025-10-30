@@ -1,0 +1,118 @@
+{
+  "oracle": {
+    "idle": {
+      "character": "oracle",
+      "animation": "idle",
+      "frames": 18,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 2304,
+      "totalHeight": 128
+    },
+    "walking": {
+      "character": "oracle",
+      "animation": "walking",
+      "frames": 24,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 3072,
+      "totalHeight": 128
+    },
+    "interact": {
+      "character": "oracle",
+      "animation": "interact",
+      "frames": 12,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 1536,
+      "totalHeight": 128
+    }
+  },
+  "validator": {
+    "idle": {
+      "character": "validator",
+      "animation": "idle",
+      "frames": 18,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 2304,
+      "totalHeight": 128
+    },
+    "walking": {
+      "character": "validator",
+      "animation": "walking",
+      "frames": 24,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 3072,
+      "totalHeight": 128
+    },
+    "interact": {
+      "character": "validator",
+      "animation": "interact",
+      "frames": 12,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 1536,
+      "totalHeight": 128
+    }
+  },
+  "guardian": {
+    "idle": {
+      "character": "guardian",
+      "animation": "idle",
+      "frames": 18,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 2304,
+      "totalHeight": 128
+    },
+    "walking": {
+      "character": "guardian",
+      "animation": "walking",
+      "frames": 24,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 3072,
+      "totalHeight": 128
+    },
+    "interact": {
+      "character": "guardian",
+      "animation": "interact",
+      "frames": 12,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 1536,
+      "totalHeight": 128
+    }
+  },
+  "daemon": {
+    "idle": {
+      "character": "daemon",
+      "animation": "idle",
+      "frames": 18,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 2304,
+      "totalHeight": 128
+    },
+    "walking": {
+      "character": "daemon",
+      "animation": "walking",
+      "frames": 24,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 3072,
+      "totalHeight": 128
+    },
+    "interact": {
+      "character": "daemon",
+      "animation": "interact",
+      "frames": 12,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "totalWidth": 1536,
+      "totalHeight": 128
+    }
+  }
+}

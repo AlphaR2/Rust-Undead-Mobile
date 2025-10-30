@@ -1,113 +1,96 @@
-import { CreateContext } from "@/context/Context";
-import { generateRandomDNA } from "@/hooks/useGameActions";
-import { guideImages, PERSONA_BACKGROUND } from "@/utils/assets";
-import { useRouter } from "expo-router";
-import React, { useContext, useState } from "react";
-import {
-  Image,
-  ImageBackground,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { CreateContext } from '@/context/Context'
+import { generateRandomDNA } from '@/utils/helper'
+import { useRouter } from 'expo-router'
+import React, { useContext, useState } from 'react'
+import { Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import PERSONA_BACKGROUND from '../../assets/images/bg-assets/bg-03.png'
+import guide4 from '../../assets/images/guides/guide-daemon.png'
+import guide3 from '../../assets/images/guides/guide-guard.png'
+import guide2 from '../../assets/images/guides/guide-oracle.png'
+import guide1 from '../../assets/images/guides/guide-val.png'
+
+const GUIDE_IMAGES: Record<string, any> = {
+  '1': guide1,
+  '2': guide2,
+  '3': guide3,
+  '4': guide4,
+}
+
+const GUIDE_NAMES: Record<string, string> = {
+  'JANUS THE BUILDER': 'Janus',
+  'JAREK THE ORACLE': 'Jarek',
+  'GAIUS THE GUARDIAN': 'Gaius',
+  'BRYN THE DAEMON': 'Bryn',
+}
+
+const MAX_WARRIOR_NAME_LENGTH = 20
+const MAX_DNA_LENGTH = 20
 
 const WarriorProfileSetup = () => {
-  const router = useRouter();
-  const { selectedGuide, selectedWarriorType, playerName, selectedPersona } =
-    useContext(CreateContext).onboarding;
+  const router = useRouter()
+  const { selectedGuide, selectedWarriorType, playerName, selectedPersona } = useContext(CreateContext).onboarding
 
-  const [warriorName, setWarriorName] = useState("");
-  const [newWarriorDNA, setNewWarriorDNA] = useState<string>("");
+  const [warriorName, setWarriorName] = useState('')
+  const [newWarriorDNA, setNewWarriorDNA] = useState<string>('')
 
-  // Get the guide image
-  const getGuideImage = (): string => {
-    if (selectedGuide?.id && guideImages[selectedGuide.id]) {
-      return guideImages[selectedGuide.id];
-    }
-    return "https://res.cloudinary.com/deensvquc/image/upload/v1753436774/Mask_group_ilokc7.png";
-  };
+  const getGuideImage = () => {
+    return GUIDE_IMAGES[selectedGuide?.id || '1'] || guide1
+  }
 
-  // Get guide name for speaking
   const getGuideName = (): string => {
-    if (!selectedGuide?.name) return "Guide";
+    if (!selectedGuide?.name) return 'Guide'
+    return GUIDE_NAMES[selectedGuide.name] || selectedGuide.name.split(' ')[0] || 'Guide'
+  }
 
-    switch (selectedGuide.name) {
-      case "JANUS THE BUILDER":
-        return "Janus";
-      case "JAREK THE ORACLE":
-        return "Jarek";
-      case "GAIUS THE GUARDIAN":
-        return "Gaius";
-      case "BRYN THE DAEMON":
-        return "Bryn";
-      default:
-        return selectedGuide.name.split(" ")[0] || "Guide";
-    }
-  };
-
-  // Format persona for display
   const formatPersonaName = (persona: string): string => {
-    return persona.replace(/([A-Z])/g, " $1").trim();
-  };
+    return persona.replace(/([A-Z])/g, ' $1').trim()
+  }
 
-  // Get personalized dialogue message
   const getDialogueMessage = (): string => {
-    const name = playerName || "Warrior";
+    const name = playerName || 'Warrior'
+    const warriorType = selectedWarriorType?.name || 'warrior'
 
-    const warriorType = selectedWarriorType?.name || "warrior";
-
-    return `${name}, excellent choice on the ${warriorType}! Now we must forge your undead champion's identity. Give your warrior a name that will strike fear into your enemies, and let the ancient magic generate their unique DNA essence.`;
-  };
+    return `${name}, excellent choice on the ${warriorType}! Now we must forge your undead champion's identity. Give your warrior a name that will strike fear into your enemies, and let the ancient magic generate their unique DNA essence.`
+  }
 
   const handleContinue = () => {
-    if (!warriorName.trim()) return;
+    if (!warriorName.trim()) return
 
-    console.log("Warrior Profile Created:", {
-      playerName,
-      guide: selectedGuide?.name,
-      warriorType: selectedWarriorType?.name,
-      persona: selectedPersona,
-      warriorName: warriorName.trim(),
-      warriorDNA: newWarriorDNA,
-    });
+    router.push('/dashboard')
+  }
 
-    // Save warrior profile to context if needed
-    // You might want to add these to your context
+  const handleGenerateDNA = () => {
+    setNewWarriorDNA(generateRandomDNA())
+  }
 
-    router.push("/dashboard");
-  };
+  const isButtonDisabled = !warriorName.trim()
 
   return (
-    <ImageBackground
-      source={{ uri: PERSONA_BACKGROUND }}
-      style={styles.backgroundContainer}
-      resizeMode="cover"
-    >
+    <ImageBackground source={PERSONA_BACKGROUND} style={styles.backgroundContainer} resizeMode="cover">
       <View style={styles.blackOverlay} />
 
       <View style={styles.container}>
-        {/* Top dialogue with guide */}
-        <View style={styles.dialogueContainer}>
-          <Image
-            source={{ uri: getGuideImage() }}
+        <View style={styles.headerSection}>
+          <ImageBackground
+            source={require('../../assets/onboarding/dialog-bg-1.png')}
+            style={styles.headerBackground}
             resizeMode="contain"
-            style={styles.guideImage}
-          />
-          <Text style={styles.dialogueText}>{getDialogueMessage()}</Text>
+          >
+            <Text style={styles.headerText}>Warrior Name Setup</Text>
+          </ImageBackground>
+          <View style={styles.dialogueWrapper}>
+            <Text style={styles.dialogueText}>{getDialogueMessage()}</Text>
+          </View>
         </View>
 
-        {/* Main content */}
         <View style={styles.mainContent}>
-          {/* Left side - Warrior setup */}
           <View style={styles.setupSection}>
             <View style={styles.warriorImageContainer}>
               <Image
                 source={{
                   uri:
                     selectedWarriorType?.image ||
-                    "https://res.cloudinary.com/deensvquc/image/upload/v1753652714/Subtract_1_zdw1kc.png",
+                    'https://res.cloudinary.com/deensvquc/image/upload/v1753652714/Subtract_1_zdw1kc.png',
                 }}
                 resizeMode="contain"
                 style={styles.warriorImage}
@@ -115,280 +98,238 @@ const WarriorProfileSetup = () => {
             </View>
 
             <View style={styles.inputSection}>
-              {/* Warrior Name Input */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Warrior Name</Text>
-                <ImageBackground
-                  source={{
-                    uri: "https://res.cloudinary.com/deensvquc/image/upload/v1753446388/input-bg_vibbma.png",
-                  }}
-                  style={styles.inputBackground}
-                  resizeMode="contain"
-                >
+                <View style={styles.inputBackground}>
                   <TextInput
                     value={warriorName}
                     onChangeText={setWarriorName}
                     placeholder="Enter warrior name"
-                    placeholderTextColor="#D4AF37"
+                    placeholderTextColor="#666"
                     style={styles.textInput}
-                    maxLength={20}
+                    maxLength={MAX_WARRIOR_NAME_LENGTH}
                   />
-                </ImageBackground>
+                </View>
               </View>
 
-              {/* DNA Input */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>
-                  Unique DNA (click dice to randomize)
-                </Text>
+                <Text style={styles.inputLabel}>Unique DNA (click dice to randomize)</Text>
                 <View style={styles.dnaInputContainer}>
-                  <ImageBackground
-                    source={{
-                      uri: "https://res.cloudinary.com/deensvquc/image/upload/v1753446388/input-bg_vibbma.png",
-                    }}
-                    style={styles.inputBackground}
-                    resizeMode="contain"
-                  >
+                  <View style={styles.dnaInputBackground}>
                     <TextInput
                       value={newWarriorDNA}
                       onChangeText={setNewWarriorDNA}
                       placeholder="Generate DNA"
-                      placeholderTextColor="#D4AF37"
+                      placeholderTextColor="#666"
                       style={styles.textInput}
-                      maxLength={20}
+                      maxLength={MAX_DNA_LENGTH}
                     />
-                  </ImageBackground>
-                  <TouchableOpacity
-                    onPress={() => setNewWarriorDNA(generateRandomDNA())}
-                    style={styles.diceButton}
-                  >
+                  </View>
+                  <TouchableOpacity onPress={handleGenerateDNA} style={styles.diceButton}>
                     <Text style={styles.diceEmoji}>🎲</Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Continue Button */}
               <TouchableOpacity
                 onPress={handleContinue}
-                disabled={!warriorName.trim()}
-                style={[
-                  styles.continueButton,
-                  !warriorName.trim() && styles.continueButtonDisabled,
-                ]}
+                disabled={isButtonDisabled}
+                style={[styles.continueButtonWrapper, isButtonDisabled && styles.continueButtonDisabled]}
               >
                 <ImageBackground
-                  source={{
-                    uri: "https://res.cloudinary.com/deensvquc/image/upload/v1753433285/Frame_4_ppu88h.png",
-                  }}
+                  source={require('../../assets/onboarding/button-bg-main.png')}
                   style={styles.continueButtonBg}
                   resizeMode="contain"
                 >
-                  <Text
-                    style={[
-                      styles.continueButtonText,
-                      !warriorName.trim() && styles.continueButtonTextDisabled,
-                    ]}
-                  >
-                    Forge Warrior
-                  </Text>
+                  <Text style={styles.continueButtonText}>Create Warrior</Text>
                 </ImageBackground>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Right side - Warrior card preview */}
           <View style={styles.previewSection}>
             <ImageBackground
               source={{
-                uri: "https://res.cloudinary.com/deensvquc/image/upload/v1753697038/Group_9_wmbgfk.png",
+                uri: 'https://res.cloudinary.com/deensvquc/image/upload/v1753697038/Group_9_wmbgfk.png',
               }}
               style={styles.cardPreview}
               resizeMode="contain"
             >
-              {/* You can overlay warrior info here if needed */}
               <View style={styles.cardOverlay}>
-                <Text
-                  style={[
-                    styles.previewWarriorName,
-                    { color: selectedWarriorType?.color || "#FFFFFF" },
-                  ]}
-                >
-                  {warriorName || "Your Warrior"}
+                <Text style={[styles.previewWarriorName, { color: selectedWarriorType?.color || '#FFFFFF' }]}>
+                  {warriorName || 'Your Warrior'}
                 </Text>
-                <Text style={styles.previewWarriorType}>
-                  {selectedWarriorType?.name || "UNDEAD"}
-                </Text>
-                {newWarriorDNA && (
-                  <Text style={styles.previewDNA}>DNA: {newWarriorDNA}</Text>
-                )}
+                <Text style={styles.previewWarriorType}>{selectedWarriorType?.name || 'UNDEAD'}</Text>
+                {newWarriorDNA && <Text style={styles.previewDNA}>DNA: {newWarriorDNA}</Text>}
               </View>
             </ImageBackground>
           </View>
         </View>
       </View>
     </ImageBackground>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   backgroundContainer: {
     flex: 1,
-    width: "100%",
-    height: "100%",
+    width: '100%',
+    height: '100%',
   },
   blackOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   container: {
     flex: 1,
     paddingHorizontal: 12,
+    flexDirection: 'column',
+    justifyContent: 'space-between',
   },
-  dialogueContainer: {
-    width: "100%",
-    height: 80,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(202, 116, 34, 0.8)",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: "rgba(202, 116, 34, 0.3)",
+  headerSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 160,
   },
-  guideImage: {
-    width: 60,
-    height: 60,
-    marginRight: 12,
+  headerBackground: {
+    paddingHorizontal: 40,
+    width: 'auto',
+    paddingVertical: 16,
+  },
+  headerText: {
+    fontSize: 14,
+    color: '#E0E0E0',
+    textAlign: 'center',
+  },
+  dialogueWrapper: {
+    width: '65%',
   },
   dialogueText: {
-    color: "#FFFFFF",
+    color: 'white',
+    textAlign: 'center',
     fontSize: 14,
-    lineHeight: 18,
-    fontWeight: "400",
-    flex: 1,
   },
   mainContent: {
-    flex: 1,
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 16,
   },
   setupSection: {
-    width: "60%",
-    flexDirection: "row",
+    width: '60%',
+    flexDirection: 'row',
     gap: 16,
   },
   warriorImageContainer: {
-    width: "40%",
-    justifyContent: "center",
-    alignItems: "center",
+    width: '40%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   warriorImage: {
-    width: "100%",
-    height: "70%",
+    width: '100%',
+    height: '50%',
   },
   inputSection: {
-    width: "60%",
-    justifyContent: "center",
+    width: '60%',
+    justifyContent: 'center',
     gap: 24,
   },
   inputGroup: {
     gap: 8,
   },
   inputLabel: {
-    color: "#FFFFFF",
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   inputBackground: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 20,
     height: 50,
-    justifyContent: "center",
+    justifyContent: 'center',
   },
   textInput: {
-    color: "#FFFFFF",
-    textAlign: "center",
+    color: '#FFFFFF',
     fontSize: 16,
     paddingHorizontal: 16,
-    backgroundColor: "transparent",
+    height: '100%',
   },
   dnaInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
+  },
+  dnaInputBackground: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 20,
+    width: '80%',
+    height: 50,
   },
   diceButton: {
     width: 40,
     height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(212, 175, 55, 0.2)",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(212, 175, 55, 0.2)',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#D4AF37",
+    borderColor: '#D4AF37',
   },
   diceEmoji: {
     fontSize: 24,
   },
-  continueButton: {
-    alignItems: "center",
-    marginTop: 16,
+  continueButtonWrapper: {
+    marginLeft: 'auto',
   },
   continueButtonDisabled: {
     opacity: 0.5,
   },
   continueButtonBg: {
-    width: 160,
-    height: 60,
-    justifyContent: "center",
-    alignItems: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    width: 'auto',
+    top: -10,
   },
   continueButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  continueButtonTextDisabled: {
-    color: "#999999",
+    color: 'black',
+    fontWeight: 'bold',
   },
   previewSection: {
-    width: "40%",
-    justifyContent: "center",
-    alignItems: "center",
+    width: '40%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardPreview: {
-    width: "80%",
-    height: "80%",
-    justifyContent: "center",
-    alignItems: "center",
+    width: '80%',
+    height: '80%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardOverlay: {
-    position: "absolute",
-    bottom: "-10%",
-    alignItems: "center",
+    position: 'absolute',
+    bottom: '-10%',
+    alignItems: 'center',
     gap: 4,
   },
   previewWarriorName: {
     fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
-    textShadowColor: "#000",
+    fontWeight: 'bold',
+    textAlign: 'center',
+    textShadowColor: '#000',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
   previewWarriorType: {
-    color: "#D4AF37",
+    color: '#D4AF37',
     fontSize: 14,
-    fontWeight: "600",
-    textAlign: "center",
+    fontWeight: '600',
+    textAlign: 'center',
   },
   previewDNA: {
-    color: "#FFFFFF",
+    color: '#FFFFFF',
     fontSize: 12,
-    textAlign: "center",
+    textAlign: 'center',
     opacity: 0.8,
   },
-});
+})
 
-export default WarriorProfileSetup;
+export default WarriorProfileSetup

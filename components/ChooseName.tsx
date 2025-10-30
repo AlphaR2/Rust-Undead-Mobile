@@ -1,197 +1,259 @@
-import { toast } from "@/components/ui/Toast";
-import { CreateContext } from "@/context/Context";
-import { GuideImagesType } from "@/types/mobile";
-import { guideImages } from "@/utils/assets";
-import React, { useContext, useState } from "react";
-import { Image, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { toast } from '@/components/ui/Toast'
+import { GameFonts } from '@/constants/GameFonts'
+import { CreateContext } from '@/context/Context'
+import React, { useContext, useMemo, useRef, useState } from 'react'
+import { Image, ImageBackground, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+
+import guide4 from '../assets/images/guides/guide-daemon.png'
+import guide3 from '../assets/images/guides/guide-guard.png'
+import guide2 from '../assets/images/guides/guide-oracle.png'
+import guide1 from '../assets/images/guides/guide-val.png'
+import { GameTypewriterPresets, TypewriterText, TypewriterTextRef } from './common/Typewrite'
+
+const GUIDE_GREETINGS: Record<string, string> = {
+  'JANUS THE BUILDER':
+    'I am Janus, Forger of the Necropolis! Name yourself, and we shall carve your legend in eternal stone!',
+  'JAREK THE ORACLE': 'I am Jarek, Seer of the Undead Realm! Speak your name, and let fate bind you to the realm!',
+  'GAIUS THE GUARDIAN': 'I am Gaius, Shield of the Crypt! Proclaim your name, and command the undead under my guard!',
+  'BRYN THE DAEMON': 'I am Bryn, Flame of the Digital Void! Input your name, and ignite your path in the realm!',
+}
+
+const GUIDE_TITLES: Record<string, string> = {
+  'JANUS THE BUILDER': 'BUILDER',
+  'JAREK THE ORACLE': 'ORACLE',
+  'GAIUS THE GUARDIAN': 'GUARDIAN',
+  'BRYN THE DAEMON': 'DAEMON',
+}
+
+const GUIDE_IMAGES: Record<string, any> = {
+  '1': guide1,
+  '2': guide2,
+  '3': guide3,
+  '4': guide4,
+}
+
+const DEFAULT_GREETING = 'Hail, brave soul! The necropolis beckons—declare your name to seize your destiny!'
+const MAX_NAME_LENGTH = 32
 
 const ChooseName = () => {
-  const [playerName, setPlayerName] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
+  const [playerName, setPlayerName] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [showInputSection, setShowInputSection] = useState(false)
 
-  const { setCurrentOnboardingScreen } = useContext(CreateContext).onboarding;
-  const { selectedGuide, selectedPersona } =
-    useContext(CreateContext).onboarding;
-  const { playerName: contextPlayerName, setPlayerName: setContextPlayerName } =
-    useContext(CreateContext).onboarding;
+  const {
+    setCurrentOnboardingScreen,
+    selectedGuide,
+    selectedPersona,
+    setPlayerName: setContextPlayerName,
+  } = useContext(CreateContext).onboarding
 
-  // Use context player name or local state
-  const currentPlayerName = contextPlayerName || playerName;
+  const greetingText = useMemo(() => {
+    const guideName = selectedGuide?.name
+    if (!guideName) return DEFAULT_GREETING
+    return GUIDE_GREETINGS[guideName] || selectedGuide?.description || DEFAULT_GREETING
+  }, [selectedGuide?.name, selectedGuide?.description])
 
-  const getGuideGreeting = (guideName?: string): string => {
-    if (!guideName)
-      return "Greetings, traveler. Tell me - what shall I call you on this journey?";
-
-    switch (guideName) {
-      case "JANUS THE BUILDER":
-        return "Greetings, traveler. I am Janus, Master of the Foundation. Before we lay the first stone of your journey, tell me - what shall I call you as we build your legend together?";
-      case "JAREK THE ORACLE":
-        return "Welcome, seeker of knowledge. I am Jarek, Keeper of Ancient Wisdom. The threads of destiny have brought you here, but first - whisper your name to the winds of fate.";
-      case "GAIUS THE GUARDIAN":
-        return "Hail, brave soul. I am Gaius, your Shield in this realm. Before I can protect you on this perilous journey, I must know - by what name shall you be known?";
-      case "BRYN THE DAEMON":
-        return "Greetings, future architect of code. I am Bryn, the Flame of Efficiency. Before we optimize your path to greatness, input your identifier - what do they call you?";
-      default:
-        return (
-          selectedGuide?.description ||
-          "Greetings, traveler. Tell me - what shall I call you on this journey?"
-        );
-    }
-  };
-
-  // Guide-specific title display
   const getGuideTitle = (guideName?: string): string => {
-    if (!guideName) return "GUIDE";
+    if (!guideName) return 'GUIDE'
+    return GUIDE_TITLES[guideName] || selectedGuide?.title?.toUpperCase() || 'GUIDE'
+  }
 
-    switch (guideName) {
-      case "JANUS THE BUILDER":
-        return "BUILDER";
-      case "JAREK THE ORACLE":
-        return "ORACLE";
-      case "GAIUS THE GUARDIAN":
-        return "GUARDIAN";
-      case "BRYN THE DAEMON":
-        return "DAEMON";
-      default:
-        return selectedGuide?.title?.toUpperCase() || "GUIDE";
-    }
-  };
+  const getGuideImage = () => {
+    return GUIDE_IMAGES[selectedGuide?.id || '1'] || guide1
+  }
 
-  // Get the guide image with proper type checking
-  const getGuideImage = (): string => {
-    if (selectedGuide?.id && selectedGuide.id in guideImages) {
-      return guideImages[selectedGuide.id as keyof GuideImagesType];
+  const handleTypewriterCompleteRef = useRef(() => {
+    setShowInputSection(true)
+  })
+  const typewriterRef = useRef<TypewriterTextRef>(null)
+
+  const handleScreenTap = () => {
+    if (!showInputSection) {
+      typewriterRef.current?.skipToEnd()
     }
-    return "https://res.cloudinary.com/deensvquc/image/upload/v1753436774/Mask_group_ilokc7.png";
-  };
+  }
 
   const handleContinue = async () => {
-    const nameToUse = currentPlayerName.trim();
+    const nameToUse = playerName.trim()
 
     if (!nameToUse) {
-      toast.warning("Name Required", "Please enter your warrior name");
-      return;
+      toast.warning('Name Required', 'Please enter your warrior name')
+      return
     }
 
     if (!selectedPersona) {
-      toast.error("Persona Required", "Please select a persona first");
-      return;
+      toast.error('Persona Required', 'Please select a persona first')
+      return
     }
 
-    setIsCreating(true);
-
+    setIsCreating(true)
     try {
-      // Save to context
-      setContextPlayerName(nameToUse);
-
-      // Show success toast
-      toast.success("Name Chosen!", `Welcome to the realm, ${nameToUse}!`);
-
-      // Navigate to next screen
-      setCurrentOnboardingScreen("game-card-intro");
-
-      console.log("✅ Player name saved:", nameToUse);
-      console.log("Selected guide:", selectedGuide?.name);
-      console.log("Selected persona:", selectedPersona);
-    } catch (error: any) {
-      console.error("❌ Error saving name:", error);
-      toast.error("Error", "Something went wrong");
+      setContextPlayerName(nameToUse)
+      setCurrentOnboardingScreen('profile')
+    } catch (error) {
+      toast.error('Error', 'Something went wrong')
     } finally {
-      setIsCreating(false);
+      setIsCreating(false)
     }
-  };
+  }
 
   const handleNameChange = (text: string) => {
-    setPlayerName(text);
-  };
+    setPlayerName(text)
+    setContextPlayerName(text)
+  }
+
+  const isButtonDisabled = !playerName.trim() || isCreating
 
   return (
-    <View className="flex-1 h-full w-full flex justify-end items-end">
-      <View className="flex-1 justify-end">
-        <View
-          className="bg-[#663200] border-t-4 border-[#CA7422] w-full flex flex-row px-8"
-          style={{
-            height: 180, // Increased height for input elements
-            overflow: "visible",
-          }}
-        >
-          {/* Guide Image */}
-          <View className="w-[22%] relative" style={{ overflow: "visible" }}>
-            <Image
-              source={{
-                uri: getGuideImage(),
-              }}
-              className="w-[200px] h-[200px] relative z-20"
-              style={{
-                position: "absolute",
-                top: -5,
-                right: 2,
-              }}
-            />
-          </View>
-
-          {/* Conversation Content */}
-          <View className="flex-1 pt-2 pr-4">
-            {/* Guide Title Badge */}
-            <TouchableOpacity
-              className="w-24 p-1 bg-[#CA7422] rounded-[20px]"
-              style={{ marginTop: -20 }}
-              disabled
-            >
-              <Text className="text-white text-xs text-center font-bold">
-                {getGuideTitle(selectedGuide?.name)}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Greeting Text */}
-            <Text className="text-white text-sm mt-2 leading-5 mb-4">
-              {getGuideGreeting(selectedGuide?.name)}
-            </Text>
-
-            {/* Name Input Section */}
-            <View className="flex flex-row items-center gap-3 mt-2">
-              {/* Input Field */}
-              <View className="flex-1">
-                <TextInput
-                  value={currentPlayerName}
-                  onChangeText={handleNameChange}
-                  placeholder="Enter your name..."
-                  placeholderTextColor="#D4AF37"
-                  className="px-4 py-2 bg-[#4A2C17] border border-[#CA7422] rounded-xl text-white text-center"
-                  style={{
-                    fontSize: 14,
-                  }}
-                  maxLength={32}
-                  editable={!isCreating}
-                />
-              </View>
-
-              {/* Continue Button */}
-              <TouchableOpacity
-                onPress={handleContinue}
-                disabled={!currentPlayerName.trim() || isCreating}
-                className={`px-6 py-2 rounded-xl ${
-                  currentPlayerName.trim() && !isCreating
-                    ? "bg-[#CA7422]"
-                    : "bg-[#4A2C17] opacity-50"
-                }`}
-              >
-                <Text
-                  className={`text-center font-bold text-sm ${
-                    currentPlayerName.trim() && !isCreating
-                      ? "text-white"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {isCreating ? "Creating..." : "Continue"}
-                </Text>
-              </TouchableOpacity>
+    <View style={styles.container}>
+      <Pressable style={styles.contentWrapper} onPress={handleScreenTap}>
+        <View style={styles.contentWrapper}>
+          <ImageBackground style={styles.dialogBackground} source={require('../assets/onboarding/dialog-bg-2.png')}>
+            <View style={styles.guideImageContainer}>
+              <Image source={getGuideImage()} style={styles.guideImage} resizeMode="contain" />
             </View>
-          </View>
+            <View style={styles.textContainer}>
+              <TouchableOpacity style={styles.badge} disabled>
+                <Text style={styles.badgeText}>{getGuideTitle(selectedGuide?.name)}</Text>
+              </TouchableOpacity>
+              <TypewriterText
+                ref={typewriterRef}
+                key={`typewriter-${selectedGuide?.id}`}
+                text={greetingText}
+                style={[GameFonts.body, styles.typewriterText]}
+                {...GameTypewriterPresets.dialogue}
+                delay={500}
+                skipAnimation={false}
+                onComplete={handleTypewriterCompleteRef.current}
+              />
+              {showInputSection && (
+                <View style={styles.inputRow}>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      value={playerName}
+                      onChangeText={handleNameChange}
+                      placeholder="Enter your name..."
+                      placeholderTextColor="#666"
+                      style={styles.textInput}
+                      maxLength={MAX_NAME_LENGTH}
+                      editable={!isCreating}
+                    />
+                  </View>
+                  <TouchableOpacity onPress={handleContinue} disabled={isButtonDisabled} style={styles.buttonTouchable}>
+                    <ImageBackground
+                      source={require('../assets/onboarding/button-bg-main.png')}
+                      style={styles.buttonBackground}
+                      resizeMode="contain"
+                    >
+                      <Text style={[GameFonts.button, styles.buttonText, { opacity: isButtonDisabled ? 0.5 : 1 }]}>
+                        {isCreating ? 'Creating...' : 'Continue'}
+                      </Text>
+                    </ImageBackground>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </ImageBackground>
         </View>
-      </View>
+      </Pressable>
     </View>
-  );
-};
+  )
+}
 
-export default ChooseName;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    height: '100%',
+    width: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+  },
+  contentWrapper: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    width: '100%',
+  },
+  dialogBackground: {
+    width: '100%',
+    position: 'absolute',
+    bottom: -8,
+    flexDirection: 'row',
+    height: 180,
+  },
+  guideImageContainer: {
+    width: '30%',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  guideImage: {
+    width: 280,
+    height: 320,
+    position: 'absolute',
+    bottom: -54,
+    right: 25,
+    zIndex: 20,
+  },
+  textContainer: {
+    flex: 1,
+    paddingTop: 8,
+    paddingRight: 16,
+    width: '50%',
+  },
+  badge: {
+    width: 96,
+    padding: 4,
+    marginTop: -35,
+    borderColor: '#c873234d',
+    borderWidth: 1,
+    borderTopRightRadius: 10,
+    borderTopLeftRadius: 10,
+    backgroundColor: 'black',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  typewriterText: {
+    color: 'white',
+    marginTop: 8,
+    lineHeight: 32,
+    marginBottom: 8,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputWrapper: {
+    flex: 1,
+  },
+  textInput: {
+    paddingHorizontal: 16,
+    height: 40,
+    width: 428,
+    paddingVertical: 8,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    color: 'white',
+    fontSize: 14,
+  },
+  buttonTouchable: {},
+  buttonBackground: {
+    alignItems: 'center',
+    width: 'auto',
+    height: 'auto',
+    position: 'relative',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  buttonText: {
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 15,
+    color: 'black',
+  },
+})
+
+export default ChooseName

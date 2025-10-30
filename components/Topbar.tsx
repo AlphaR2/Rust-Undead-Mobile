@@ -1,36 +1,62 @@
-import { View, TouchableOpacity, Text } from 'react-native'
-import AntDesign from "@expo/vector-icons/AntDesign";
-import Feather from "@expo/vector-icons/Feather";
-import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import AntDesign from '@expo/vector-icons/AntDesign'
+import Feather from '@expo/vector-icons/Feather'
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6'
 import React from 'react'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 const Topbar = () => {
   return (
-    <View className="  w-full h-10 mt-1 flex flex-row justify-between px-4 bg-[#1a1a1a]">
-        <View className="flex flex-row items-center gap-x-2">
-          <TouchableOpacity>
-            <FontAwesome6 name="people-group" size={18} color="#cd7f32" />
-          </TouchableOpacity>
-          <TouchableOpacity className="flex flex-row items-center gap-x-1 p-1">
-            <AntDesign name="wallet" size={18} color="#cd7f32" className=''/>
-            {/* <Text className="text-sm">Wallet</Text> */}
-          </TouchableOpacity>
-        </View>
-        <Text className='text-[#cd7f32]'>Battle Arena</Text>
-        <View className="flex flex-row items-center gap-x-2">
-
-        <TouchableOpacity className="flex flex-row items-center gap-x-1 p-1">
-        <AntDesign name="Trophy" size={18} color="#cd7f32" />
-          {/* <Text className="text-sm">settings</Text> */}
+    <View style={styles.container}>
+      <View style={styles.leftSection}>
+        <TouchableOpacity>
+          <FontAwesome6 name="people-group" size={18} color="#cd7f32" />
         </TouchableOpacity>
-        <TouchableOpacity className="flex flex-row items-center gap-x-1 p-1">
-          <Feather name="settings" size={18} color="#cd7f32" />
-          {/* <Text className="text-sm">settings</Text> */}
+        <TouchableOpacity style={styles.iconButton}>
+          <AntDesign name="wallet" size={18} color="#cd7f32" />
         </TouchableOpacity>
-        </View>
-
       </View>
+      <Text style={styles.title}>Battle Arena</Text>
+      <View style={styles.rightSection}>
+        <TouchableOpacity style={styles.iconButton}>
+          <AntDesign name="Trophy" size={18} color="#cd7f32" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.iconButton}>
+          <Feather name="settings" size={18} color="#cd7f32" />
+        </TouchableOpacity>
+      </View>
+    </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    height: 40,
+    marginTop: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    backgroundColor: '#1a1a1a',
+  },
+  leftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 4,
+  },
+  title: {
+    color: '#cd7f32',
+  },
+})
 
 export default Topbar
