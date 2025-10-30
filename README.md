@@ -1,50 +1,102 @@
-# Welcome to your Expo app 👋
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+---
 
-## Get started
+# Rust Undead
 
-1. Install dependencies
+**Master Solana Through Gameplay**
 
-   ```bash
-   npm install
-   ```
+---
 
-2. Start the app
+## **About**
 
-   ```bash
-   npx expo start
-   ```
+Rust Undead is a gamified learning platform that teaches Solana blockchain development through interactive 2D gameplay. Players create undead warriors, battle through educational Story Mode chapters, and compete in PvP—mastering blockchain concepts without reading documentation.
 
-In the output, you'll find options to open the app in a
+Dubbed the "Duolingo of Solana," Rust Undead transforms the traditional learning experience by making education feel like the game you can't put down.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## **Game Features**
 
-## Get a fresh project
+### **Story Mode**
+Progress through educational chapters designed as 2D side-scrolling adventures:
+- Navigate checkpoints that teach core Solana concepts
+- Complete quizzes to earn weapons and power-ups
+- Face boss battles that test your knowledge
+- Unlock new chapters as you master fundamentals
 
-When you're ready, run:
+### **Battle Mode (PvP)**
+Challenge other players in competitive battles:
+- Quick learning sessions before each battle
+- Put your knowledge to the test against real opponents
+- Flex your warrior's stats and earned abilities
+- Climb leaderboards and prove your mastery
 
-```bash
-npm run reset-project
-```
+### **Undead Warriors**
+Create and customize your on-chain warrior:
+- Mint warriors with randomized stats on-chain(Attack, Defense, Knowledge, HP)
+- Four unique classes: Validator, Oracle, Guardian, Daemon
+- Rarity tiers: Common, Uncommon, Rare
+- Warriors stored as NFTs on Solana blockchain
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### **Platform Program**
+Solana projects can create custom educational chapters:
+- Projects build interactive content teaching their tools
+- Developers learn by playing through sponsored chapters
+- Faster, more engaging onboarding than traditional docs
 
-## Learn more
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+## **What You Learn**
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+**Distributed Systems Fundamentals:**
+- How blockchain networks operate
+- Node communication and consensus
+- Network architecture principles
 
-## Join the community
+**Solana Development:**
+- Blockchain client architecture
+- Smart contract concepts
+- Building on Solana ecosystem
 
-Join our community of developers creating universal apps.
+**Project-Specific Skills:**
+- Integration with Solana tools and platforms
+- Hands-on experience with ecosystem projects
+- Real-world development patterns
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+** and more**
+
+---
+
+## **Technology**
+
+- **Platform:** Native mobile game
+- **Blockchain:** Solana
+- **Infrastructure:** Magic Block Ephemeral Rollups for real time game engine. 
+- **Randomization:** VRF (Verifiable Random Function) for warrior stats
+- **UX:** Gassless transactions and embedded wallets 
+
+---
+
+## **Mission**
+
+We're solving blockchain education's 96% dropout problem by making learning addictive instead of tedious. When education feels like Dark Souls boss battles instead of homework, completion rates soar from 4% to 60%+.
+
+---
+
+## **Get Started**
+
+Download Rust Undead and start your journey from crypto-curious to Solana developer—one battle at a time.
+
+**Platform:** Mobile (Coming Soon to Solana Mobile) 
+
+**Website:** https://www.rustundead.fun/ 
+**Twitter:** https://x.com/rust_undead
+
+
+---
+
+## **For Projects**
+
+Interested in building an educational chapter for your Solana project? Reach out to learn about the Platform Program and how to onboard developers through gameplay.
+
+---
