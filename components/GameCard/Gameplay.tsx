@@ -1,3 +1,4 @@
+import { PROGRAM_ID } from '@/config/program'
 import { GAME_CONFIG, INSTRUCTION_AUTO_HIDE_DURATION, SPRITE_CONFIG, WORLD_CONFIG } from '@/constants/characters'
 import { PathContent, getCheckpointPositions } from '@/constants/Paths'
 import { CreateContext } from '@/context/Context'
@@ -10,7 +11,7 @@ import { completePathAndUnlockNext, getActivePath } from '@/utils/path'
 import { MaterialIcons } from '@expo/vector-icons'
 import Matter from 'matter-js'
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { Dimensions, PanResponder, StyleSheet, Text, TouchableOpacity, View, Animated } from 'react-native'
+import { Animated, Dimensions, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { GameEngine } from 'react-native-game-engine'
 import { BoundaryDetectionSystem } from '../game-engine/BoundaryDetectionSystem'
 import { Camera } from '../game-engine/camera'
@@ -58,7 +59,7 @@ const Gameplay: React.FC<GameplayProps> = ({
   const instructionTimerRef = useRef<NodeJS.Timeout | any>(null)
   const { setCurrentScreen, setPaths, paths } = useContext(CreateContext).path
   const { publicKey } = useWalletInfo()
-  const ephemeralProgram = useEphemeralProgram()
+  const ephemeralProgram = useEphemeralProgram(PROGRAM_ID)
   const { gamerProfilePda } = usePDAs(publicKey)
   const magicBlockProvider = useMagicBlockProvider()
 
@@ -95,33 +96,33 @@ const Gameplay: React.FC<GameplayProps> = ({
   const toastOpacity = useRef(new Animated.Value(0)).current
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const showTxToast = useCallback((signature: string) => {
-    console.log('🎨 Showing toast for signature:', signature)
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current)
-    }
+  const showTxToast = useCallback(
+    (signature: string) => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current)
+      }
 
-    const truncated = `${signature.slice(0, 4)}...${signature.slice(-4)}`
-    console.log('✂️ Truncated signature:', truncated)
-    setTxToast({ signature: truncated, visible: true })
+      const truncated = `${signature.slice(0, 4)}...${signature.slice(-4)}`
+      setTxToast({ signature: truncated, visible: true })
 
-    Animated.sequence([
-      Animated.timing(toastOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.delay(3000),
-      Animated.timing(toastOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      console.log('🎨 Toast animation complete')
-      setTxToast({ signature: '', visible: false })
-    })
-  }, [toastOpacity])
+      Animated.sequence([
+        Animated.timing(toastOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.delay(3000),
+        Animated.timing(toastOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setTxToast({ signature: '', visible: false })
+      })
+    },
+    [toastOpacity],
+  )
 
   useEffect(() => {
     if (data) {
@@ -198,25 +199,21 @@ const Gameplay: React.FC<GameplayProps> = ({
   const syncPositionToBlockchain = useCallback(
     async (position: number) => {
       if (!ephemeralProgram || !publicKey || !gamerProfilePda || !magicBlockProvider) {
-        console.warn('⚠️ Solana context not ready for position update')
-        console.log('ephemeralProgram:', !!ephemeralProgram)
-        console.log('publicKey:', publicKey?.toString())
-        console.log('gamerProfilePda:', gamerProfilePda?.toString())
-        console.log('magicBlockProvider:', !!magicBlockProvider)
         return
       }
 
       if (isUpdatingPosition.current) {
-        console.log('⏳ Position update in progress, queuing:', position)
         positionUpdateQueue.current.push(position)
         return
       }
 
       isUpdatingPosition.current = true
+      const timeoutId = setTimeout(() => {
+        isUpdatingPosition.current = false
+      }, 15000)
 
       try {
         const roundedPosition = Math.round(position)
-        console.log('📍 Syncing position to blockchain:', roundedPosition)
 
         const result = await updatePosition({
           ephemeralProgram,
@@ -226,23 +223,22 @@ const Gameplay: React.FC<GameplayProps> = ({
           magicBlockProvider,
         })
 
+        clearTimeout(timeoutId)
+
         if (result.success && result.signature) {
-          console.log('✅ Position synced:', roundedPosition, 'Sig:', result.signature)
           lastRecordedPosition.current = roundedPosition
           showTxToast(result.signature)
-        } else {
-          console.error('❌ Position sync failed:', result.error)
         }
       } catch (error) {
-        console.error('❌ Error syncing position:', error)
+        clearTimeout(timeoutId)
       } finally {
+        clearTimeout(timeoutId)
         isUpdatingPosition.current = false
 
         if (positionUpdateQueue.current.length > 0) {
           const nextPosition = positionUpdateQueue.current.pop()!
-          console.log('📥 Processing queued position:', nextPosition)
           positionUpdateQueue.current = []
-          syncPositionToBlockchain(nextPosition)
+          setTimeout(() => syncPositionToBlockchain(nextPosition), 500)
         }
       }
     },
@@ -250,24 +246,22 @@ const Gameplay: React.FC<GameplayProps> = ({
   )
 
   useEffect(() => {
-    console.log('🎮 Position tracking started')
+    if (!ephemeralProgram) {
+      return
+    }
+
     const interval = setInterval(() => {
       if (characterBody && running) {
         const currentPosition = Math.round(characterBody.position.x)
-        console.log('📊 Current position:', currentPosition, 'Last recorded:', lastRecordedPosition.current)
 
         if (currentPosition !== lastRecordedPosition.current) {
-          console.log('🔄 Position changed, syncing...')
           syncPositionToBlockchain(currentPosition)
         }
       }
     }, 1000)
 
-    return () => {
-      console.log('🛑 Position tracking stopped')
-      clearInterval(interval)
-    }
-  }, [characterBody, running, syncPositionToBlockchain])
+    return () => clearInterval(interval)
+  }, [characterBody, running, syncPositionToBlockchain, ephemeralProgram])
 
   useEffect(() => {
     Matter.World.add(world, [characterBody, groundBody, leftWall, rightWall])
@@ -294,7 +288,6 @@ const Gameplay: React.FC<GameplayProps> = ({
 
   const handleCheckpointReached = useCallback(
     (checkpointNumber: number, content: CheckpointContent) => {
-      console.log('🎯 Checkpoint reached:', checkpointNumber)
       setCurrentCheckpointNumber(checkpointNumber)
       setCurrentCheckpointContent(content)
       setShowMiniModal(true)
@@ -303,7 +296,6 @@ const Gameplay: React.FC<GameplayProps> = ({
 
       if (characterBody) {
         const position = Math.round(characterBody.position.x)
-        console.log('📍 Syncing position at checkpoint:', position)
         syncPositionToBlockchain(position)
       }
     },
@@ -379,11 +371,8 @@ const Gameplay: React.FC<GameplayProps> = ({
   }, [])
 
   const handleReachEnd = useCallback(() => {
-    console.log('🏁 Reached end of world!')
-    
     if (characterBody) {
       const position = Math.round(characterBody.position.x)
-      console.log('📍 Syncing final position:', position)
       syncPositionToBlockchain(position)
     }
 
@@ -451,10 +440,8 @@ const Gameplay: React.FC<GameplayProps> = ({
       y: characterBody.velocity.y,
     })
 
-    console.log('🛑 Movement stopped')
     if (characterBody) {
       const position = Math.round(characterBody.position.x)
-      console.log('📍 Syncing position on stop:', position)
       syncPositionToBlockchain(position)
     }
   }, [characterBody, syncPositionToBlockchain])
