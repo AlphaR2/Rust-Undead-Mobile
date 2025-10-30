@@ -23,7 +23,7 @@ export const BoundaryDetectionSystem = (entities: any, { time }: { time: any }) 
 
   // Check if character reached the end
   if (distanceFromEnd < BOUNDARY_THRESHOLD && !entities.reachedEnd) {
-    console.log('🏁 Character reached the END of the world!')
+    // console.log('🏁 Character reached the END of the world!')
     entities.reachedEnd = true
    
     

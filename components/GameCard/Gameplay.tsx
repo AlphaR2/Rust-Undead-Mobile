@@ -48,6 +48,7 @@ const Gameplay: React.FC<GameplayProps> = ({
   onBack,
   selectedCharacter,
   backgroundImages,
+  pathId,
   customEntities = {},
   pathIndex = 0,
 }) => {
@@ -85,6 +86,15 @@ const Gameplay: React.FC<GameplayProps> = ({
   const [activePathId, setActivePathId] = useState<string>('')
 
   const { data, loading } = useFetchConcepts()
+
+  const getConceptIndex = ()=>{
+    if(Number(pathId) === 4){
+      return 9
+    }else{
+      const pathIdFin = Number(pathId) - 1
+      return pathIdFin
+    }
+  }
 
   // Position tracking state
   const positionUpdateQueue = useRef<number[]>([])
@@ -331,7 +341,7 @@ const Gameplay: React.FC<GameplayProps> = ({
   }, [currentCheckpointNumber, paths, activePathId])
 
   useEffect(() => {
-    const pathContentRaw = pathContents && pathContents[pathIndex] ? pathContents[pathIndex] : null
+    const pathContentRaw = pathContents && pathContents[getConceptIndex()] ? pathContents[getConceptIndex()] : null
     setPath(pathContentRaw)
     setCheckpointPositions(
       pathContentRaw ? getCheckpointPositions(worldWidth, screenHeight, pathContentRaw.checkpoints.length) : [],
@@ -578,7 +588,8 @@ const Gameplay: React.FC<GameplayProps> = ({
           showMiniModal={showMiniModal}
           miniModalType={miniModalType}
           showQuizIntro={showQuizIntro}
-          allTopics={pathContents?.[pathIndex]?.checkpoints || []}
+          allTopics={pathContents?.[getConceptIndex()]?.checkpoints || []}
+          currentCheckpointNumber={currentCheckpointNumber}
         />
 
         <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers} />

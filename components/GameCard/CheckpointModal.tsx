@@ -27,6 +27,7 @@ interface CheckpointModalProps {
   miniModalType: string
   showQuizIntro?: boolean
   allTopics?: any[]
+  currentCheckpointNumber: number | null
 }
 
 export interface LearningContent {
@@ -58,6 +59,7 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
   miniModalType,
   showQuizIntro = false,
   allTopics = [],
+  currentCheckpointNumber,
 }) => {
   const { selectedGuide, playerName } = useContext(CreateContext).onboarding
   const [showQuiz, setShowQuiz] = useState(false)
@@ -67,7 +69,7 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
 
   if (!visible) return null
 
-  if (content?.topic_id === 6) {
+  if (currentCheckpointNumber === 6) {
     if (showMiniModal) {
       return (
         <View style={styles.miniModalOverlay}>
@@ -113,7 +115,7 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
       return (
         <Quiz
           onComplete={onContinue}
-          onBack={() => console.log('back')}
+          onBack={() => console.log(' ')}
           allTopics={allTopics}
           playerName={playerName || 'Traveler'}
         />

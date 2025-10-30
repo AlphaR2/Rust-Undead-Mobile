@@ -101,9 +101,9 @@ const useFetchConcepts = () => {
 
   const getConcepts = async () => {
     try {
-      console.log("Fetching concepts...");
+      // console.log("Fetching concepts...");
       const response = await fetch(CONCEPTS_ENDPOINT)
-      console.log("Response status:", response.status);
+      // console.log("Response status:", response.status);
 
       if (!response.ok) throw new Error(`Failed to fetch concepts: ${response.statusText}`)
 

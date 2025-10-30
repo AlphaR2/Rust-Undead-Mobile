@@ -233,13 +233,13 @@ const ProfileCreation = () => {
     try {
       const userPersona = getUserPersona()
 
-      console.log('Creating profile with:', {
-        username: playerName.trim(),
-        userPersona,
-        publicKey,
-        profilePda: profilePda.toBase58(),
-        userRegistryPda: userRegistryPda.toBase58(),
-      })
+      // console.log('Creating profile with:', {
+      //   username: playerName.trim(),
+      //   userPersona,
+      //   publicKey,
+      //   profilePda: profilePda.toBase58(),
+      //   userRegistryPda: userRegistryPda.toBase58(),
+      // })
 
       const result: UserProfileResult = await createUserProfile({
         program,

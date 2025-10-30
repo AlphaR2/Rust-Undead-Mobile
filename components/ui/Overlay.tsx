@@ -67,13 +67,16 @@ const OverlayScreen: React.FC<ConversationScreenProps> = ({
     setIsMuted(!isMuted)
   }
 
-  console.log('current index', contentid)
+  // console.log('current index', contentid)
 
   const screenHeight = Dimensions.get('window').height
+  function getRandomNumber() {
+    return Math.floor(Math.random() * 5)
+  }
 
   const currentMessages = useMemo(() => {
-    if (contentid && playerName) {
-      return UNDEAD_MESSAGES[contentid - 1](
+    if (playerName) {
+      return UNDEAD_MESSAGES[getRandomNumber()](
         playerName,
         title,
         learningContent.summary,
