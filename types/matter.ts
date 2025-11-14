@@ -1,6 +1,6 @@
 // types/matter.ts
-import { CharacterClass, ItemType } from '@/constants/characters'
 import Matter from 'matter-js'
+import { WarriorClass as CharacterClass } from './undead'
 
 export interface MatterBody extends Matter.Body {
   position: {

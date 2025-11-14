@@ -1,13 +1,17 @@
 import AnimatedCharacterCard from '@/components/GameCard/AnimatedCharacterCard'
 import { toast } from '@/components/ui/Toast'
 import { GameFonts } from '@/constants/GameFonts'
+import { CreateContext } from '@/context/Context'
 import { useBasicGameData } from '@/hooks/game/useBasicGameData'
-import { buildGamingProfile, gameProfileToRollup, UserProfileResult } from '@/hooks/useGameActions'
-import { useUndeadProgram } from '@/hooks/useUndeadProgram'
+import { buildGamingProfile, gameProfileToRollup } from '@/hooks/useGameActions'
+import { useKora } from '@/hooks/useKora'
+import { useUndeadProgram, useWalletInfo } from '@/hooks/useUndeadProgram'
 import { usePDAs } from '@/hooks/utils/useHelpers'
+import { UserProfileResult } from '@/types/actions'
 import { WarriorClass as CharacterClass } from '@/types/undead'
 import { MaterialIcons } from '@expo/vector-icons'
-import React, { useCallback, useState } from 'react'
+import { PublicKey } from '@solana/web3.js'
+import React, { useCallback, useContext, useState } from 'react'
 import { ActivityIndicator, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import PERSONA_BACKGROUND from '../../../assets/images/bg-assets/bg-012.png'
 
@@ -16,21 +20,25 @@ const CHARACTERS = [
     class: 'oracle' as CharacterClass,
     name: 'The Oracle',
     description: 'Master of ancient wisdom',
+    avatar: 'https://rustundead.fun/avatars/oracle.png',
   },
   {
     class: 'validator' as CharacterClass,
     name: 'The Validator',
     description: 'Balanced fighter',
+    avatar: 'https://rustundead.fun/avatars/validator.png',
   },
   {
     class: 'guardian' as CharacterClass,
     name: 'The Guardian',
     description: 'Fortress of protection',
+    avatar: 'https://rustundead.fun/avatars/guardian.png',
   },
   {
     class: 'daemon' as CharacterClass,
     name: 'The Daemon',
     description: 'Aggression and speed',
+    avatar: 'https://rustundead.fun/avatars/daemon.png',
   },
 ]
 
@@ -45,8 +53,45 @@ const AvatarSelection: React.FC<AvatarSelectionProps> = ({ onComplete, onBack })
   const [isCreating, setIsCreating] = useState(false)
 
   const { program } = useUndeadProgram()
-  const { publicKey } = useBasicGameData()
+  const { publicKey, walletType } = useWalletInfo()
+  const { userAddress } = useBasicGameData()
   const { gamerProfilePda } = usePDAs(publicKey)
+  const KoraService = useKora()
+  const { auth } = useContext(CreateContext)
+  const { getUserIdByWallet } = auth
+
+  const updateUserAvatar = useCallback(
+    async (avatarUrl: string) => {
+      try {
+        const userId = await getUserIdByWallet(userAddress!)
+        if (!userId) {
+          throw new Error('User ID not found')
+        }
+
+        const authToken = process.env.EXPO_PUBLIC_AUTH_PASSWORD
+        const response = await fetch(`https://undead-protocol.onrender.com/user/${userId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          method: 'PATCH',
+          body: JSON.stringify({
+            avatar: avatarUrl,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to update avatar')
+        }
+
+        return true
+      } catch (error) {
+        console.error('Error updating avatar:', error)
+        return false
+      }
+    },
+    [getUserIdByWallet, userAddress],
+  )
 
   const handleSelect = useCallback(
     async (characterClass: CharacterClass) => {
@@ -60,11 +105,40 @@ const AvatarSelection: React.FC<AvatarSelectionProps> = ({ onComplete, onBack })
           throw new Error('Wallet or program not ready')
         }
 
-        toast.info('Forging your gaming profile...')
+        let koraBlockhash: string | undefined
+        let koraPayer: PublicKey = publicKey
+        let koraHealth = false
+
+        if (walletType === 'privy') {
+          try {
+            koraHealth = await KoraService.checkHealth()
+
+            if (koraHealth) {
+              const [koraPayerInfo, koraBlockhashData] = await Promise.all([
+                KoraService.service.getPayerSigner(),
+                KoraService.service.getBlockhash(),
+              ])
+
+              if (koraPayerInfo?.signer_address) {
+                koraPayer = new PublicKey(koraPayerInfo.signer_address)
+              }
+
+              if (koraBlockhashData?.blockhash) {
+                koraBlockhash = koraBlockhashData.blockhash
+              }
+            }
+          } catch (koraError) {
+            toast.error('Kora unavailable')
+            koraHealth = false
+          }
+        }
 
         const profileResult: UserProfileResult = await buildGamingProfile({
           program,
           userPublicKey: publicKey,
+          koraPayer,
+          walletType,
+          koraHealth,
           characterClass,
           gamerProfilePda,
         })
@@ -73,22 +147,25 @@ const AvatarSelection: React.FC<AvatarSelectionProps> = ({ onComplete, onBack })
           throw new Error(profileResult.error || 'Failed to create gaming profile')
         }
 
-        toast.success('Gaming profile forged successfully!')
-
-        toast.info('Delegating profile to rollup...')
-
         const delegateResult: UserProfileResult = await gameProfileToRollup({
           program,
           userPublicKey: publicKey,
+          koraPayer,
+          walletType,
+          koraHealth,
           gamerProfilePda,
         })
 
         if (!delegateResult.success) {
-          toast.warning('Profile created but delegation failed. You can continue anyway.')
-        } else {
-          toast.success('Profile delegated successfully!')
+          throw new Error(delegateResult.error || 'Failed to delegate profile')
         }
 
+        const characterData = CHARACTERS.find((c) => c.class === characterClass)
+        if (characterData && userAddress) {
+          await updateUserAvatar(characterData.avatar)
+        }
+
+        toast.success('Success', 'Avatar created successfully!')
         onComplete(characterClass)
       } catch (error: any) {
         toast.error('Error', error?.message || 'Failed to create gaming profile')
@@ -97,7 +174,17 @@ const AvatarSelection: React.FC<AvatarSelectionProps> = ({ onComplete, onBack })
         setIsCreating(false)
       }
     },
-    [isCreating, program, publicKey, gamerProfilePda, onComplete],
+    [
+      isCreating,
+      program,
+      publicKey,
+      gamerProfilePda,
+      walletType,
+      KoraService,
+      userAddress,
+      updateUserAvatar,
+      onComplete,
+    ],
   )
 
   const toggleMute = useCallback(() => {
@@ -111,7 +198,7 @@ const AvatarSelection: React.FC<AvatarSelectionProps> = ({ onComplete, onBack })
       {isCreating && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#E0E0E0" />
+            <ActivityIndicator size="large" color="#c87323" />
             <Text style={[GameFonts.body, styles.loadingText]}>Forging your avatar...</Text>
           </View>
         </View>
@@ -156,6 +243,7 @@ const AvatarSelection: React.FC<AvatarSelectionProps> = ({ onComplete, onBack })
               name={character.name}
               description={character.description}
               isSelected={selectedCharacter === character.class}
+              isLoading={isCreating && selectedCharacter === character.class}
               onSelect={() => handleSelect(character.class)}
             />
           ))}
@@ -193,12 +281,6 @@ const styles = StyleSheet.create({
     color: '#E0E0E0',
     fontSize: 18,
     marginTop: 16,
-    textAlign: 'center',
-  },
-  loadingSubtext: {
-    color: '#999',
-    fontSize: 14,
-    marginTop: 8,
     textAlign: 'center',
   },
   header: {

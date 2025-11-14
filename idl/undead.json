@@ -1,19 +1,13 @@
-/**
- * Program IDL in camelCase format in order to be used in JS/TS.
- *
- * Note that this is only a type helper and is not the actual IDL. The original
- * IDL can be found at `target/idl/rust_undead.json`.
- */
-export type RustUndead = {
+{
   "address": "undWHawzrspG9R65bd6V2UxbEw8REc8yWtx4DQ6F3e9",
   "metadata": {
-    "name": "rustUndead",
+    "name": "rust_undead",
     "version": "0.1.0",
     "spec": "0.1.0"
   },
   "instructions": [
     {
-      "name": "buildGamingProfile",
+      "name": "build_gaming_profile",
       "discriminator": [
         23,
         242,
@@ -34,7 +28,7 @@ export type RustUndead = {
           "name": "player"
         },
         {
-          "name": "gamerProfile",
+          "name": "gamer_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -68,23 +62,23 @@ export type RustUndead = {
           }
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "characterClass",
+          "name": "character_class",
           "type": {
             "defined": {
-              "name": "warriorClass"
+              "name": "WarriorClass"
             }
           }
         }
       ]
     },
     {
-      "name": "buildUserProfile",
+      "name": "build_user_profile",
       "discriminator": [
         140,
         180,
@@ -105,7 +99,7 @@ export type RustUndead = {
           "name": "player"
         },
         {
-          "name": "userRegistry",
+          "name": "user_registry",
           "writable": true,
           "pda": {
             "seeds": [
@@ -135,7 +129,7 @@ export type RustUndead = {
           }
         },
         {
-          "name": "userProfile",
+          "name": "user_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -164,7 +158,7 @@ export type RustUndead = {
           }
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -177,14 +171,14 @@ export type RustUndead = {
           "name": "persona",
           "type": {
             "defined": {
-              "name": "userPersona"
+              "name": "UserPersona"
             }
           }
         }
       ]
     },
     {
-      "name": "callbackWarriorStats",
+      "name": "callback_warrior_stats",
       "discriminator": [
         16,
         177,
@@ -197,7 +191,7 @@ export type RustUndead = {
       ],
       "accounts": [
         {
-          "name": "vrfProgramIdentity",
+          "name": "vrf_program_identity",
           "docs": [
             "This check ensures that the vrf_program_identity (which is a PDA) is a signer",
             "enforcing the callback is executed by the VRF program through CPI"
@@ -223,7 +217,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "createWarrior",
+      "name": "create_warrior",
       "discriminator": [
         163,
         157,
@@ -248,7 +242,7 @@ export type RustUndead = {
           "signer": true
         },
         {
-          "name": "gameConfig",
+          "name": "game_config",
           "pda": {
             "seeds": [
               {
@@ -310,7 +304,7 @@ export type RustUndead = {
           }
         },
         {
-          "name": "userProfile",
+          "name": "user_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -339,16 +333,16 @@ export type RustUndead = {
           }
         },
         {
-          "name": "oracleQueue",
+          "name": "oracle_queue",
           "writable": true,
           "address": "Cuj97ggrhhidhbu39TijNVqE74xvKJ69gDervRUXAxGh"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "programIdentity",
+          "name": "program_identity",
           "pda": {
             "seeds": [
               {
@@ -368,11 +362,11 @@ export type RustUndead = {
           }
         },
         {
-          "name": "vrfProgram",
+          "name": "vrf_program",
           "address": "Vrf1RNUjXmQGjmQrQLvJHs9SNkvDJEsRVFPkfSQUwGz"
         },
         {
-          "name": "slotHashes",
+          "name": "slot_hashes",
           "address": "SysvarS1otHashes111111111111111111111111111"
         }
       ],
@@ -394,22 +388,22 @@ export type RustUndead = {
           "name": "class",
           "type": {
             "defined": {
-              "name": "warriorClass"
+              "name": "WarriorClass"
             }
           }
         },
         {
-          "name": "clientSeed",
+          "name": "client_seed",
           "type": "u8"
         },
         {
-          "name": "noVrf",
+          "name": "no_vrf",
           "type": "bool"
         }
       ]
     },
     {
-      "name": "gameProfileToRollup",
+      "name": "game_profile_to_rollup",
       "discriminator": [
         43,
         41,
@@ -427,7 +421,7 @@ export type RustUndead = {
           "signer": true
         },
         {
-          "name": "bufferUserGameProfile",
+          "name": "buffer_user_game_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -444,7 +438,7 @@ export type RustUndead = {
               },
               {
                 "kind": "account",
-                "path": "userGameProfile"
+                "path": "user_game_profile"
               }
             ],
             "program": {
@@ -487,7 +481,7 @@ export type RustUndead = {
           }
         },
         {
-          "name": "delegationRecordUserGameProfile",
+          "name": "delegation_record_user_game_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -508,17 +502,17 @@ export type RustUndead = {
               },
               {
                 "kind": "account",
-                "path": "userGameProfile"
+                "path": "user_game_profile"
               }
             ],
             "program": {
               "kind": "account",
-              "path": "delegationProgram"
+              "path": "delegation_program"
             }
           }
         },
         {
-          "name": "delegationMetadataUserGameProfile",
+          "name": "delegation_metadata_user_game_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -548,17 +542,17 @@ export type RustUndead = {
               },
               {
                 "kind": "account",
-                "path": "userGameProfile"
+                "path": "user_game_profile"
               }
             ],
             "program": {
               "kind": "account",
-              "path": "delegationProgram"
+              "path": "delegation_program"
             }
           }
         },
         {
-          "name": "userGameProfile",
+          "name": "user_game_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -592,15 +586,15 @@ export type RustUndead = {
           }
         },
         {
-          "name": "ownerProgram",
+          "name": "owner_program",
           "address": "undWHawzrspG9R65bd6V2UxbEw8REc8yWtx4DQ6F3e9"
         },
         {
-          "name": "delegationProgram",
+          "name": "delegation_program",
           "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -612,7 +606,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "initializeGameConfig",
+      "name": "initialize_game_config",
       "discriminator": [
         45,
         61,
@@ -630,7 +624,7 @@ export type RustUndead = {
           "signer": true
         },
         {
-          "name": "gameConfig",
+          "name": "game_config",
           "writable": true,
           "pda": {
             "seeds": [
@@ -658,19 +652,19 @@ export type RustUndead = {
           }
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "releasedChapters",
+          "name": "released_chapters",
           "type": "u8"
         }
       ]
     },
     {
-      "name": "initializeUndeadWorld",
+      "name": "initialize_undead_world",
       "discriminator": [
         189,
         213,
@@ -688,7 +682,7 @@ export type RustUndead = {
           "signer": true
         },
         {
-          "name": "gameConfig",
+          "name": "game_config",
           "pda": {
             "seeds": [
               {
@@ -715,7 +709,7 @@ export type RustUndead = {
           }
         },
         {
-          "name": "undeadWorld",
+          "name": "undead_world",
           "writable": true,
           "pda": {
             "seeds": [
@@ -738,19 +732,19 @@ export type RustUndead = {
               },
               {
                 "kind": "arg",
-                "path": "worldId"
+                "path": "world_id"
               }
             ]
           }
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "worldId",
+          "name": "world_id",
           "type": {
             "array": [
               "u8",
@@ -761,7 +755,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "processUndelegation",
+      "name": "process_undelegation",
       "discriminator": [
         196,
         28,
@@ -774,7 +768,7 @@ export type RustUndead = {
       ],
       "accounts": [
         {
-          "name": "baseAccount",
+          "name": "base_account",
           "writable": true
         },
         {
@@ -785,12 +779,12 @@ export type RustUndead = {
           "writable": true
         },
         {
-          "name": "systemProgram"
+          "name": "system_program"
         }
       ],
       "args": [
         {
-          "name": "accountSeeds",
+          "name": "account_seeds",
           "type": {
             "vec": "bytes"
           }
@@ -798,7 +792,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "startChapter",
+      "name": "start_chapter",
       "discriminator": [
         79,
         174,
@@ -816,7 +810,7 @@ export type RustUndead = {
           "signer": true
         },
         {
-          "name": "gamerProfile",
+          "name": "gamer_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -850,7 +844,7 @@ export type RustUndead = {
           }
         },
         {
-          "name": "undeadWorld",
+          "name": "undead_world",
           "writable": true,
           "pda": {
             "seeds": [
@@ -873,28 +867,28 @@ export type RustUndead = {
               },
               {
                 "kind": "arg",
-                "path": "worldId"
+                "path": "world_id"
               }
             ]
           }
         },
         {
-          "name": "magicProgram",
+          "name": "magic_program",
           "address": "Magic11111111111111111111111111111111111111"
         },
         {
-          "name": "magicContext",
+          "name": "magic_context",
           "writable": true,
           "address": "MagicContext1111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "chapterNumber",
+          "name": "chapter_number",
           "type": "u16"
         },
         {
-          "name": "worldId",
+          "name": "world_id",
           "type": {
             "array": [
               "u8",
@@ -909,7 +903,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "submitQuiz",
+      "name": "submit_quiz",
       "discriminator": [
         48,
         92,
@@ -930,7 +924,7 @@ export type RustUndead = {
           "name": "player"
         },
         {
-          "name": "gamerProfile",
+          "name": "gamer_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -964,7 +958,7 @@ export type RustUndead = {
           }
         },
         {
-          "name": "undeadWorld",
+          "name": "undead_world",
           "writable": true,
           "pda": {
             "seeds": [
@@ -987,17 +981,17 @@ export type RustUndead = {
               },
               {
                 "kind": "arg",
-                "path": "worldId"
+                "path": "world_id"
               }
             ]
           }
         },
         {
-          "name": "magicProgram",
+          "name": "magic_program",
           "address": "Magic11111111111111111111111111111111111111"
         },
         {
-          "name": "magicContext",
+          "name": "magic_context",
           "writable": true,
           "address": "MagicContext1111111111111111111111111111111"
         }
@@ -1008,7 +1002,7 @@ export type RustUndead = {
           "type": "u8"
         },
         {
-          "name": "worldId",
+          "name": "world_id",
           "type": {
             "array": [
               "u8",
@@ -1019,7 +1013,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "updatePosition",
+      "name": "update_position",
       "discriminator": [
         102,
         75,
@@ -1040,7 +1034,7 @@ export type RustUndead = {
           "name": "player"
         },
         {
-          "name": "gamerProfile",
+          "name": "gamer_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1074,11 +1068,11 @@ export type RustUndead = {
           }
         },
         {
-          "name": "magicProgram",
+          "name": "magic_program",
           "address": "Magic11111111111111111111111111111111111111"
         },
         {
-          "name": "magicContext",
+          "name": "magic_context",
           "writable": true,
           "address": "MagicContext1111111111111111111111111111111"
         }
@@ -1091,7 +1085,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "worldToRollup",
+      "name": "world_to_rollup",
       "discriminator": [
         231,
         38,
@@ -1109,7 +1103,7 @@ export type RustUndead = {
           "signer": true
         },
         {
-          "name": "bufferUndeadWorld",
+          "name": "buffer_undead_world",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1126,7 +1120,7 @@ export type RustUndead = {
               },
               {
                 "kind": "account",
-                "path": "undeadWorld"
+                "path": "undead_world"
               }
             ],
             "program": {
@@ -1169,7 +1163,7 @@ export type RustUndead = {
           }
         },
         {
-          "name": "delegationRecordUndeadWorld",
+          "name": "delegation_record_undead_world",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1190,17 +1184,17 @@ export type RustUndead = {
               },
               {
                 "kind": "account",
-                "path": "undeadWorld"
+                "path": "undead_world"
               }
             ],
             "program": {
               "kind": "account",
-              "path": "delegationProgram"
+              "path": "delegation_program"
             }
           }
         },
         {
-          "name": "delegationMetadataUndeadWorld",
+          "name": "delegation_metadata_undead_world",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1230,17 +1224,17 @@ export type RustUndead = {
               },
               {
                 "kind": "account",
-                "path": "undeadWorld"
+                "path": "undead_world"
               }
             ],
             "program": {
               "kind": "account",
-              "path": "delegationProgram"
+              "path": "delegation_program"
             }
           }
         },
         {
-          "name": "undeadWorld",
+          "name": "undead_world",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1263,27 +1257,27 @@ export type RustUndead = {
               },
               {
                 "kind": "arg",
-                "path": "worldId"
+                "path": "world_id"
               }
             ]
           }
         },
         {
-          "name": "ownerProgram",
+          "name": "owner_program",
           "address": "undWHawzrspG9R65bd6V2UxbEw8REc8yWtx4DQ6F3e9"
         },
         {
-          "name": "delegationProgram",
+          "name": "delegation_program",
           "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "worldId",
+          "name": "world_id",
           "type": {
             "array": [
               "u8",
@@ -1296,7 +1290,7 @@ export type RustUndead = {
   ],
   "accounts": [
     {
-      "name": "gameConfig",
+      "name": "GameConfig",
       "discriminator": [
         45,
         146,
@@ -1309,7 +1303,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "gamerProfile",
+      "name": "GamerProfile",
       "discriminator": [
         218,
         7,
@@ -1322,7 +1316,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "undeadWarrior",
+      "name": "UndeadWarrior",
       "discriminator": [
         221,
         104,
@@ -1335,7 +1329,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "undeadWorld",
+      "name": "UndeadWorld",
       "discriminator": [
         191,
         142,
@@ -1348,7 +1342,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "userProfile",
+      "name": "UserProfile",
       "discriminator": [
         32,
         37,
@@ -1361,7 +1355,7 @@ export type RustUndead = {
       ]
     },
     {
-      "name": "usernameRegistry",
+      "name": "UsernameRegistry",
       "discriminator": [
         145,
         217,
@@ -1377,254 +1371,254 @@ export type RustUndead = {
   "errors": [
     {
       "code": 6000,
-      "name": "invalidWarriorState",
+      "name": "InvalidWarriorState",
       "msg": "Warrior is not in the correct state for this action"
     },
     {
       "code": 6001,
-      "name": "notWarriorOwner",
+      "name": "NotWarriorOwner",
       "msg": "Only the warrior owner can perform this action"
     },
     {
       "code": 6002,
-      "name": "warriorNameTooLong",
+      "name": "WarriorNameTooLong",
       "msg": "Warrior name exceeds maximum length"
     },
     {
       "code": 6003,
-      "name": "warriorAlreadyInBattle",
+      "name": "WarriorAlreadyInBattle",
       "msg": "Warrior is already in a battle"
     },
     {
       "code": 6004,
-      "name": "warriorAlreadyExists",
+      "name": "WarriorAlreadyExists",
       "msg": "Warrior Name already exists"
     },
     {
       "code": 6005,
-      "name": "warriorOnCooldown",
+      "name": "WarriorOnCooldown",
       "msg": "Warrior On Cooldown"
     },
     {
       "code": 6006,
-      "name": "invalidBattleState",
+      "name": "InvalidBattleState",
       "msg": "Battle room is not in the correct state for this action"
     },
     {
       "code": 6007,
-      "name": "battleRoomFull",
+      "name": "BattleRoomFull",
       "msg": "Battle room already has two players"
     },
     {
       "code": 6008,
-      "name": "notBattleParticipant",
+      "name": "NotBattleParticipant",
       "msg": "Only battle participants can perform this action"
     },
     {
       "code": 6009,
-      "name": "playerNotReady",
+      "name": "PlayerNotReady",
       "msg": "Player has not marked themselves as ready"
     },
     {
       "code": 6010,
-      "name": "battleAlreadySettled",
+      "name": "BattleAlreadySettled",
       "msg": "Battle results have already been settled"
     },
     {
       "code": 6011,
-      "name": "invalidRoomId",
+      "name": "InvalidRoomId",
       "msg": "Room ID is invalid or too long"
     },
     {
       "code": 6012,
-      "name": "vrfRequestPending",
+      "name": "VrfRequestPending",
       "msg": "VRF request is still pending"
     },
     {
       "code": 6013,
-      "name": "invalidVrfResult",
+      "name": "InvalidVrfResult",
       "msg": "Invalid VRF result received"
     },
     {
       "code": 6014,
-      "name": "vrfRequestNotFound",
+      "name": "VrfRequestNotFound",
       "msg": "VRF request not found or expired"
     },
     {
       "code": 6015,
-      "name": "notAuthorized",
+      "name": "NotAuthorized",
       "msg": "Not authorized to perform this action"
     },
     {
       "code": 6016,
-      "name": "invalidSettlementAuthority",
+      "name": "InvalidSettlementAuthority",
       "msg": "Invalid settlement authority"
     },
     {
       "code": 6017,
-      "name": "insufficientFunds",
+      "name": "InsufficientFunds",
       "msg": "Insufficient funds for this operation"
     },
     {
       "code": 6018,
-      "name": "invalidConceptSelection",
+      "name": "InvalidConceptSelection",
       "msg": "Invalid concept selection"
     },
     {
       "code": 6019,
-      "name": "gameNotInitialized",
+      "name": "GameNotInitialized",
       "msg": "Game state has not been initialized"
     },
     {
       "code": 6020,
-      "name": "invalidErSessionId",
+      "name": "InvalidErSessionId",
       "msg": "Invalid ephemeral rollup session ID"
     },
     {
       "code": 6021,
-      "name": "playerNotInRoom",
+      "name": "PlayerNotInRoom",
       "msg": "Player not in room"
     },
     {
       "code": 6022,
-      "name": "alreadyReady",
+      "name": "AlreadyReady",
       "msg": "Player is ready"
     },
     {
       "code": 6023,
-      "name": "invalidWarrior",
+      "name": "InvalidWarrior",
       "msg": "Invalid Warrior"
     },
     {
       "code": 6024,
-      "name": "sameWarriorCannotBattle",
+      "name": "SameWarriorCannotBattle",
       "msg": "Same Warrior cannot Battle"
     },
     {
       "code": 6025,
-      "name": "warriorDefeated",
+      "name": "WarriorDefeated",
       "msg": "Warrior defeated"
     },
     {
       "code": 6026,
-      "name": "alreadyAnswered",
+      "name": "AlreadyAnswered",
       "msg": "Player has already answered this question"
     },
     {
       "code": 6027,
-      "name": "allQuestionsAnswered",
+      "name": "AllQuestionsAnswered",
       "msg": "All Questions answered"
     },
     {
       "code": 6028,
-      "name": "nameTooLong",
+      "name": "NameTooLong",
       "msg": "Name is too long, consider reducing it"
     },
     {
       "code": 6029,
-      "name": "nameEmpty",
+      "name": "NameEmpty",
       "msg": "Invalid, please input name"
     },
     {
       "code": 6030,
-      "name": "cannotAttackSelf",
+      "name": "CannotAttackSelf",
       "msg": "Warrior cannot attack itself"
     },
     {
       "code": 6031,
-      "name": "invalidQuestionIndex",
+      "name": "InvalidQuestionIndex",
       "msg": "Invalid Question Index"
     },
     {
       "code": 6032,
-      "name": "onlyCreatorCanCancel",
+      "name": "OnlyCreatorCanCancel",
       "msg": "Only the room creator can cancel the battle"
     },
     {
       "code": 6033,
-      "name": "battleAlreadyStarted",
+      "name": "BattleAlreadyStarted",
       "msg": "Battle has already started and cannot be cancelled"
     },
     {
       "code": 6034,
-      "name": "battleAlreadyCompleted",
+      "name": "BattleAlreadyCompleted",
       "msg": "Battle has already been completed"
     },
     {
       "code": 6035,
-      "name": "battleAlreadyCancelled",
+      "name": "BattleAlreadyCancelled",
       "msg": "Battle room has already been cancelled"
     },
     {
       "code": 6036,
-      "name": "cannotCancelAtThisStage",
+      "name": "CannotCancelAtThisStage",
       "msg": "Cannot cancel battle at this stage"
     },
     {
       "code": 6037,
-      "name": "cannotUndelegate",
+      "name": "CannotUndelegate",
       "msg": "Game not ready for Undelegation"
     },
     {
       "code": 6038,
-      "name": "invalidImageIndex",
+      "name": "InvalidImageIndex",
       "msg": "Invalid image index for the selected rarity"
     },
     {
       "code": 6039,
-      "name": "invalidClassRarity",
+      "name": "InvalidClassRarity",
       "msg": "Invalid warrior class and rarity combination"
     },
     {
       "code": 6040,
-      "name": "imageGenerationFailed",
+      "name": "ImageGenerationFailed",
       "msg": "Image generation failed"
     },
     {
       "code": 6041,
-      "name": "invalidScore",
+      "name": "InvalidScore",
       "msg": "Invalid Score"
     },
     {
       "code": 6042,
-      "name": "usernameAlreadyChoosen",
+      "name": "UsernameAlreadyChoosen",
       "msg": "Username already choosen"
     },
     {
       "code": 6043,
-      "name": "notFound",
+      "name": "NotFound",
       "msg": "Invalid Player Profile"
     }
   ],
   "types": [
     {
-      "name": "achievementLevel",
+      "name": "AchievementLevel",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "none"
+            "name": "None"
           },
           {
-            "name": "bronze"
+            "name": "Bronze"
           },
           {
-            "name": "silver"
+            "name": "Silver"
           },
           {
-            "name": "gold"
+            "name": "Gold"
           },
           {
-            "name": "platinum"
+            "name": "Platinum"
           },
           {
-            "name": "diamond"
+            "name": "Diamond"
           }
         ]
       }
     },
     {
-      "name": "gameConfig",
+      "name": "GameConfig",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1633,15 +1627,15 @@ export type RustUndead = {
             "type": "pubkey"
           },
           {
-            "name": "releasedChapters",
+            "name": "released_chapters",
             "type": "u8"
           },
           {
-            "name": "totalWarriors",
+            "name": "total_warriors",
             "type": "u32"
           },
           {
-            "name": "bossBattlesEnabled",
+            "name": "boss_battles_enabled",
             "type": "bool"
           },
           {
@@ -1656,7 +1650,7 @@ export type RustUndead = {
       }
     },
     {
-      "name": "gamerProfile",
+      "name": "GamerProfile",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1665,47 +1659,47 @@ export type RustUndead = {
             "type": "pubkey"
           },
           {
-            "name": "characterClass",
+            "name": "character_class",
             "type": {
               "defined": {
-                "name": "warriorClass"
+                "name": "WarriorClass"
               }
             }
           },
           {
-            "name": "currentChapter",
+            "name": "current_chapter",
             "type": "u16"
           },
           {
-            "name": "chaptersCompleted",
+            "name": "chapters_completed",
             "type": "u16"
           },
           {
-            "name": "currentPosition",
+            "name": "current_position",
             "type": "u32"
           },
           {
-            "name": "totalBattlesWon",
+            "name": "total_battles_won",
             "type": "u64"
           },
           {
-            "name": "totalBattlesLost",
+            "name": "total_battles_lost",
             "type": "u64"
           },
           {
-            "name": "totalBattlesFought",
+            "name": "total_battles_fought",
             "type": "u64"
           },
           {
-            "name": "quizzesTaken",
+            "name": "quizzes_taken",
             "type": "u16"
           },
           {
-            "name": "totalQuizScore",
+            "name": "total_quiz_score",
             "type": "u32"
           },
           {
-            "name": "undeadScore",
+            "name": "undead_score",
             "type": "u32"
           },
           {
@@ -1713,31 +1707,31 @@ export type RustUndead = {
             "type": "u8"
           },
           {
-            "name": "createdAt",
+            "name": "created_at",
             "type": "i64"
           }
         ]
       }
     },
     {
-      "name": "imageRarity",
+      "name": "ImageRarity",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "common"
+            "name": "Common"
           },
           {
-            "name": "uncommon"
+            "name": "Uncommon"
           },
           {
-            "name": "rare"
+            "name": "Rare"
           }
         ]
       }
     },
     {
-      "name": "undeadWarrior",
+      "name": "UndeadWarrior",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1763,47 +1757,47 @@ export type RustUndead = {
             }
           },
           {
-            "name": "createdAt",
+            "name": "created_at",
             "type": "i64"
           },
           {
-            "name": "baseAttack",
+            "name": "base_attack",
             "type": "u16"
           },
           {
-            "name": "baseDefense",
+            "name": "base_defense",
             "type": "u16"
           },
           {
-            "name": "baseKnowledge",
+            "name": "base_knowledge",
             "type": "u16"
           },
           {
-            "name": "currentHp",
+            "name": "current_hp",
             "type": "u16"
           },
           {
-            "name": "maxHp",
+            "name": "max_hp",
             "type": "u16"
           },
           {
-            "name": "warriorClass",
+            "name": "warrior_class",
             "type": {
               "defined": {
-                "name": "warriorClass"
+                "name": "WarriorClass"
               }
             }
           },
           {
-            "name": "battlesWon",
+            "name": "battles_won",
             "type": "u32"
           },
           {
-            "name": "battlesLost",
+            "name": "battles_lost",
             "type": "u32"
           },
           {
-            "name": "experiencePoints",
+            "name": "experience_points",
             "type": "u64"
           },
           {
@@ -1811,11 +1805,11 @@ export type RustUndead = {
             "type": "u16"
           },
           {
-            "name": "lastBattleAt",
+            "name": "last_battle_at",
             "type": "i64"
           },
           {
-            "name": "cooldownExpiresAt",
+            "name": "cooldown_expires_at",
             "type": "i64"
           },
           {
@@ -1823,31 +1817,31 @@ export type RustUndead = {
             "type": "u8"
           },
           {
-            "name": "imageRarity",
+            "name": "image_rarity",
             "type": {
               "defined": {
-                "name": "imageRarity"
+                "name": "ImageRarity"
               }
             }
           },
           {
-            "name": "imageIndex",
+            "name": "image_index",
             "type": "u8"
           },
           {
-            "name": "imageUri",
+            "name": "image_uri",
             "type": "string"
           }
         ]
       }
     },
     {
-      "name": "undeadWorld",
+      "name": "UndeadWorld",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "worldId",
+            "name": "world_id",
             "type": {
               "array": [
                 "u8",
@@ -1856,27 +1850,27 @@ export type RustUndead = {
             }
           },
           {
-            "name": "activePlayers",
+            "name": "active_players",
             "type": "u16"
           },
           {
-            "name": "totalPlayers",
+            "name": "total_players",
             "type": "u32"
           },
           {
-            "name": "totalCompletions",
+            "name": "total_completions",
             "type": "u32"
           },
           {
-            "name": "highestUndeadScoreAverage",
+            "name": "highest_undead_score_average",
             "type": "u32"
           },
           {
-            "name": "topCommander",
+            "name": "top_commander",
             "type": "pubkey"
           },
           {
-            "name": "createdAt",
+            "name": "created_at",
             "type": "i64"
           },
           {
@@ -1887,42 +1881,42 @@ export type RustUndead = {
       }
     },
     {
-      "name": "userPersona",
+      "name": "UserPersona",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "treasureHunter"
+            "name": "TreasureHunter"
           },
           {
-            "name": "boneSmith"
+            "name": "BoneSmith"
           },
           {
-            "name": "obsidianProphet"
+            "name": "ObsidianProphet"
           },
           {
-            "name": "graveBaron"
+            "name": "GraveBaron"
           },
           {
-            "name": "demeter"
+            "name": "Demeter"
           },
           {
-            "name": "collector"
+            "name": "Collector"
           },
           {
-            "name": "covenCaller"
+            "name": "CovenCaller"
           },
           {
-            "name": "seerOfAsh"
+            "name": "SeerOfAsh"
           },
           {
-            "name": "cerberus"
+            "name": "Cerberus"
           }
         ]
       }
     },
     {
-      "name": "userProfile",
+      "name": "UserProfile",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1937,11 +1931,11 @@ export type RustUndead = {
             }
           },
           {
-            "name": "userPersona",
+            "name": "user_persona",
             "type": {
               "option": {
                 "defined": {
-                  "name": "userPersona"
+                  "name": "UserPersona"
                 }
               }
             }
@@ -1951,15 +1945,15 @@ export type RustUndead = {
             "type": "u32"
           },
           {
-            "name": "achievementLevel",
+            "name": "achievement_level",
             "type": {
               "defined": {
-                "name": "achievementLevel"
+                "name": "AchievementLevel"
               }
             }
           },
           {
-            "name": "joinDate",
+            "name": "join_date",
             "type": "i64"
           },
           {
@@ -1970,7 +1964,7 @@ export type RustUndead = {
       }
     },
     {
-      "name": "usernameRegistry",
+      "name": "UsernameRegistry",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1990,24 +1984,24 @@ export type RustUndead = {
       }
     },
     {
-      "name": "warriorClass",
+      "name": "WarriorClass",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "validator"
+            "name": "Validator"
           },
           {
-            "name": "oracle"
+            "name": "Oracle"
           },
           {
-            "name": "guardian"
+            "name": "Guardian"
           },
           {
-            "name": "daemon"
+            "name": "Daemon"
           }
         ]
       }
     }
   ]
-};
+}

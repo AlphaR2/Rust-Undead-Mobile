@@ -4,13 +4,15 @@ import { PathContent, getCheckpointPositions } from '@/constants/Paths'
 import { CreateContext } from '@/context/Context'
 import { updatePosition } from '@/hooks/Rollup/useUndeadActions'
 import useFetchConcepts from '@/hooks/useFetchConcepts'
+import { useKora } from '@/hooks/useKora'
 import { useEphemeralProgram, useMagicBlockProvider, useWalletInfo } from '@/hooks/useUndeadProgram'
 import { usePDAs } from '@/hooks/utils/useHelpers'
 import { WarriorClass as CharacterClass } from '@/types/undead'
 import { completePathAndUnlockNext, getActivePath } from '@/utils/path'
 import { MaterialIcons } from '@expo/vector-icons'
+import { PublicKey } from '@solana/web3.js'
 import Matter from 'matter-js'
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Dimensions, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { GameEngine } from 'react-native-game-engine'
 import { BoundaryDetectionSystem } from '../game-engine/BoundaryDetectionSystem'
@@ -22,6 +24,7 @@ import ScrollingBackground from '../game-engine/scrollingBackground'
 import GameLoadingScreen from '../ui/Loading'
 import Checkpoint from './Checkpoint'
 import CheckpointModal, { CheckpointContent } from './CheckpointModal'
+import CheckpointsOverlay from './CheckpointsOverlay'
 import { CheckpointSystem, completeCheckpoint, createCheckpoint } from './CheckpointSystem'
 
 interface BackgroundImages {
@@ -59,7 +62,7 @@ const Gameplay: React.FC<GameplayProps> = ({
   const [showInstructions, setShowInstructions] = useState<boolean>(true)
   const instructionTimerRef = useRef<NodeJS.Timeout | any>(null)
   const { setCurrentScreen, setPaths, paths } = useContext(CreateContext).path
-  const { publicKey } = useWalletInfo()
+  const { publicKey, walletType } = useWalletInfo()
   const ephemeralProgram = useEphemeralProgram(PROGRAM_ID)
   const { gamerProfilePda } = usePDAs(publicKey)
   const magicBlockProvider = useMagicBlockProvider()
@@ -86,11 +89,12 @@ const Gameplay: React.FC<GameplayProps> = ({
   const [activePathId, setActivePathId] = useState<string>('')
 
   const { data, loading } = useFetchConcepts()
+  const KoraService = useKora()
 
-  const getConceptIndex = ()=>{
-    if(Number(pathId) === 4){
+  const getConceptIndex = () => {
+    if (Number(pathId) === 4) {
       return 9
-    }else{
+    } else {
       const pathIdFin = Number(pathId) - 1
       return pathIdFin
     }
@@ -100,6 +104,7 @@ const Gameplay: React.FC<GameplayProps> = ({
   const positionUpdateQueue = useRef<number[]>([])
   const isUpdatingPosition = useRef(false)
   const lastRecordedPosition = useRef<number>(0)
+  const pendingUpdatePromise = useRef<Promise<void> | null>(null)
 
   // Transaction toast state
   const [txToast, setTxToast] = useState<{ signature: string; visible: boolean }>({ signature: '', visible: false })
@@ -206,53 +211,80 @@ const Gameplay: React.FC<GameplayProps> = ({
   )
   const rightWall = rightWallRef.current
 
-  const syncPositionToBlockchain = useCallback(
-    async (position: number) => {
-      if (!ephemeralProgram || !publicKey || !gamerProfilePda || !magicBlockProvider) {
-        return
-      }
+  const processPositionQueue = useCallback(async () => {
+    if (!ephemeralProgram || !publicKey || !gamerProfilePda || !magicBlockProvider) {
+      positionUpdateQueue.current = []
+      return
+    }
 
-      if (isUpdatingPosition.current) {
-        positionUpdateQueue.current.push(position)
-        return
-      }
-
-      isUpdatingPosition.current = true
-      const timeoutId = setTimeout(() => {
-        isUpdatingPosition.current = false
-      }, 15000)
+    while (positionUpdateQueue.current.length > 0) {
+      const updateData = positionUpdateQueue.current.shift()
+      if (!updateData) break
 
       try {
-        const roundedPosition = Math.round(position)
+        let koraBlockhash: string | undefined
+        let koraPayer: PublicKey = publicKey
+        let koraHealth = false
+
+        try {
+          koraHealth = await KoraService.checkHealth()
+
+          if (koraHealth) {
+            const [koraPayerInfo, koraBlockhashData] = await Promise.all([
+              KoraService.service.getPayerSigner(),
+              KoraService.service.getBlockhash(),
+            ])
+
+            koraPayer = new PublicKey(koraPayerInfo.signer_address)
+            koraBlockhash = koraBlockhashData?.blockhash
+          }
+        } catch (koraError) {
+          // Silent error handling
+        }
 
         const result = await updatePosition({
           ephemeralProgram,
           playerPublicKey: publicKey,
+          koraPayer,
+          koraBlockhash,
+          walletType,
+          koraHealth,
           gamerProfilePda,
-          position: roundedPosition,
+          position: updateData,
           magicBlockProvider,
         })
 
-        clearTimeout(timeoutId)
-
         if (result.success && result.signature) {
-          lastRecordedPosition.current = roundedPosition
           showTxToast(result.signature)
         }
       } catch (error) {
-        clearTimeout(timeoutId)
-      } finally {
-        clearTimeout(timeoutId)
-        isUpdatingPosition.current = false
+        // Silent error handling
+      }
 
-        if (positionUpdateQueue.current.length > 0) {
-          const nextPosition = positionUpdateQueue.current.pop()!
-          positionUpdateQueue.current = []
-          setTimeout(() => syncPositionToBlockchain(nextPosition), 500)
-        }
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+
+    isUpdatingPosition.current = false
+    pendingUpdatePromise.current = null
+  }, [ephemeralProgram, publicKey, gamerProfilePda, magicBlockProvider, walletType, KoraService, showTxToast])
+
+  const syncPositionToBlockchain = useCallback(
+    (position: number) => {
+      if (!ephemeralProgram || !publicKey || !gamerProfilePda || !magicBlockProvider) {
+        return
+      }
+
+      const roundedPosition = Math.round(position)
+      const timestamp = Date.now()
+
+      positionUpdateQueue.current.push(roundedPosition)
+
+      if (!isUpdatingPosition.current) {
+        isUpdatingPosition.current = true
+        pendingUpdatePromise.current = processPositionQueue()
       }
     },
-    [ephemeralProgram, publicKey, gamerProfilePda, magicBlockProvider, showTxToast],
+    [ephemeralProgram, publicKey, gamerProfilePda, magicBlockProvider, processPositionQueue],
   )
 
   useEffect(() => {
@@ -350,22 +382,38 @@ const Gameplay: React.FC<GameplayProps> = ({
 
   const checkpointEntitiesRef = useRef<any>({})
 
-  useEffect(() => {
-    if (path && (checkpointPositions?.length ?? 0) > 0) {
-      const newCheckpointEntities: any = {}
-      checkpointPositions?.forEach((pos, index) => {
-        const checkpointData = createCheckpoint(world, pos.x, pos.y, index + 1, path.checkpoints[index])
-        newCheckpointEntities[`checkpoint_${index + 1}`] = {
-          ...checkpointData,
-          cameraOffsetRef: cameraOffsetRef,
-          renderer: Checkpoint,
-        }
-      })
+  // useEffect(() => {
+  //   if (path && (checkpointPositions?.length ?? 0) > 0) {
+  //     const newCheckpointEntities: any = {}
+  //     checkpointPositions?.forEach((pos, index) => {
+  //       const checkpointData = createCheckpoint(world, pos.x, pos.y, index + 1, path.checkpoints[index])
+  //       newCheckpointEntities[`checkpoint_${index + 1}`] = {
+  //         ...checkpointData,
+  //         cameraOffsetRef: cameraOffsetRef,
+  //         isCompleted: false,
+  //         renderer: Checkpoint,
+  //       }
+  //     })
 
-      checkpointEntitiesRef.current = newCheckpointEntities
-      Object.assign(entitiesRef.current, newCheckpointEntities)
+  //     checkpointEntitiesRef.current = newCheckpointEntities
+  //     Object.assign(entitiesRef.current, newCheckpointEntities)
+  //   }
+  // }, [checkpointPositions, path])
+
+  const checkpointEntities = useMemo(() => {
+    if (!checkpointPositions) {
+      return
     }
-  }, [checkpointPositions, path])
+    if (!path || checkpointPositions.length === 0) return {}
+
+    const entities: Record<string, any> = {}
+    checkpointPositions.forEach((pos, index) => {
+      const data = createCheckpoint(world, pos.x, pos.y, index + 1, path.checkpoints[index])
+      entities[`checkpoint_${index + 1}`] = data
+    })
+
+    return entities
+  }, [path, checkpointPositions, world])
 
   const handleSetCameraOffsetRef = useCallback((newOffset: { x: number; y: number }) => {
     cameraOffsetRef.current = newOffset
@@ -499,6 +547,7 @@ const Gameplay: React.FC<GameplayProps> = ({
 
   return (
     <View style={styles.container}>
+      {/* ---------- 7 PARALLAX LAYERS ---------- */}
       <ScrollingBackground
         source={backgroundImages.layer1}
         cameraOffset={cameraOffset}
@@ -508,7 +557,6 @@ const Gameplay: React.FC<GameplayProps> = ({
         parallaxFactor={0.1}
         layerWidth={576}
       />
-
       <ScrollingBackground
         source={backgroundImages.layer2}
         cameraOffset={cameraOffset}
@@ -518,7 +566,6 @@ const Gameplay: React.FC<GameplayProps> = ({
         parallaxFactor={0.2}
         layerWidth={576}
       />
-
       <ScrollingBackground
         source={backgroundImages.layer3}
         cameraOffset={cameraOffset}
@@ -528,7 +575,6 @@ const Gameplay: React.FC<GameplayProps> = ({
         parallaxFactor={0.3}
         layerWidth={576}
       />
-
       <ScrollingBackground
         source={backgroundImages.layer4}
         cameraOffset={cameraOffset}
@@ -538,7 +584,6 @@ const Gameplay: React.FC<GameplayProps> = ({
         parallaxFactor={0.45}
         layerWidth={576}
       />
-
       <ScrollingBackground
         source={backgroundImages.layer5}
         cameraOffset={cameraOffset}
@@ -548,17 +593,15 @@ const Gameplay: React.FC<GameplayProps> = ({
         parallaxFactor={0.6}
         layerWidth={576}
       />
-
       <ScrollingBackground
         source={backgroundImages.layer6}
         cameraOffset={cameraOffset}
         worldWidth={worldWidth}
-        screenWidth={screenWidth}
         screenHeight={screenHeight}
+        screenWidth={screenWidth}
         parallaxFactor={0.75}
         layerWidth={576}
       />
-
       <ScrollingBackground
         source={backgroundImages.layer7}
         cameraOffset={cameraOffset}
@@ -569,8 +612,10 @@ const Gameplay: React.FC<GameplayProps> = ({
         layerWidth={576}
       />
 
+      {/* ---------- DARK OVERLAY (optional) ---------- */}
       <View style={styles.overlay} />
 
+      {/* ---------- GAME ENGINE ---------- */}
       <View style={styles.gameWrapper}>
         <GameEngine
           ref={gameEngineRef}
@@ -580,6 +625,14 @@ const Gameplay: React.FC<GameplayProps> = ({
           running={running}
         />
 
+        {/* ---------- CHECKPOINTS ON TOP ---------- */}
+        <CheckpointsOverlay
+          checkpointEntities={checkpointEntities!}
+          cameraOffset={cameraOffset}
+          screenHeight={screenHeight}
+        />
+
+        {/* ---------- MODALS & UI ---------- */}
         <CheckpointModal
           visible={modalVisible}
           content={currentCheckpointContent}

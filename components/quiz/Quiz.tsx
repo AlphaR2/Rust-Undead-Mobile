@@ -1,7 +1,11 @@
+import { PROGRAM_ID } from '@/config/program'
 import { GameFonts } from '@/constants/GameFonts'
+import { submitQuiz } from '@/hooks/Rollup/useUndeadActions'
+import { useEphemeralProgram, useMagicBlockProvider, useWalletInfo } from '@/hooks/useUndeadProgram'
+import { encodeWorldId, usePDAs } from '@/hooks/utils/useHelpers'
 import { calculateQuizScore, PASS_THRESHOLD, QuizQuestion, selectRandomQuestions } from '@/utils/quiz'
 import React, { useEffect, useState } from 'react'
-import { Dimensions, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Dimensions, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import QuizFeedbackComp from './QuizFeedbackComp'
 
 interface QuizProps {
@@ -9,9 +13,10 @@ interface QuizProps {
   onBack: () => void
   allTopics: any[]
   playerName: string
+  chapterTitle: string
 }
 
-const Quiz: React.FC<QuizProps> = ({ onComplete, onBack, allTopics, playerName }) => {
+const Quiz: React.FC<QuizProps> = ({ onComplete, onBack, allTopics, playerName, chapterTitle }) => {
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [userAnswers, setUserAnswers] = useState<boolean[]>([])
@@ -19,6 +24,12 @@ const Quiz: React.FC<QuizProps> = ({ onComplete, onBack, allTopics, playerName }
   const [currentAnswer, setCurrentAnswer] = useState<boolean | null>(null)
   const [quizCompleted, setQuizCompleted] = useState(false)
   const [selectedAnswer, setSelectedAnswer] = useState<boolean | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const { publicKey } = useWalletInfo()
+  const ephemeralProgram = useEphemeralProgram(PROGRAM_ID)
+  const { gamerProfilePda } = usePDAs(publicKey)
+  const magicBlockProvider = useMagicBlockProvider()
 
   const screenHeight = Dimensions.get('window').height
 
@@ -55,8 +66,38 @@ const Quiz: React.FC<QuizProps> = ({ onComplete, onBack, allTopics, playerName }
     }
   }
 
-  const handleQuizComplete = () => {
-    onComplete()
+  const handleQuizComplete = async () => {
+    if (!ephemeralProgram || !publicKey || !gamerProfilePda || !magicBlockProvider) {
+      onComplete()
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const { worldIdBytes, undeadWorldPda } = encodeWorldId(chapterTitle, PROGRAM_ID)
+      const finalScore = Math.round(score)
+
+      const result = await submitQuiz({
+        ephemeralProgram,
+        playerPublicKey: publicKey,
+        gamerProfilePda,
+        undeadWorldPda,
+        score: finalScore,
+        worldId: worldIdBytes,
+        magicBlockProvider,
+      })
+
+      if (result.success) {
+        onComplete()
+      } else {
+        onComplete()
+      }
+    } catch (error) {
+      onComplete()
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (questions.length === 0) {
@@ -76,7 +117,7 @@ const Quiz: React.FC<QuizProps> = ({ onComplete, onBack, allTopics, playerName }
               ? `${playerName}, you have proven yourself worthy. The ancient spirits acknowledge your mastery. Score: ${score}%`
               : `The knowledge eludes you, ${playerName}. You have failed the trial. The spirits are displeased. Score: ${score}%`
           }
-          buttonText="Continue"
+          buttonText={isSubmitting ? 'Recording Score...' : 'Continue'}
           guideImage={require('@/assets/images/guides/guide-val.png')}
           backgroundImage={require('@/assets/images/bg-assets/bg-quiz.png')}
           dialogBackgroundImage={require('@/assets/onboarding/dialog-bg-2.png')}
@@ -87,6 +128,11 @@ const Quiz: React.FC<QuizProps> = ({ onComplete, onBack, allTopics, playerName }
           answerType={passed}
           badgeText={passed ? 'TRIAL PASSED' : 'TRIAL FAILED'}
         />
+        {isSubmitting && (
+          <View style={styles.submittingOverlay}>
+            <ActivityIndicator size="large" color="#D97706" />
+          </View>
+        )}
       </View>
     )
   }
@@ -266,6 +312,17 @@ const styles = StyleSheet.create({
     color: '#000000',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  submittingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1001,
   },
 })
 

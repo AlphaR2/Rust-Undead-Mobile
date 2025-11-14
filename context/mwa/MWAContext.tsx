@@ -306,7 +306,6 @@ export const MWAProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setWallet(null)
       setIsConnected(false)
       await clearStoredWalletInfo()
-      console.log(' [MWA] Disconnected despite error')
     }
   }, [wallet?.authToken, clearStoredWalletInfo])
 

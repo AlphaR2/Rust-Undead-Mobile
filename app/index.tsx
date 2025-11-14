@@ -1,7 +1,7 @@
 import { usePrivy } from '@privy-io/expo'
 import { router } from 'expo-router'
 import React, { useEffect } from 'react'
-import { Dimensions, Image,  StyleSheet, View } from 'react-native'
+import { Dimensions, Image, StyleSheet, View } from 'react-native'
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('screen')
 
@@ -12,12 +12,10 @@ export default function SplashScreen() {
     const checkAuthAndNavigate = async () => {
       try {
         if (user) {
-          console.log('User authenticated, navigating to guide')
           setTimeout(() => {
             router.replace('/guide')
           }, 2000)
         } else {
-          console.log('No user authenticated, navigating to intro')
           setTimeout(() => {
             router.replace('/intro')
           }, 3000)

@@ -5,7 +5,7 @@ import { useMWA } from '@/context/mwa/MWAContext'
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet'
 import { usePrivy } from '@privy-io/expo'
 import { router } from 'expo-router'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, ImageBackground, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import WELCOME_BACKGROUND from '../assets/images/bg-assets/bg-01.png'
@@ -18,24 +18,20 @@ const Intro: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false)
   const [hasNavigated, setHasNavigated] = useState(false)
 
-  // Bottom sheet ref
   const authSheetRef = useRef<AuthBottomSheetRef>(null)
 
   const { user } = usePrivy()
   const { isConnected: isMWAConnected, wallet: mwaWallet, error: mwaError } = useMWA()
 
-  const isAnyWalletConnected = !!user || isMWAConnected
+  const isAnyWalletConnected = useMemo(() => !!user || isMWAConnected, [user, isMWAConnected])
 
-  // Handle initial authentication check and animations
   useEffect(() => {
     if (isAnyWalletConnected && !hasNavigated) {
       setHasNavigated(true)
-      console.log('User already authenticated, navigating to guide')
       router.replace('/guide')
       return
     }
 
-    // Start animations for unauthenticated users
     if (!isAnyWalletConnected) {
       requestAnimationFrame(() => {
         Animated.parallel([
@@ -56,31 +52,26 @@ const Intro: React.FC = () => {
     }
   }, [isAnyWalletConnected, hasNavigated])
 
-  // Handle user authentication success (from email or other methods)
   useEffect(() => {
     if (user && !hasNavigated) {
       setHasNavigated(true)
       setIsConnecting(false)
       authSheetRef.current?.close()
       toast.success('Welcome to the Undead Realm!', 'Your dark journey begins now, mortal soul!')
-      console.log('User authentication successful, navigating to guide')
       router.replace('/guide')
     }
   }, [user, hasNavigated])
 
-  // Handle MWA connection success
   useEffect(() => {
     if (isMWAConnected && mwaWallet && !hasNavigated) {
       setHasNavigated(true)
       setIsConnecting(false)
       authSheetRef.current?.close()
       toast.success('Spirit Wallet Connected!', 'The undead realm recognizes your spiritual essence!')
-      console.log('MWA wallet connected, navigating to guide')
       router.replace('/guide')
     }
   }, [isMWAConnected, mwaWallet, hasNavigated])
 
-  // Handle MWA connection errors
   useEffect(() => {
     if (mwaError) {
       setIsConnecting(false)
@@ -139,7 +130,6 @@ const Intro: React.FC = () => {
     ).start()
   }
 
-  // Don't render anything if user is authenticated
   if (isAnyWalletConnected || hasNavigated) {
     return null
   }
@@ -190,7 +180,6 @@ const Intro: React.FC = () => {
           </SafeAreaView>
         </ImageBackground>
 
-        {/* Gorhom Bottom Sheet */}
         <AuthBottomSheet ref={authSheetRef} onWalletConnected={handleWalletConnected} />
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
@@ -209,7 +198,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.70)',
   },
   content: {
     position: 'relative',

@@ -1,14 +1,17 @@
+import { toast } from '@/components/ui/Toast'
 import { CreateContext } from '@/context/Context'
 import { useMWA } from '@/context/mwa/MWAContext'
 import { useBasicGameData } from '@/hooks/game/useBasicGameData'
+import { GUIDES } from '@/utils/helper'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import Octicons from '@expo/vector-icons/Octicons'
 import { usePrivy } from '@privy-io/expo'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useRouter } from 'expo-router'
-import React, { useContext, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
@@ -37,6 +40,13 @@ const GUIDE_IMAGES: Record<string, any> = {
   '2': guide2,
   '3': guide3,
   '4': guide4,
+}
+
+const GUIDE_NAME_TO_ID: Record<string, string> = {
+  'JANUS THE BUILDER': '1',
+  'JAREK THE ORACLE': '2',
+  'GAIUS THE GUARDIAN': '3',
+  'BRYN THE DAEMON': '4',
 }
 
 const DEFAULT_USERNAME = '...loading'
@@ -105,11 +115,71 @@ const Index = () => {
   const router = useRouter()
   const { logout: privyLogout } = usePrivy()
   const { disconnect: mwaDisconnect, isConnected: mwaConnected } = useMWA()
-  const { onboarding } = useContext(CreateContext)
-  const { selectedGuide } = onboarding
+  const { onboarding, auth } = useContext(CreateContext)
+  const { selectedGuide, setSelectedGuide } = onboarding
+  const { getUserIdByWallet, removeUserIdForWallet } = auth
   const { userProfile, balance, userAddress } = useBasicGameData()
 
   const [guideImage, setGuideImage] = useState(guide1)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadingStage, setLoadingStage] = useState<'initial' | 'fetching' | 'complete' | 'error'>('initial')
+  const hasFetchedRef = useRef(false)
+
+  const fetchUserGuide = useCallback(async () => {
+    if (!userAddress || hasFetchedRef.current) return
+
+    hasFetchedRef.current = true
+    setLoadingStage('fetching')
+
+    try {
+      const authToken = process.env.EXPO_PUBLIC_AUTH_PASSWORD
+      const userId = await getUserIdByWallet(userAddress)
+
+      if (!userId) {
+        setLoadingStage('complete')
+        setIsLoading(false)
+        return
+      }
+
+      const response = await fetch(`https://undead-protocol.onrender.com/user/${userId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        method: 'GET',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data')
+      }
+
+      const responseData = await response.json()
+
+      if (responseData.data?.choosenGuide) {
+        const guideName = responseData.data.choosenGuide
+        const guideId = GUIDE_NAME_TO_ID[guideName]
+        const guide = GUIDES.find((g) => g.id === guideId || g.name === guideName)
+
+        if (guide) {
+          await setSelectedGuide(guide)
+        }
+      }
+
+      setLoadingStage('complete')
+    } catch (error) {
+      console.error('Error fetching user guide:', error)
+      setLoadingStage('error')
+      toast.error('Error', 'Failed to load guide. Using default.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [userAddress, getUserIdByWallet, setSelectedGuide])
+
+  useEffect(() => {
+    if (userAddress && userProfile) {
+      fetchUserGuide()
+    }
+  }, [userAddress, userProfile, fetchUserGuide])
 
   useEffect(() => {
     if (selectedGuide?.id) {
@@ -135,6 +205,12 @@ const Index = () => {
             } else {
               await privyLogout()
             }
+
+            await onboarding.resetOnboarding()
+            if (userAddress) {
+              await removeUserIdForWallet(userAddress)
+            }
+
             router.replace('/')
           } catch (error) {
             return error instanceof Error ? error.message : 'Unknown error occurred'
@@ -157,12 +233,26 @@ const Index = () => {
   const copyToClipboard = async (text: string) => {
     try {
       Clipboard.setString(text)
-      // Optional: Show feedback to user
       Alert.alert('Copied', 'Text copied to clipboard!')
     } catch (error) {
       console.error('Failed to copy text:', error)
       Alert.alert('Error', 'Failed to copy text')
     }
+  }
+
+  if (isLoading) {
+    return (
+      <ImageBackground source={DASHBOARD_BACKGROUND} style={styles.container} resizeMode="cover">
+        <View style={styles.overlay} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#C87423" />
+          <Text style={styles.loadingText}>
+            {loadingStage === 'initial' && 'Initializing...'}
+            {loadingStage === 'fetching' && 'Loading your guide...'}
+          </Text>
+        </View>
+      </ImageBackground>
+    )
   }
 
   return (
@@ -200,13 +290,6 @@ const Index = () => {
                 <MaterialIcons name="monetization-on" size={16} color="#C87423" />
                 <Text style={styles.statValueSol}>{formatBalance(balance)}</Text>
               </View>
-
-              {/* <View style={styles.statItem}>
-                <MaterialIcons name="trending-up" size={16} color="#3B82F6" />
-                <Text style={styles.statValueBlue}>
-                  {userProfile ? `${userProfile.totalBattlesWon * XP_MULTIPLIER}` : DEFAULT_XP}
-                </Text>
-              </View> */}
             </View>
           </ImageBackground>
 
@@ -247,12 +330,10 @@ const Index = () => {
               <View style={styles.statBadge}>
                 <Image style={styles.statIcon} resizeMode="contain" source={warriorStatsIcon} />
                 <Text style={styles.statLabel}>Warriors</Text>
-                {/* <Text style={styles.statValue}>4</Text> */}
               </View>
               <View style={styles.statBadge}>
                 <Image style={styles.statIcon} resizeMode="contain" source={victoryStatsIcon} />
                 <Text style={styles.statLabel}>Victories</Text>
-                {/* <Text style={styles.statValue}>4</Text> */}
               </View>
             </View>
           </View>
@@ -269,6 +350,18 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  loadingText: {
+    color: '#C87423',
+    fontSize: 16,
+    marginTop: 16,
+    fontWeight: '600',
   },
   fireflyContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -348,7 +441,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   statsContainer: {
-    // width: '40%',
     position: 'relative',
     right: 12,
     alignItems: 'center',
@@ -356,7 +448,6 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    // gap: 16,
   },
   statItem: {
     borderRadius: 8,

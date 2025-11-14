@@ -26,8 +26,6 @@ export interface AuthBottomSheetRef {
 }
 
 export const AuthBottomSheet = forwardRef<AuthBottomSheetRef, AuthBottomSheetProps>(({ onWalletConnected }, ref) => {
-  console.log('Loaded Gorhom AuthBottomSheet version: 2025-09-11-v1')
-
   const bottomSheetRef = React.useRef<BottomSheet>(null)
   const insets = useSafeAreaInsets()
 
@@ -50,13 +48,11 @@ export const AuthBottomSheet = forwardRef<AuthBottomSheetRef, AuthBottomSheetPro
     state: emailState,
   } = useLoginWithEmail({
     onSendCodeSuccess: (email) => {
-      console.log('Code sent to:', email)
       setShowCodeInput(true)
       setErrorMessage('')
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     },
     onLoginSuccess: (user) => {
-      console.log('Email login successful:', user)
       onWalletConnected('email')
       bottomSheetRef.current?.close()
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
@@ -106,7 +102,6 @@ export const AuthBottomSheet = forwardRef<AuthBottomSheetRef, AuthBottomSheetPro
   }
 
   const handleMWAConnect = async () => {
-    console.log('handleMWAConnect triggered')
     if (!hasWalletsInstalled) {
       setErrorMessage('No Solana wallets installed. Please install a wallet app.')
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
@@ -128,7 +123,6 @@ export const AuthBottomSheet = forwardRef<AuthBottomSheetRef, AuthBottomSheetPro
       setErrorMessage('Please enter a valid email address.')
       return
     }
-    console.log('Sending code to:', email)
     await sendCode({ email: email.trim() })
   }
 
@@ -137,7 +131,7 @@ export const AuthBottomSheet = forwardRef<AuthBottomSheetRef, AuthBottomSheetPro
       setErrorMessage('Please enter a 6-digit code.')
       return
     }
-    console.log('Verifying code:', code)
+
     await loginWithCode({ code: code.trim(), email: email.trim() })
   }
 

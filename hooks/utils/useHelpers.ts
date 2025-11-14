@@ -4,7 +4,6 @@ import { Program } from '@coral-xyz/anchor'
 import { PublicKey, Transaction } from '@solana/web3.js'
 import { useMemo } from 'react'
 import { useWalletInfo } from '../../hooks/useUndeadProgram'
-import { withDeduplication } from '../../utils/helper'
 
 type UndeadProgram = Program<UndeadTypes>
 
@@ -120,41 +119,59 @@ export const buildAndExecuteTransaction = async (
   program: UndeadProgram,
   transaction: Transaction,
   payerPublicKey: PublicKey,
+  koraBlockhash?: string,
 ): Promise<string> => {
-  const operationKey = `tx_${payerPublicKey.toString()}_${Date.now()}`
 
-  return withDeduplication(operationKey, async () => {
-    try {
-      if (program.provider.sendAndConfirm) {
-        return await program.provider.sendAndConfirm(transaction, [], {
-          commitment: 'confirmed',
-          preflightCommitment: 'confirmed',
-          skipPreflight: false,
-        })
-      }
+  let blockhash: string
+  let lastValidBlockHeight: number
 
-      // Fallback manual signing
-      const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash('confirmed')
+  try {
+    if (koraBlockhash && typeof koraBlockhash === 'string' && koraBlockhash.length > 0) {
+      blockhash = koraBlockhash
+      const blockHashInfo = await program.provider.connection.getLatestBlockhash('confirmed')
+      lastValidBlockHeight = blockHashInfo.lastValidBlockHeight
+    } else {
+      const blockHashInfo = await program.provider.connection.getLatestBlockhash('confirmed')
+      blockhash = blockHashInfo.blockhash
+      lastValidBlockHeight = blockHashInfo.lastValidBlockHeight
+    }
+  } catch (error: any) {
+    throw new Error(`Failed to get blockhash: ${error.message}`)
+  }
 
-      transaction.recentBlockhash = blockhash
-      transaction.feePayer = payerPublicKey
+  transaction.recentBlockhash = blockhash
+  transaction.feePayer = payerPublicKey
 
-      const signedTx = await program.provider.wallet!.signTransaction(transaction)
-      const signature = await program.provider.connection.sendRawTransaction(signedTx.serialize(), {
-        skipPreflight: false,
-      })
+  if (program.provider.sendAndConfirm) {
+    return await program.provider.sendAndConfirm(transaction, [], {
+      commitment: 'confirmed',
+      preflightCommitment: 'confirmed',
+      skipPreflight: true,
+    })
+  }
 
-      await program.provider.connection.confirmTransaction({
+  if (program.provider.wallet) {
+    const signedTx = await program.provider.wallet.signTransaction(transaction)
+    const serializedTx = signedTx.serialize()
+
+    const signature = await program.provider.connection.sendRawTransaction(serializedTx, {
+      skipPreflight: true,
+      preflightCommitment: 'confirmed',
+    })
+
+    await program.provider.connection.confirmTransaction(
+      {
         signature,
         blockhash,
         lastValidBlockHeight,
-      })
+      },
+      'confirmed',
+    )
 
-      return signature
-    } catch (error: any) {
-      throw new Error(error.message || 'Transaction failed')
-    }
-  })
+    return signature
+  }
+
+  throw new Error('No signing method available')
 }
 
 /* ============ WORLD ID ENCODING/DECODING + PDA Generation ============ */

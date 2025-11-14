@@ -67,7 +67,7 @@ const OverlayScreen: React.FC<ConversationScreenProps> = ({
     setIsMuted(!isMuted)
   }
 
-  // console.log('current index', contentid)
+
 
   const screenHeight = Dimensions.get('window').height
   function getRandomNumber() {

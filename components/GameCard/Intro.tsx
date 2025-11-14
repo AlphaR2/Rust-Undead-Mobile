@@ -1,7 +1,6 @@
 import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
 import { useBasicGameData } from '@/hooks/game/useBasicGameData'
-import { router } from 'expo-router'
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import guide4 from '../../assets/images/guides/guide-daemon.png'
@@ -37,8 +36,8 @@ const GameCardIntro = () => {
   const [isSaving, setIsSaving] = useState(false)
 
   const { selectedGuide, playerName, setCurrentOnboardingScreen } = useContext(CreateContext).onboarding
-  const { accessToken } = useContext(CreateContext).auth
   const { userAddress } = useBasicGameData()
+  const { saveUserIdForWallet } = useContext(CreateContext).auth     
 
   const shouldSkipAnimation = useMemo(() => false, [playerName])
 
@@ -47,7 +46,13 @@ const GameCardIntro = () => {
 
     setIsSaving(true)
     try {
+      const authToken = process.env.EXPO_PUBLIC_AUTH_PASSWORD
+
       const response = await fetch(`https://undead-protocol.onrender.com/user`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
         method: 'POST',
         body: JSON.stringify({
           walletAddress: userAddress,
@@ -59,20 +64,22 @@ const GameCardIntro = () => {
             path: 0,
           },
         }),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
       })
 
       const responseData = await response.json()
 
       if (!response.ok) {
         if (responseData.message === 'Undead User exists already') {
+          if (responseData.data?._id && userAddress) {
+            await saveUserIdForWallet(userAddress, responseData.data._id)
+          }
           setCurrentOnboardingScreen('game-card-carousel')
           return
         }
         throw new Error(responseData.message ?? 'An error occurred')
+      }
+      if (responseData.data?._id && userAddress) {
+        await saveUserIdForWallet(userAddress, responseData.data._id)
       }
 
       toast.success('Success', 'Profile saved successfully')

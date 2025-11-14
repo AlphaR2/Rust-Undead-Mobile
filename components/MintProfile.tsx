@@ -1,11 +1,14 @@
 import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
 import { useBasicGameData } from '@/hooks/game/useBasicGameData'
-import { createUserProfile, UserProfileResult } from '@/hooks/useGameActions'
+import { createUserProfile } from '@/hooks/useGameActions'
+import { useKora } from '@/hooks/useKora'
 import { useUndeadProgram, useWalletInfo } from '@/hooks/useUndeadProgram'
 import { usePDAs } from '@/hooks/utils/useHelpers'
+import { UserProfileResult } from '@/types/actions'
 import { UserPersona } from '@/types/undead'
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { PublicKey } from '@solana/web3.js'
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Image, ImageBackground, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import guide4 from '../assets/images/guides/guide-daemon.png'
 import guide3 from '../assets/images/guides/guide-guard.png'
@@ -68,10 +71,11 @@ const GUIDES = [
 const ProfileCreation = () => {
   const [showMintButton, setShowMintButton] = useState(false)
   const [isMinting, setIsMinting] = useState(false)
-  const [profileCreationError, setProfileCreationError] = useState('')
-  const [profileCreated, setProfileCreated] = useState(false)
+  const { walletType } = useWalletInfo()
 
   const typewriterRef = useRef<TypewriterTextRef>(null)
+  const hasInitialized = useRef(false)
+  const KoraSerivce = useKora()
 
   const {
     setCurrentOnboardingScreen,
@@ -87,17 +91,19 @@ const ProfileCreation = () => {
   const { profilePda, getUsernameRegistryPda } = usePDAs(publicKey)
   const { userProfile, refreshData } = useBasicGameData()
 
+  const username = useMemo(() => userProfile?.username || null, [userProfile?.username])
+  const userPersonaValue = useMemo(() => userProfile?.userPersona || null, [userProfile?.userPersona])
+
   useEffect(() => {
-    if (userProfile?.username) {
-      setPlayerName(userProfile.username)
-      setSelectedPersona(userProfile.userPersona || UserPersona.TreasureHunter)
-      const matchingGuide = GUIDES.find((guide) => guide.name === 'JANUS THE BUILDER') || GUIDES[0]
-      setSelectedGuide(matchingGuide)
+    if (username && !hasInitialized.current) {
+      hasInitialized.current = true
+      setPlayerName(username)
+      setSelectedPersona(userPersonaValue || UserPersona.TreasureHunter)
       setCurrentOnboardingScreen('game-card-intro')
     }
-  }, [userProfile, setPlayerName, setSelectedPersona, setSelectedGuide, setCurrentOnboardingScreen])
+  }, [username, userPersonaValue, setPlayerName, setSelectedPersona, setCurrentOnboardingScreen])
 
-  const getUserPersona = (): UserPersona => {
+  const getUserPersona = useCallback((): UserPersona => {
     const personaMap: Record<string, UserPersona> = {
       bonesmith: UserPersona.BoneSmith,
       bone_smith: UserPersona.BoneSmith,
@@ -117,9 +123,9 @@ const ProfileCreation = () => {
     }
 
     return personaMap[selectedPersona?.toLowerCase() || ''] || UserPersona.BoneSmith
-  }
+  }, [selectedPersona])
 
-  const getGuideImage = () => {
+  const getGuideImage = useCallback(() => {
     const imageMap: Record<string, any> = {
       '1': guide1,
       '2': guide2,
@@ -127,9 +133,9 @@ const ProfileCreation = () => {
       '4': guide4,
     }
     return imageMap[selectedGuide?.id || '1'] || guide1
-  }
+  }, [selectedGuide?.id])
 
-  const getGuideTitle = (): string => {
+  const getGuideTitle = useCallback((): string => {
     if (!selectedGuide?.name) return 'GUIDE'
 
     const titleMap: Record<string, string> = {
@@ -140,9 +146,9 @@ const ProfileCreation = () => {
     }
 
     return titleMap[selectedGuide.name] || selectedGuide.title?.toUpperCase() || 'GUIDE'
-  }
+  }, [selectedGuide?.name, selectedGuide?.title])
 
-  const getProfileCreationMessage = (): string => {
+  const profileMessage = useMemo(() => {
     const name = playerName || 'Warrior'
     const messageMap: Record<string, string> = {
       'JANUS THE BUILDER': `${name}, the Necropolis awaits your mark! Forge your identity forever in the eternal stone, where your legend will stand unyielding against the tides of time!`,
@@ -155,11 +161,9 @@ const ProfileCreation = () => {
       messageMap[selectedGuide?.name || ''] ||
       `${name}, the Necropolis opens its gates! Etch your destiny upon the blockchain's eternal ledger, where your legend will rise immortal in the realm of shadows!`
     )
-  }
+  }, [playerName, selectedGuide?.name])
 
-  const profileMessage = useMemo(() => getProfileCreationMessage(), [playerName, selectedGuide?.name])
-
-  const getGuideSuccessMessage = (): string => {
+  const getGuideSuccessMessage = useCallback((): string => {
     const successMap: Record<string, string> = {
       'JANUS THE BUILDER': 'Your foundation has been built!',
       'JAREK THE ORACLE': 'Your essence flows through the blockchain!',
@@ -168,21 +172,20 @@ const ProfileCreation = () => {
     }
 
     return successMap[selectedGuide?.name || ''] || 'Your legend is inscribed!'
-  }
+  }, [selectedGuide?.name])
 
-  const handleTypewriterCompleteRef = useRef(() => {
+  const handleTypewriterComplete = useCallback(() => {
     setShowMintButton(true)
-  })
+  }, [])
 
-  const handleScreenTap = () => {
+  const handleScreenTap = useCallback(() => {
     if (!showMintButton) {
       typewriterRef.current?.skipToEnd()
     }
-  }
+  }, [showMintButton])
 
-  const handleForgeProfile = async () => {
+  const handleForgeProfile = useCallback(async () => {
     if (userProfile?.username) {
-      toast.info('Debug', 'User profile already exists')
       setCurrentOnboardingScreen('game-card-intro')
       return
     }
@@ -203,47 +206,58 @@ const ProfileCreation = () => {
     }
 
     if (playerName.trim().length > 32) {
-      setProfileCreationError('Username must be 32 characters or less')
       toast.error('Error', 'Username must be 32 characters or less')
       return
     }
 
     if (!selectedPersona) {
-      setProfileCreationError('Please select a persona')
       toast.error('Error', 'Please select a persona')
       return
     }
 
     if (!profilePda) {
-      setProfileCreationError('Unable to generate profile address')
       toast.error('Error', 'Unable to generate profile address')
       return
     }
 
     const userRegistryPda = getUsernameRegistryPda?.(playerName.trim())
     if (!userRegistryPda) {
-      setProfileCreationError('Unable to generate username registry address')
       toast.error('Error', 'Unable to generate username registry address')
       return
     }
 
     setIsMinting(true)
-    setProfileCreationError('')
 
     try {
       const userPersona = getUserPersona()
 
-      // console.log('Creating profile with:', {
-      //   username: playerName.trim(),
-      //   userPersona,
-      //   publicKey,
-      //   profilePda: profilePda.toBase58(),
-      //   userRegistryPda: userRegistryPda.toBase58(),
-      // })
+      let koraBlockhash: string | undefined
+      let koraPayer: PublicKey = publicKey
+      let koraHealth = false
+
+      try {
+        koraHealth = await KoraSerivce.checkHealth()
+
+        if (koraHealth) {
+          const [koraPayerInfo, koraBlockhashData] = await Promise.all([
+            KoraSerivce.service.getPayerSigner(),
+            KoraSerivce.service.getBlockhash(),
+          ])
+
+          koraPayer = new PublicKey(koraPayerInfo.signer_address)
+          koraBlockhash = koraBlockhashData?.blockhash
+        }
+      } catch (koraError) {
+        toast.error('Kora unavailable, proceeding without it')
+      }
 
       const result: UserProfileResult = await createUserProfile({
         program,
         userPublicKey: publicKey,
+        koraBlockhash,
+        koraHealth,
+        koraPayer,
+        walletType,
         username: playerName.trim(),
         userPersona,
         profilePda,
@@ -251,27 +265,37 @@ const ProfileCreation = () => {
       })
 
       if (result.success) {
-        setProfileCreated(true)
         toast.success('Success', getGuideSuccessMessage())
-
         await refreshData()
-
         setCurrentOnboardingScreen('game-card-intro')
       } else {
         const errorMsg = result.error || 'Failed to create profile'
-        setProfileCreationError(errorMsg)
         toast.error('Profile Creation Failed', errorMsg)
       }
     } catch (error: any) {
       const errorMessage = error?.message || 'Unexpected error occurred. Please try again.'
-      setProfileCreationError(errorMessage)
       toast.error('Error', errorMessage)
     } finally {
       setIsMinting(false)
     }
-  }
+  }, [
+    userProfile?.username,
+    isConnected,
+    program,
+    publicKey,
+    playerName,
+    selectedPersona,
+    profilePda,
+    getUsernameRegistryPda,
+    getUserPersona,
+    getGuideSuccessMessage,
+    refreshData,
+    setCurrentOnboardingScreen,
+    KoraSerivce,
+    walletType,
+  ])
 
-  const getButtonText = (): string => {
+  const buttonText = useMemo(() => {
     if (!isConnected) return 'Connect Wallet First'
 
     if (isMinting) {
@@ -292,7 +316,7 @@ const ProfileCreation = () => {
     }
 
     return buttonMap[selectedGuide?.name || ''] || 'Create Profile'
-  }
+  }, [isConnected, isMinting, selectedGuide?.name])
 
   const isButtonDisabled = isMinting || !isConnected || !playerName?.trim()
 
@@ -315,7 +339,7 @@ const ProfileCreation = () => {
               {...GameTypewriterPresets.dialogue}
               delay={300}
               skipAnimation={false}
-              onComplete={handleTypewriterCompleteRef.current}
+              onComplete={handleTypewriterComplete}
             />
 
             {showMintButton && (
@@ -331,7 +355,7 @@ const ProfileCreation = () => {
                     resizeMode="contain"
                   >
                     <Text style={[GameFonts.button, styles.buttonText, { opacity: isButtonDisabled ? 0.5 : 1 }]}>
-                      {getButtonText()}
+                      {buttonText}
                     </Text>
                   </ImageBackground>
                 </TouchableOpacity>
@@ -422,7 +446,8 @@ const styles = StyleSheet.create({
     height: 'auto',
     marginLeft: 170,
     top: -35,
-    left: 32,
+    // justifyContent: "flex-end",
+    left: '14%',
     paddingVertical: 15,
     paddingHorizontal: 32,
   },

@@ -28,6 +28,7 @@ interface CheckpointModalProps {
   showQuizIntro?: boolean
   allTopics?: any[]
   currentCheckpointNumber: number | null
+  chapterTitle?: string
 }
 
 export interface LearningContent {
@@ -60,6 +61,7 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
   showQuizIntro = false,
   allTopics = [],
   currentCheckpointNumber,
+  chapterTitle,
 }) => {
   const { selectedGuide, playerName } = useContext(CreateContext).onboarding
   const [showQuiz, setShowQuiz] = useState(false)
@@ -115,9 +117,10 @@ const CheckpointModal: React.FC<CheckpointModalProps> = ({
       return (
         <Quiz
           onComplete={onContinue}
-          onBack={() => console.log(' ')}
+          onBack={() => {}}
           allTopics={allTopics}
           playerName={playerName || 'Traveler'}
+          chapterTitle={chapterTitle || ''}
         />
       )
     }

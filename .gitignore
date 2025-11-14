@@ -34,7 +34,7 @@ yarn-error.*
 .env*.local
 .env
 android/
-idl/
+# idl/
 
 # typescript
 *.tsbuildinfo
@@ -42,5 +42,5 @@ idl/
 app-example
 /android
 /ios
-/idl
+# /idl
 

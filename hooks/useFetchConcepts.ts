@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface Question {
   question_id: number
@@ -50,6 +50,8 @@ interface FetchState {
   error: string | null
 }
 
+const API_BASE = 'https://undead-protocol.onrender.com/api/v1'
+
 const useFetchConcepts = () => {
   const [state, setState] = useState<FetchState>({
     data: null,
@@ -57,12 +59,9 @@ const useFetchConcepts = () => {
     error: null,
   })
 
-  useEffect(() => {
-  const API_BASE = 'https://poynt-sever-al5n.onrender.com/api/v1'
-  const CONCEPTS_ENDPOINT = `${API_BASE}/concept/all`
+  const organizationId = process.env.EXPO_PUBLIC_ORGANIZATIONID
 
-  const transformData = (conceptData: any): TransformedConcept[] => {
-    // If the API returns a single concept object
+  const transformData = useCallback((conceptData: any): TransformedConcept[] => {
     const conceptsArray = Array.isArray(conceptData) ? conceptData : [conceptData]
 
     return conceptsArray.map((concept, index) => {
@@ -75,7 +74,7 @@ const useFetchConcepts = () => {
           big_note: topic.learning_content.big_note,
           battle_relevance: topic.learning_content.battle_relevance,
         },
-        questions: topic.questions.map(q => ({
+        questions: topic.questions.map((q) => ({
           question_id: q.question_id,
           text: q.text,
           correct: q.correct,
@@ -83,7 +82,6 @@ const useFetchConcepts = () => {
         })),
       }))
 
-      // Example: duplicate 5th topic as 6th
       if (checkpoints.length >= 5) {
         const fifth = checkpoints[4]
         checkpoints.push({
@@ -97,46 +95,59 @@ const useFetchConcepts = () => {
         checkpoints,
       }
     })
-  }
+  }, [])
 
-  const getConcepts = async () => {
+  const getConcepts = useCallback(async () => {
+    if (!organizationId) {
+      setState({
+        data: null,
+        loading: false,
+        error: 'Organization ID not configured',
+      })
+      return
+    }
+
     try {
-      // console.log("Fetching concepts...");
-      const response = await fetch(CONCEPTS_ENDPOINT)
-      // console.log("Response status:", response.status);
+      const response = await fetch(`${API_BASE}/concept/all/${organizationId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
-      if (!response.ok) throw new Error(`Failed to fetch concepts: ${response.statusText}`)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch concepts: ${response.statusText}`)
+      }
 
       const responseData = await response.json()
-      // console.log("Raw response:", responseData);
-
-      // Handle either single or multiple concept(s)
       const conceptData = responseData.data || responseData
       const transformedData = transformData(conceptData)
-      // console.log("Transformed data:", transformedData)
 
       setState({
         data: transformedData,
         loading: false,
         error: null,
       })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred'
-      console.error("Fetch error:", message)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch concepts'
+      console.error('Error fetching concepts:', errorMessage)
 
       setState({
         data: null,
         loading: false,
-        error: message,
+        error: errorMessage,
       })
     }
+  }, [organizationId, transformData])
+
+  useEffect(() => {
+    getConcepts()
+  }, [getConcepts])
+
+  return {
+    ...state,
+    refetch: getConcepts,
   }
-
-  getConcepts()
-}, [])
-
-
-  return state
 }
 
 export default useFetchConcepts

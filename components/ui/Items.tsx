@@ -79,7 +79,7 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
       onSelect(itemId)
     }, 300)
   }
-  // console.log(activePathId)
+ 
 
   return (
     <ImageBackground style={styles.container} source={backgroundImage}>

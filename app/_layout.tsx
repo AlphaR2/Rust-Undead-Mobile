@@ -49,7 +49,7 @@ export default function RootLayout() {
           await NavigationBar.setVisibilityAsync('hidden')
         }
       } catch (error) {
-        console.log('Could not setup fullscreen mode:', error)
+        console.error('Could not setup fullscreen mode:', error)
       }
     }
 

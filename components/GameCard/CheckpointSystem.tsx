@@ -43,6 +43,7 @@ export const completeCheckpoint = (entities: any, checkpointNumber: number) => {
   return entities
 }
 
+// CheckpointSystem.ts
 export const createCheckpoint = (
   world: Matter.World,
   x: number,
@@ -51,21 +52,20 @@ export const createCheckpoint = (
   content: any,
   size: [number, number] = [60, 60],
 ) => {
-  const checkpointBody = Matter.Bodies.rectangle(x, y, size[0], size[1], {
+  const body = Matter.Bodies.rectangle(x, y, size[0], size[1], {
     label: `checkpoint_${checkpointNumber}`,
     isStatic: true,
     isSensor: true,
   })
 
-  Matter.World.add(world, checkpointBody)
+  Matter.World.add(world, body)
 
   return {
-    body: checkpointBody,
+    body,
     size,
     checkpointNumber,
     content,
     isCompleted: false,
     isTriggered: false,
-    cameraOffset: { x: 0, y: 0 },
   }
 }

@@ -1,108 +1,34 @@
 import { authority } from '@/config/program'
-import { RustUndead as UndeadTypes } from '@/types/idlTypes'
-import { UserPersona, Warrior, WarriorClass } from '@/types/undead'
-import { getImageRarityName, getUserPersonaVariant, getWarriorClassVariant } from '@/utils/helper'
-import { Program } from '@coral-xyz/anchor'
+
+import {
+  BuildGamingProfileParams,
+  CreateUserProfileParams,
+  CreateWarriorParams,
+  GameProfileToRollupParams,
+  UserProfileResult,
+  WarriorCreationResult,
+  WorldToRollupParams,
+} from '@/types/actions'
+import {
+  checkBalanceWithUserGuidance,
+  getImageRarityName,
+  getUserPersonaVariant,
+  getWarriorClassVariant,
+} from '@/utils/helper'
 import { LAMPORTS_PER_SOL, PublicKey, SendTransactionError, SystemProgram } from '@solana/web3.js'
 import { buildAndExecuteTransaction } from './utils/useHelpers'
+import { minimumBalance } from '@/constants/params'
 
-type UndeadProgram = Program<UndeadTypes>
 
-const minimumBalance = 0.002 * LAMPORTS_PER_SOL
-export interface CreateWarriorParams {
-  program: UndeadProgram
-  userPublicKey: PublicKey
-  name: string
-  dna: string
-  warriorPda: PublicKey
-  configPda: PublicKey
-  profilePda: PublicKey
-  warriorClass: WarriorClass
-  sessionInfo?: {
-    sessionToken: PublicKey
-    sessionSigner: {
-      publicKey: PublicKey
-    }
-  } | null
-  onProgress?: (stage: VRFStage, message: string) => void
-}
-
-export interface CreateUserProfileParams {
-  program: UndeadProgram
-  userPublicKey: PublicKey
-  username: string
-  userPersona: UserPersona
-  profilePda: PublicKey
-  userRegistryPda: PublicKey
-  sessionInfo?: {
-    sessionToken: PublicKey
-    sessionSigner: {
-      publicKey: PublicKey
-    }
-  } | null
-}
-
-export interface BuildGamingProfileParams {
-  program: UndeadProgram
-  userPublicKey: PublicKey
-  characterClass: WarriorClass
-  gamerProfilePda: PublicKey
-  sessionInfo?: {
-    sessionToken: PublicKey
-    sessionSigner: {
-      publicKey: PublicKey
-    }
-  } | null
-}
-
-export interface GameProfileToRollupParams {
-  program: UndeadProgram
-  userPublicKey: PublicKey
-  gamerProfilePda: PublicKey
-  sessionInfo?: {
-    sessionToken: PublicKey
-    sessionSigner: {
-      publicKey: PublicKey
-    }
-  } | null
-}
-
-export interface WorldToRollupParams {
-  program: UndeadProgram
-  userPublicKey: PublicKey
-  worldId: Uint8Array
-  undeadWorldPda: PublicKey
-  sessionInfo?: {
-    sessionToken: PublicKey
-    sessionSigner: {
-      publicKey: PublicKey
-    }
-  } | null
-}
-
-export interface UserProfileResult {
-  success: boolean
-  signature?: string
-  error?: string
-}
-
-export interface VRFStage {
-  stage: 'initializing' | 'submitting' | 'waiting_vrf' | 'polling' | 'completed' | 'error'
-  progress: number
-}
-
-export interface WarriorCreationResult {
-  success: boolean
-  signature?: string
-  error?: string
-  warrior?: Warrior | null
-}
 
 export const createWarriorWithVRF = async ({
   program,
   userPublicKey,
   name,
   dna,
+  koraPayer,
+  koraHealth,
+  walletType,
   warriorPda,
   profilePda,
   configPda,
@@ -148,15 +74,31 @@ export const createWarriorWithVRF = async ({
     }
 
     const hasActiveSession = !!sessionInfo
-    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+    let payerPublicKey: PublicKey
+    if (walletType === 'privy') {
+      if (koraHealth) {
+        payerPublicKey = koraPayer
+      } else {
+        // Kora is down, user's Privy wallet will pay
+        payerPublicKey = userPublicKey
+      }
+    } else {
+      //external wallet
+      payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+    }
 
-    const payerBalance = await program.provider.connection.getBalance(payerPublicKey)
-    if (payerBalance < minimumBalance) {
-      return {
-        success: false,
-        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
-          payerBalance / LAMPORTS_PER_SOL
-        } SOL). Need ~0.002 SOL for transaction.`,
+    if (walletType != 'privy' || koraHealth === false) {
+      try {
+        const balanceCheck = await checkBalanceWithUserGuidance(program, payerPublicKey, minimumBalance, sessionInfo)
+
+        if (!balanceCheck.success) {
+          return {
+            success: false,
+            error: balanceCheck.error!,
+          }
+        }
+      } catch (error: any) {
+        throw new Error('Failed to verify Privy wallet balance: ' + error.message)
       }
     }
 
@@ -371,6 +313,10 @@ export const createUserProfile = async ({
   program,
   userPublicKey,
   username,
+  koraPayer,
+  koraBlockhash,
+  walletType,
+  koraHealth,
   userPersona,
   profilePda,
   userRegistryPda,
@@ -399,22 +345,40 @@ export const createUserProfile = async ({
       // Profile doesn't exist, continue
     }
 
-    const payerBalance = await program.provider.connection.getBalance(userPublicKey)
-    if (payerBalance < minimumBalance) {
-      return {
-        success: false,
-        error: `Insufficient funds in ${userPublicKey ? 'session signer' : 'player'} wallet (${
-          payerBalance / LAMPORTS_PER_SOL
-        } SOL). Need ~0.002 SOL for transaction.`,
+    let payerPublicKey: PublicKey
+    if (walletType === 'privy') {
+      if (koraHealth) {
+        payerPublicKey = koraPayer
+      } else {
+        payerPublicKey = userPublicKey
+      }
+    } else {
+      payerPublicKey = userPublicKey
+    }
+
+    if (walletType !== 'privy' || koraHealth === false) {
+      try {
+        const balanceCheck = await checkBalanceWithUserGuidance(program, payerPublicKey, minimumBalance)
+
+        if (!balanceCheck.success) {
+          return {
+            success: false,
+            error: balanceCheck.error!,
+          }
+        }
+      } catch (error: any) {
+        throw new Error('Failed to verify wallet balance: ' + error.message)
       }
     }
+
+
 
     const personaVariant = getUserPersonaVariant(userPersona)
 
     const transaction = await program.methods
       .buildUserProfile(username, personaVariant)
       .accountsPartial({
-        signer: userPublicKey,
+        signer: payerPublicKey,
         player: userPublicKey,
         userRegistry: userRegistryPda,
         userProfile: profilePda,
@@ -422,7 +386,7 @@ export const createUserProfile = async ({
       })
       .transaction()
 
-    signature = await buildAndExecuteTransaction(program, transaction, userPublicKey)
+    signature = await buildAndExecuteTransaction(program, transaction, payerPublicKey, koraBlockhash)
 
     return { success: true, signature }
   } catch (error: any) {
@@ -457,10 +421,12 @@ export const createUserProfile = async ({
     return { success: false, error: errorMessage }
   }
 }
-
 export const buildGamingProfile = async ({
   program,
   userPublicKey,
+  koraPayer,
+  walletType,
+  koraHealth,
   characterClass,
   gamerProfilePda,
   sessionInfo,
@@ -480,15 +446,31 @@ export const buildGamingProfile = async ({
     }
 
     const hasActiveSession = !!sessionInfo
-    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+    let payerPublicKey: PublicKey
+    if (walletType === 'privy') {
+      if (koraHealth) {
+        payerPublicKey = koraPayer
+      } else {
+        // Kora is down, user's Privy wallet will pay
+        payerPublicKey = userPublicKey
+      }
+    } else {
+      //external wallet
+      payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+    }
 
-    const payerBalance = await program.provider.connection.getBalance(payerPublicKey)
-    if (payerBalance < minimumBalance) {
-      return {
-        success: false,
-        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
-          payerBalance / LAMPORTS_PER_SOL
-        } SOL). Need ~0.002 SOL for transaction.`,
+    if (walletType != 'privy' || koraHealth === false) {
+      try {
+        const balanceCheck = await checkBalanceWithUserGuidance(program, payerPublicKey, minimumBalance, sessionInfo)
+
+        if (!balanceCheck.success) {
+          return {
+            success: false,
+            error: balanceCheck.error!,
+          }
+        }
+      } catch (error: any) {
+        throw new Error('Failed to verify Privy wallet balance: ' + error.message)
       }
     }
 
@@ -541,6 +523,9 @@ export const buildGamingProfile = async ({
 export const gameProfileToRollup = async ({
   program,
   userPublicKey,
+  koraPayer,
+  walletType,
+  koraHealth,
   gamerProfilePda,
   sessionInfo,
 }: GameProfileToRollupParams): Promise<UserProfileResult> => {
@@ -552,15 +537,31 @@ export const gameProfileToRollup = async ({
 
   try {
     const hasActiveSession = !!sessionInfo
-    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+    let payerPublicKey: PublicKey
+    if (walletType === 'privy') {
+      if (koraHealth) {
+        payerPublicKey = koraPayer
+      } else {
+        // Kora is down, user's Privy wallet will pay
+        payerPublicKey = userPublicKey
+      }
+    } else {
+      //external wallet
+      payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+    }
 
-    const payerBalance = await program.provider.connection.getBalance(payerPublicKey)
-    if (payerBalance < minimumBalance) {
-      return {
-        success: false,
-        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
-          payerBalance / LAMPORTS_PER_SOL
-        } SOL). Need ~0.002 SOL for transaction.`,
+    if (walletType != 'privy' || koraHealth === false) {
+      try {
+        const balanceCheck = await checkBalanceWithUserGuidance(program, payerPublicKey, minimumBalance, sessionInfo)
+
+        if (!balanceCheck.success) {
+          return {
+            success: false,
+            error: balanceCheck.error!,
+          }
+        }
+      } catch (error: any) {
+        throw new Error('Failed to verify Privy wallet balance: ' + error.message)
       }
     }
     const transaction = await program.methods
@@ -599,6 +600,9 @@ export const gameProfileToRollup = async ({
 export const worldToRollup = async ({
   program,
   userPublicKey,
+  koraPayer,
+  walletType,
+  koraHealth,
   worldId,
   undeadWorldPda,
   sessionInfo,
@@ -615,15 +619,31 @@ export const worldToRollup = async ({
 
   try {
     const hasActiveSession = !!sessionInfo
-    const payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+    let payerPublicKey: PublicKey
+    if (walletType === 'privy') {
+      if (koraHealth) {
+        payerPublicKey = koraPayer
+      } else {
+        // Kora is down, user's Privy wallet will pay
+        payerPublicKey = userPublicKey
+      }
+    } else {
+      //external wallet
+      payerPublicKey = hasActiveSession ? sessionInfo.sessionSigner.publicKey : userPublicKey
+    }
 
-    const payerBalance = await program.provider.connection.getBalance(payerPublicKey)
-    if (payerBalance < minimumBalance) {
-      return {
-        success: false,
-        error: `Insufficient funds in ${hasActiveSession ? 'session signer' : 'player'} wallet (${
-          payerBalance / LAMPORTS_PER_SOL
-        } SOL). Need ~0.002 SOL for transaction.`,
+    if (walletType != 'privy' || koraHealth === false) {
+      try {
+        const balanceCheck = await checkBalanceWithUserGuidance(program, payerPublicKey, minimumBalance, sessionInfo)
+
+        if (!balanceCheck.success) {
+          return {
+            success: false,
+            error: balanceCheck.error!,
+          }
+        }
+      } catch (error: any) {
+        throw new Error('Failed to verify Privy wallet balance: ' + error.message)
       }
     }
 

@@ -1,50 +1,17 @@
-import { RustUndead as UndeadTypes } from '@/types/idlTypes'
-import { withDeduplication } from '@/utils/helper'
-import { Program } from '@coral-xyz/anchor'
+import { minimumBalance } from '@/constants/params'
+import { StartChapterParams, SubmitQuizParams, UndeadActionResult, UpdatePositionParams } from '@/types/actions'
+import { checkBalanceWithUserGuidance, withDeduplication } from '@/utils/helper'
 import { PublicKey, SendTransactionError } from '@solana/web3.js'
 import { sendERTransaction } from '../useUndeadProgram'
-
-type UndeadProgram = Program<UndeadTypes>
-
-export interface StartChapterParams {
-  ephemeralProgram: UndeadProgram
-  playerPublicKey: PublicKey
-  gamerProfilePda: PublicKey
-  undeadWorldPda: PublicKey
-  chapterNumber: number
-  worldId: Uint8Array
-  magicBlockProvider: any
-}
-
-export interface UpdatePositionParams {
-  ephemeralProgram: UndeadProgram
-  playerPublicKey: PublicKey
-  gamerProfilePda: PublicKey
-  position: number
-  magicBlockProvider: any
-}
-
-export interface SubmitQuizParams {
-  ephemeralProgram: UndeadProgram
-  playerPublicKey: PublicKey
-  gamerProfilePda: PublicKey
-  undeadWorldPda: PublicKey
-  score: number
-  worldId: Uint8Array
-  magicBlockProvider: any
-}
-
-export interface UndeadActionResult {
-  success: boolean
-  signature?: string
-  commitmentSignature?: string
-  error?: string
-}
 
 export const startChapter = async ({
   ephemeralProgram,
   playerPublicKey,
   gamerProfilePda,
+  koraPayer,
+  koraBlockhash,
+  walletType,
+  koraHealth,
   undeadWorldPda,
   chapterNumber,
   worldId,
@@ -69,44 +36,60 @@ export const startChapter = async ({
 
     try {
       try {
-        const profile = await ephemeralProgram.account.gamerProfile.fetch(gamerProfilePda)
-        console.log('✅ Gamer Profile Found:', gamerProfilePda.toString())
+        await ephemeralProgram.account.gamerProfile.fetch(gamerProfilePda)
       } catch (fetchError) {
-        console.error('❌ Gamer profile not found at:', gamerProfilePda.toString())
         return { success: false, error: 'Gamer profile does not exist on rollup' }
       }
 
       try {
-        const world = await ephemeralProgram.account.undeadWorld.fetch(undeadWorldPda)
-        console.log('✅ Undead World Found:', undeadWorldPda.toString())
+        await ephemeralProgram.account.undeadWorld.fetch(undeadWorldPda)
       } catch (fetchError) {
-        console.error('❌ Undead world not found at:', undeadWorldPda.toString())
         return { success: false, error: 'Undead world does not exist on rollup' }
       }
 
       const worldIdArray = Array.from(worldId)
 
-      console.log('📋 Start Chapter Accounts:', {
-        signer: playerPublicKey.toString(),
-        player: playerPublicKey.toString(),
-        gamerProfile: gamerProfilePda.toString(),
-        undeadWorld: undeadWorldPda.toString(),
-        chapterNumber,
-      })
+      let payerPublicKey: PublicKey
+      if (walletType === 'privy') {
+        payerPublicKey = playerPublicKey
+        // if (koraHealth) {
+        //   payerPublicKey = koraPayer
+        // } else {
+        //   payerPublicKey = playerPublicKey
+        // }
+      } else {
+        payerPublicKey = playerPublicKey
+      }
 
-      const methodBuilder = ephemeralProgram.methods.startChapter(chapterNumber, worldIdArray).accountsPartial({
-        signer: playerPublicKey,
-        player: playerPublicKey,
-        gamerProfile: gamerProfilePda,
-        undeadWorld: undeadWorldPda,
-      })
+      if (walletType !== 'privy' || koraHealth === false) {
+        try {
+          const balanceCheck = await checkBalanceWithUserGuidance(ephemeralProgram, payerPublicKey, minimumBalance)
+
+          if (!balanceCheck.success) {
+            return {
+              success: false,
+              error: balanceCheck.error!,
+            }
+          }
+        } catch (error: any) {
+          throw new Error('Failed to verify wallet balance: ' + error.message)
+        }
+      }
+
+      const methodBuilder = ephemeralProgram.methods
+        .startChapter(chapterNumber, worldIdArray, playerPublicKey)
+        .accountsPartial({
+          signer: payerPublicKey,
+          gamerProfile: gamerProfilePda,
+          undeadWorld: undeadWorldPda,
+        })
 
       commitmentSignature = await sendERTransaction(
         ephemeralProgram,
         methodBuilder,
-        playerPublicKey,
+        payerPublicKey,
         magicBlockProvider,
-        'Start Chapter',
+        koraBlockhash,
       )
 
       await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -117,12 +100,9 @@ export const startChapter = async ({
         commitmentSignature,
       }
     } catch (error: any) {
-      console.error('❌ Start Chapter Error:', error)
-
       if (error instanceof SendTransactionError) {
         try {
-          const logs = await error.getLogs(ephemeralProgram.provider.connection)
-          console.error('Transaction Logs:', logs)
+          await error.getLogs(ephemeralProgram.provider.connection)
         } catch {}
       }
 
@@ -152,6 +132,10 @@ export const startChapter = async ({
 export const updatePosition = async ({
   ephemeralProgram,
   playerPublicKey,
+  koraPayer,
+  koraBlockhash,
+  walletType,
+  koraHealth,
   gamerProfilePda,
   position,
   magicBlockProvider,
@@ -176,8 +160,34 @@ export const updatePosition = async ({
         return { success: false, error: 'Gamer profile does not exist' }
       }
 
+      let payerPublicKey: PublicKey
+      if (walletType === 'privy') {
+        if (koraHealth) {
+          payerPublicKey = koraPayer
+        } else {
+          payerPublicKey = playerPublicKey
+        }
+      } else {
+        payerPublicKey = playerPublicKey
+      }
+
+      if (walletType !== 'privy' || koraHealth === false) {
+        try {
+          const balanceCheck = await checkBalanceWithUserGuidance(ephemeralProgram, payerPublicKey, minimumBalance)
+
+          if (!balanceCheck.success) {
+            return {
+              success: false,
+              error: balanceCheck.error!,
+            }
+          }
+        } catch (error: any) {
+          throw new Error('Failed to verify wallet balance: ' + error.message)
+        }
+      }
+
       const methodBuilder = ephemeralProgram.methods.updatePosition(position).accountsPartial({
-        signer: playerPublicKey,
+        signer: payerPublicKey,
         player: playerPublicKey,
         gamerProfile: gamerProfilePda,
       })
@@ -185,9 +195,10 @@ export const updatePosition = async ({
       commitmentSignature = await sendERTransaction(
         ephemeralProgram,
         methodBuilder,
-        playerPublicKey,
+        payerPublicKey,
         magicBlockProvider,
-        'Update Position',
+
+        koraBlockhash,
       )
 
       await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -228,6 +239,10 @@ export const updatePosition = async ({
 export const submitQuiz = async ({
   ephemeralProgram,
   playerPublicKey,
+  koraPayer,
+  koraBlockhash,
+  walletType,
+  koraHealth,
   gamerProfilePda,
   undeadWorldPda,
   score,
@@ -269,9 +284,34 @@ export const submitQuiz = async ({
       }
 
       const worldIdArray = Array.from(worldId)
+      let payerPublicKey: PublicKey
+      if (walletType === 'privy') {
+        if (koraHealth) {
+          payerPublicKey = koraPayer
+        } else {
+          payerPublicKey = playerPublicKey
+        }
+      } else {
+        payerPublicKey = playerPublicKey
+      }
+
+      if (walletType !== 'privy' || koraHealth === false) {
+        try {
+          const balanceCheck = await checkBalanceWithUserGuidance(ephemeralProgram, payerPublicKey, minimumBalance)
+
+          if (!balanceCheck.success) {
+            return {
+              success: false,
+              error: balanceCheck.error!,
+            }
+          }
+        } catch (error: any) {
+          throw new Error('Failed to verify wallet balance: ' + error.message)
+        }
+      }
 
       const methodBuilder = ephemeralProgram.methods.submitQuiz(score, worldIdArray).accountsPartial({
-        signer: playerPublicKey,
+        signer: payerPublicKey,
         player: playerPublicKey,
         gamerProfile: gamerProfilePda,
         undeadWorld: undeadWorldPda,
@@ -280,9 +320,9 @@ export const submitQuiz = async ({
       commitmentSignature = await sendERTransaction(
         ephemeralProgram,
         methodBuilder,
-        playerPublicKey,
+        payerPublicKey,
         magicBlockProvider,
-        'Submit Quiz',
+        koraBlockhash,
       )
 
       await new Promise((resolve) => setTimeout(resolve, 2000))

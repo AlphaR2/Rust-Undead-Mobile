@@ -4,13 +4,12 @@ import GameCardIntro from '@/components/GameCard/Intro'
 import CharacterSelection from '@/components/GuideCarousel'
 import ProfileCreation from '@/components/MintProfile'
 import PersonaSelectionScreen from '@/components/Persona'
-import WarriorProfileSetup from '@/components/warrior/WarriorProfileSetup'
 import { GameFonts } from '@/constants/GameFonts'
 import { CreateContext } from '@/context/Context'
 import { useBasicGameData } from '@/hooks/game/useBasicGameData'
 import { GUIDES } from '@/utils/helper'
 import { router, useNavigation } from 'expo-router'
-import React, { JSX, useContext, useEffect, useState } from 'react'
+import React, { JSX, useContext, useEffect, useRef, useState } from 'react'
 import {
   Animated,
   Dimensions,
@@ -31,7 +30,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const ANIMATION_DURATION_LONG = 1000
 const ANIMATION_DURATION_SHORT = 800
 const ANIMATION_DELAY = 2000
-
+/**Onboarding Screen union */
 type OnboardingScreen =
   | 'welcome'
   | 'selection'
@@ -42,42 +41,64 @@ type OnboardingScreen =
   | 'game-card-carousel'
 
 const GuideSelection = () => {
-  const { currentOnboardingScreen, setCurrentOnboardingScreen, setSelectedGuide, setPlayerName, setSelectedPersona } =
-    useContext(CreateContext).onboarding
+  const { onboarding } = useContext(CreateContext)
+  const {
+    currentOnboardingScreen,
+    setCurrentOnboardingScreen,
+    setSelectedGuide,
+    setPlayerName,
+    setSelectedPersona,
+    selectedGuide,
+  } = onboarding
 
   const { userProfile } = useBasicGameData()
   const navigation = useNavigation()
+
+  //animation values
   const [fadeAnim] = useState(new Animated.Value(0))
   const [slideAnim] = useState(new Animated.Value(50))
   const [textDelayAnim] = useState(new Animated.Value(0))
-  const { userAddress } = useBasicGameData()
-  useContext(CreateContext).onboarding
-  const { accessToken } = useContext(CreateContext).auth
-  const { selectedGuide, playerName } = useContext(CreateContext).onboarding
+
+  const [isCheckingProfile, setIsCheckingProfile] = useState(true)
+
+  // refs for more persistent data
+  const hasLoadedProfile = useRef(false)
+  const profileUsername = useRef<string | null>(null)
+  const profilePersona = useRef<string | null>(null)
+
   useEffect(() => {
-    const loadUserProfile = async () => {
-      if (userProfile?.username) {
-        await setPlayerName(userProfile.username)
-        await setSelectedPersona(userProfile.userPersona)
-        const matchingGuide = GUIDES.find((guide) => guide.name === 'JANUS THE BUILDER') || GUIDES[0]
-        await setSelectedGuide(matchingGuide)
-      }
+    const currentUsername = userProfile?.username || null
+    const currentPersona = userProfile?.userPersona || null
+
+    if (
+      currentUsername &&
+      !hasLoadedProfile.current &&
+      (profileUsername.current !== currentUsername || profilePersona.current !== currentPersona)
+    ) {
+      hasLoadedProfile.current = true
+      profileUsername.current = currentUsername
+      profilePersona.current = currentPersona
+
+      setPlayerName(currentUsername)
+      setSelectedPersona(currentPersona)
+
+      const matchingGuide = GUIDES.find((guide) => guide.name === 'JANUS THE BUILDER') || GUIDES[0]
+      setSelectedGuide(matchingGuide)
     }
-
-    loadUserProfile()
-  }, [userProfile, setPlayerName, setSelectedPersona, setSelectedGuide])
+    if (userProfile !== undefined) {
+      setIsCheckingProfile(false)
+    }
+  }, [userProfile?.username, userProfile?.userPersona, setPlayerName, setSelectedPersona, setSelectedGuide])
 
   useEffect(() => {
-    requestAnimationFrame(() => {
-      startWelcomeAnimation()
-    })
+    const rafId = requestAnimationFrame(startWelcomeAnimation)
+    return () => cancelAnimationFrame(rafId)
   }, [])
 
   useEffect(() => {
     if (currentOnboardingScreen === 'selection') {
-      requestAnimationFrame(() => {
-        startSelectionAnimation()
-      })
+      const rafId = requestAnimationFrame(startSelectionAnimation)
+      return () => cancelAnimationFrame(rafId)
     }
   }, [currentOnboardingScreen])
 
@@ -87,13 +108,11 @@ const GuideSelection = () => {
     textDelayAnim.setValue(0)
 
     setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(textDelayAnim, {
-          toValue: 1,
-          duration: ANIMATION_DURATION_LONG,
-          useNativeDriver: true,
-        }),
-      ]).start()
+      Animated.timing(textDelayAnim, {
+        toValue: 1,
+        duration: ANIMATION_DURATION_LONG,
+        useNativeDriver: true,
+      }).start()
     }, ANIMATION_DELAY)
   }
 
@@ -115,15 +134,15 @@ const GuideSelection = () => {
     ]).start()
   }
 
+  /**Next Move if profile etc exists  */
   const handleNext = () => {
-    if (userProfile?.username && selectedGuide && selectedGuide.name) {
+    if (userProfile?.username && selectedGuide?.name) {
       router.push('/dashboard')
-      // saveProfile()
     } else {
       setCurrentOnboardingScreen('selection')
     }
   }
-
+  /**Moving back from the current  screen  */
   const handleBack = () => {
     const backMap: Record<OnboardingScreen, OnboardingScreen | 'default'> = {
       welcome: 'default',
@@ -159,6 +178,7 @@ const GuideSelection = () => {
     </TouchableOpacity>
   )
 
+  /**Welcome screen display */
   const renderWelcomeScreen = () => (
     <View style={styles.container}>
       <ImageBackground source={WELCOME_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -197,8 +217,8 @@ const GuideSelection = () => {
                   style={styles.buttonBackground}
                   resizeMode="contain"
                 >
-                  <Text style={[GameFonts.button]}>
-                    {userProfile?.username ? 'Continue Journey' : 'Meet the Guides'}
+                  <Text style={[GameFonts.button, { opacity: isCheckingProfile ? 0.5 : 1 }]}>
+                    {isCheckingProfile ? 'Loading...' : userProfile?.username ? 'Continue Journey' : 'Meet the Guides'}
                   </Text>
                 </ImageBackground>
               </TouchableOpacity>
@@ -209,6 +229,7 @@ const GuideSelection = () => {
     </View>
   )
 
+  /**Guide screen display */
   const renderGuideSelection = () => (
     <View style={styles.container}>
       <ImageBackground source={SELECTION_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -236,6 +257,7 @@ const GuideSelection = () => {
     </View>
   )
 
+  /**Persona screen display */
   const renderPersonaScreen = () => (
     <View style={styles.container}>
       <ImageBackground source={PERSONA_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -250,6 +272,7 @@ const GuideSelection = () => {
     </View>
   )
 
+  /**Profile name input screen display */
   const renderInputScreen = () => (
     <View style={styles.container}>
       <ImageBackground source={PRO_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -275,6 +298,7 @@ const GuideSelection = () => {
     </View>
   )
 
+  /**Mint profile screen display */
   const renderMintProfile = () => (
     <View style={styles.container}>
       <ImageBackground source={PRO_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -300,6 +324,7 @@ const GuideSelection = () => {
     </View>
   )
 
+  /**Game Intro screen display */
   const renderGameCardIntroScreen = () => (
     <View style={styles.container}>
       <ImageBackground source={PROFILE_BACKGROUND} style={styles.backgroundImage} resizeMode="cover">
@@ -336,26 +361,6 @@ const GuideSelection = () => {
     </View>
   )
 
-  const renderWarriorProfileSetupScreen = () => (
-    <View style={styles.container}>
-      <ImageBackground
-        source={{
-          uri: 'https://sapphire-geographical-goat-695.mypinata.cloud/ipfs/bafybeiaqhe26zritbjrhf7vaocixy22ep2ejxx6rawqlonjlqskywqcobu',
-        }}
-        resizeMode="cover"
-        style={styles.backgroundImage}
-      >
-        <View style={styles.overlay} />
-        <SafeAreaView style={styles.safeArea}>
-          {shouldShowBackButton && <BackButton />}
-          <View style={styles.content}>
-            <WarriorProfileSetup />
-          </View>
-        </SafeAreaView>
-      </ImageBackground>
-    </View>
-  )
-
   const screenMap: Record<OnboardingScreen, () => JSX.Element> = {
     welcome: renderWelcomeScreen,
     selection: renderGuideSelection,
@@ -381,15 +386,15 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.60)',
+    backgroundColor: 'rgba(0, 0, 0, 0.70)',
   },
   overlay2: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.70)',
   },
   overlay3: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.79)',
+    backgroundColor: 'rgba(0, 0, 0, 0.70)',
   },
   safeArea: {
     flex: 1,

@@ -1,8 +1,8 @@
-import { CharacterClass } from '@/constants/characters'
+import { CharacterClass } from '@/context/Context'
 import { getSpriteMetadata, getSpriteSheet } from '@/utils/spriteSheetLoader'
 import { Atlas, Canvas, Group, Skia, useImage, useRectBuffer } from '@shopify/react-native-skia'
 import React, { useEffect, useMemo } from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { Easing, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 
 interface AnimatedCharacterCardProps {
@@ -10,6 +10,7 @@ interface AnimatedCharacterCardProps {
   name: string
   description: string
   isSelected: boolean
+  isLoading?: boolean
   onSelect: () => void
 }
 
@@ -22,6 +23,7 @@ const AnimatedCharacterCard: React.FC<AnimatedCharacterCardProps> = ({
   name,
   description,
   isSelected,
+  isLoading = false,
   onSelect,
 }) => {
   const frameCounter = useSharedValue(0)
@@ -48,14 +50,25 @@ const AnimatedCharacterCard: React.FC<AnimatedCharacterCardProps> = ({
         easing: Easing.linear,
       }),
       -1,
-      false
+      false,
     )
   }, [frames, frameCounter])
 
   if (!spriteSheet) {
     return (
-      <TouchableOpacity style={[styles.card, isSelected && styles.cardSelected]} onPress={onSelect} activeOpacity={0.8}>
-        <View style={styles.fallback} />
+      <TouchableOpacity
+        style={[styles.card, isSelected && styles.cardSelected, isLoading && styles.cardLoading]}
+        onPress={onSelect}
+        activeOpacity={0.8}
+        disabled={isLoading}
+      >
+        <View style={styles.fallback}>
+          {isLoading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#c87323" />
+            </View>
+          )}
+        </View>
         <Text style={styles.name}>{name}</Text>
         <Text style={styles.description}>{description}</Text>
       </TouchableOpacity>
@@ -63,7 +76,12 @@ const AnimatedCharacterCard: React.FC<AnimatedCharacterCardProps> = ({
   }
 
   return (
-    <TouchableOpacity style={[styles.card, isSelected && styles.cardSelected]} onPress={onSelect} activeOpacity={0.8}>
+    <TouchableOpacity
+      style={[styles.card, isSelected && styles.cardSelected, isLoading && styles.cardLoading]}
+      onPress={onSelect}
+      activeOpacity={0.8}
+      disabled={isLoading}
+    >
       <View style={styles.canvasContainer}>
         <Canvas style={{ width: SPRITE_DISPLAY_SIZE, height: CANVAS_HEIGHT }}>
           <Group
@@ -77,6 +95,11 @@ const AnimatedCharacterCard: React.FC<AnimatedCharacterCardProps> = ({
             <Atlas image={spriteSheet} sprites={sprites} transforms={[Skia.RSXform(scale, 0, 0, 0)]} />
           </Group>
         </Canvas>
+        {isLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#c87323" />
+          </View>
+        )}
       </View>
       <Text style={styles.name}>{name}</Text>
       <Text style={styles.description}>{description}</Text>
@@ -98,16 +121,27 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderColor: 'rgba(200, 116, 35, 0.6)',
-    backgroundColor: 'rgba(200, 116, 35, 0.8)',
+    backgroundColor: 'rgba(200, 116, 35, 0.2)',
+    shadowColor: '#c87323',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 10,
     elevation: 10,
   },
+  cardLoading: {
+    borderColor: '#c87323',
+    backgroundColor: 'rgba(200, 116, 35, 0.3)',
+    shadowColor: '#c87323',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 15,
+  },
   canvasContainer: {
     width: 150,
     height: 180,
     marginBottom: 12,
+    position: 'relative',
   },
   fallback: {
     width: 150,
@@ -115,6 +149,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(200, 116, 35, 0.3)',
     borderRadius: 8,
     marginBottom: 12,
+    position: 'relative',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
   },
   name: {
     color: 'white',

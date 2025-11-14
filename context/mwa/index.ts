@@ -61,10 +61,6 @@ export const checkSpecificWalletApps = async (): Promise<{ wallet: WalletApp; is
   )
 
   const installedWallets = results.filter((r) => r.isInstalled)
-  console.log(
-    `📱 [MWA] Found ${installedWallets.length} installed wallets:`,
-    installedWallets.map((r) => r.wallet.name),
-  )
 
   return results
 }

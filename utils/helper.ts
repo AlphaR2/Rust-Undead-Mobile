@@ -1,4 +1,7 @@
+import { toast } from '@/components/ui/Toast'
+import { BalanceCheckResult } from '@/types/actions'
 import { ImageRarity, UserPersona, WarriorClass } from '@/types/undead'
+import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 
 type NetworkInfo = {
   name: string
@@ -258,7 +261,6 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-
 export const GUIDES = [
   {
     id: '1',
@@ -309,3 +311,60 @@ export const GUIDES = [
     color: '#DC143C',
   },
 ]
+
+/**Central balance checking function to ensure users have sol for gas. Limited only to normal wallet connections. Privy handled by Kora */
+export const checkBalanceWithUserGuidance = async (
+  program: any,
+  payerPublicKey: PublicKey,
+  minimumBalance: number,
+  sessionInfo?: any | null,
+): Promise<BalanceCheckResult> => {
+  try {
+    const balance = await program.provider.connection.getBalance(payerPublicKey)
+
+    if (balance >= minimumBalance) {
+      return {
+        success: true,
+        payerPublicKey,
+        balance,
+        minimumRequired: minimumBalance,
+        isSessionWallet: sessionInfo,
+      }
+    }
+
+    const shortfall = minimumBalance - balance
+    const shortfallSOL = shortfall / LAMPORTS_PER_SOL
+    const balanceSOL = balance / LAMPORTS_PER_SOL
+    const requiredSOL = minimumBalance / LAMPORTS_PER_SOL
+
+    const errorMessage = `Insufficient balance: ${balanceSOL.toFixed(4)} SOL (need ${requiredSOL.toFixed(4)} SOL)`
+    const actionableMessage = sessionInfo
+      ? `Add ${shortfallSOL.toFixed(4)} SOL to session wallet or revoke and create new session`
+      : `Add ${shortfallSOL.toFixed(4)} SOL to wallet or use devnet faucet`
+
+    toast.error('Insufficient Balance', `${errorMessage}\n${actionableMessage}`)
+
+    return {
+      success: false,
+      error: errorMessage,
+      payerPublicKey,
+      balance,
+      minimumRequired: minimumBalance,
+      shortfall,
+      isSessionWallet: sessionInfo,
+      actionableMessage,
+    }
+  } catch (error: any) {
+    const errorMessage = `Failed to check balance: ${error.message}`
+    toast.error('Error', errorMessage)
+
+    return {
+      success: false,
+      error: errorMessage,
+      payerPublicKey,
+      balance: 0,
+      minimumRequired: minimumBalance,
+      isSessionWallet: sessionInfo,
+    }
+  }
+}

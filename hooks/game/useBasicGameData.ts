@@ -1,5 +1,4 @@
 import { createSimpleCache, getRpcEndpoint } from '@/utils/helper'
-import { BN } from '@coral-xyz/anchor'
 import { usePrivy } from '@privy-io/expo'
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -387,7 +386,7 @@ export const useBasicGameData = () => {
     gameDataCache.invalidatePattern(publicKey.toString())
     hasInitiallyLoaded.current = false
     await loadAllData()
-  }, [program, publicKey, isConnected, loadAllData])
+  }, [program, publicKey, isConnected])
 
   useEffect(() => {
     if (!isConnected) {
@@ -428,7 +427,7 @@ export const useBasicGameData = () => {
 
       return () => clearTimeout(timeoutId)
     }
-  }, [isReady, isConnected, program, publicKey, loadAllData])
+  }, [isReady, isConnected, program, publicKey])
 
   const hasWarriors = userWarriors.length > 0
   const userAddress = publicKey?.toString() || null

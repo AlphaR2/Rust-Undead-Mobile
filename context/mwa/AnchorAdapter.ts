@@ -29,7 +29,7 @@ export const useMWAAnchorAdapter = (): AnchorWallet | null => {
       // Single transaction signing using signAllTransactions
       signTransaction: async <T extends Transaction | VersionedTransaction>(tx: T): Promise<T> => {
         try {
-          console.log('🔐 [MWA Adapter] Signing single transaction...')
+        
           const signedTxs = await signAllTransactions([tx])
           return signedTxs[0] as T
         } catch (error) {
@@ -41,7 +41,7 @@ export const useMWAAnchorAdapter = (): AnchorWallet | null => {
       // Multiple transaction signing
       signAllTransactions: async <T extends Transaction | VersionedTransaction>(txs: T[]): Promise<T[]> => {
         try {
-          console.log(`🔐 [MWA Adapter] Signing ${txs.length} transactions...`)
+        
           return await signAllTransactions(txs) as T[]
         } catch (error) {
           console.error('❌ [MWA Adapter] Failed to sign transactions:', error)

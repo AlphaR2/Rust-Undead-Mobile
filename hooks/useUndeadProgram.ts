@@ -8,6 +8,7 @@ import { useEmbeddedSolanaWallet, usePrivy } from '@privy-io/expo'
 import { Connection, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PROGRAM_IDL } from '../config/program'
+import { useKora } from './useKora'
 
 type UndeadProgram = Program<UndeadTypes>
 
@@ -40,9 +41,7 @@ interface WalletInfo {
   currentOperation: string | null
 }
 
-// ===============================================================================
-// LOADING STATE MANAGEMENT
-// ===============================================================================
+/** GENERAL LOADING STATE MANAGEMENT */
 export const useWalletLoadingState = () => {
   const [isSigningTransaction, setIsSigningTransaction] = useState<boolean>(false)
   const [isSigningBatch, setIsSigningBatch] = useState<boolean>(false)
@@ -97,9 +96,7 @@ export const useWalletLoadingState = () => {
   }
 }
 
-// ===============================================================================
-// UNIFIED WALLET STATE MANAGEMENT
-// ===============================================================================
+/**UNIFIED WALLET STATE MANAGEMENT */
 export const useWalletInfo = (): WalletInfo => {
   const { user } = usePrivy()
   const { wallets } = useEmbeddedSolanaWallet()
@@ -244,9 +241,9 @@ export const useWalletInfo = (): WalletInfo => {
   ])
 }
 
-// ===============================================================================
-// UNIFIED PROGRAM INTEGRATION
-// ===============================================================================
+/**
+ * This is the central hook for wallet adapters across the two supported signing types
+ */
 export const useUndeadProgram = (): {
   program: UndeadProgram | null
   isReady: boolean
@@ -255,6 +252,7 @@ export const useUndeadProgram = (): {
   const rpcUrl = process.env.EXPO_PUBLIC_SOLANA_RPC_URL
   const { user } = usePrivy()
   const { wallets } = useEmbeddedSolanaWallet()
+  const { service: koraService, checkHealth } = useKora()
   const mwaAnchorAdapter = useMWAAnchorAdapter()
   const { publicKey, isConnected, walletType, isValidating } = useWalletInfo()
   const { transactionLoading, batchLoading } = useWalletLoadingState()
@@ -262,6 +260,10 @@ export const useUndeadProgram = (): {
   const [program, setProgram] = useState<UndeadProgram | null>(null)
   const [isReady, setIsReady] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+
+  const publicKeyString = useMemo(() => publicKey?.toString() || null, [publicKey])
+  const walletsLength = useMemo(() => wallets?.length || 0, [wallets?.length])
+  const userId = useMemo(() => user?.id || null, [user?.id])
 
   useEffect(() => {
     const initializeProgram = async () => {
@@ -272,7 +274,6 @@ export const useUndeadProgram = (): {
       }
 
       if (!rpcUrl) {
-        console.error('[Program] RPC URL not found')
         setError('RPC URL not configured')
         setProgram(null)
         setIsReady(false)
@@ -296,12 +297,25 @@ export const useUndeadProgram = (): {
                 const operationKey = `privy_sign_${publicKey.toString()}_${Date.now()}`
                 return withDeduplication(operationKey, async () => {
                   try {
+                    const isKoraActive = await checkHealth()
+
+                    if (isKoraActive) {
+                      try {
+                        const signedTx = await koraService.signTransaction(tx as Transaction)
+
+                        return signedTx as T
+                      } catch (koraError: any) {
+                        // Fallback below
+                      }
+                    } else {
+                      console.error('⚠️ Kora not active, using wallet signing')
+                    }
+
                     const provider = await wallet.getProvider()
 
-                    const { blockhash } = await connection.getLatestBlockhash('confirmed')
-
-                    if ('recentBlockhash' in tx) {
-                      tx.recentBlockhash = blockhash
+                    // Blockhash should already be set by buildAndExecuteTransaction
+                    if (!('recentBlockhash' in tx) || !tx.recentBlockhash) {
+                      throw new Error('Transaction blockhash not set before signing')
                     }
 
                     await provider.request({
@@ -315,7 +329,6 @@ export const useUndeadProgram = (): {
                       error.message?.includes('already been processed') ||
                       error.message?.includes('already processed')
                     ) {
-                      console.warn('[Program] Transaction already processed, returning original')
                       return tx
                     }
                     throw error
@@ -332,11 +345,23 @@ export const useUndeadProgram = (): {
                   const signedTxs: T[] = []
 
                   try {
-                    const { blockhash } = await connection.getLatestBlockhash('confirmed')
+                    const isKoraActive = await checkHealth()
+                    if (isKoraActive) {
+                      try {
+                        const signedTxs: T[] = []
+                        for (const tx of txs) {
+                          const signedTx = await koraService.signTransaction(tx as Transaction)
+                          signedTxs.push(signedTx as T)
+                        }
+                        return signedTxs
+                      } catch (koraError: any) {
+                        // Fallback below
+                      }
+                    }
 
                     for (const tx of txs) {
-                      if ('recentBlockhash' in tx) {
-                        tx.recentBlockhash = blockhash
+                      if (!('recentBlockhash' in tx) || !tx.recentBlockhash) {
+                        throw new Error('Transaction blockhash not set before signing')
                       }
 
                       await provider.request({
@@ -352,7 +377,6 @@ export const useUndeadProgram = (): {
                       error.message?.includes('already been processed') ||
                       error.message?.includes('already processed')
                     ) {
-                      console.warn('[Program] Batch already processed, returning partially signed')
                       return signedTxs.length > 0 ? signedTxs : txs
                     }
 
@@ -383,7 +407,6 @@ export const useUndeadProgram = (): {
         setIsReady(true)
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error'
-        console.error(`[Program] Initialization failed:`, error)
         setError(errorMsg)
         setProgram(null)
         setIsReady(false)
@@ -391,25 +414,12 @@ export const useUndeadProgram = (): {
     }
 
     initializeProgram()
-  }, [
-    isValidating,
-    isConnected,
-    publicKey?.toString(),
-    walletType,
-    mwaAnchorAdapter,
-    wallets?.length,
-    user?.id,
-    rpcUrl,
-    transactionLoading,
-    batchLoading,
-  ])
+  }, [isValidating, isConnected, publicKeyString, walletType, mwaAnchorAdapter, walletsLength, userId, rpcUrl])
 
   return { program, isReady, error }
 }
 
-// ===============================================================================
-// MAGICBLOCK PROVIDER
-// ===============================================================================
+/**MAGICBLOCK PROVIDER */
 let magicBlockConnectionCache: Connection | null = null
 const createMagicBlockConnection = () => {
   if (!magicBlockConnectionCache) {
@@ -430,6 +440,8 @@ export const useMagicBlockProvider = (): AnchorProvider | null => {
   const mwa = useMWA()
   const { publicKey, isConnected, walletType } = useWalletInfo()
   const { transactionLoading } = useWalletLoadingState()
+  const { service: koraService, checkHealth } = useKora()
+  const publicKeyString = useMemo(() => publicKey?.toString() || null, [publicKey])
 
   const providerRef = useRef<AnchorProvider | null>(null)
   const lastConfigRef = useRef<string>('')
@@ -469,22 +481,44 @@ export const useMagicBlockProvider = (): AnchorProvider | null => {
             return transactionLoading(async () => {
               const operationKey = `magicblock_privy_sign_${publicKey.toString()}_${Date.now()}`
               return withDeduplication(operationKey, async () => {
-                const provider = await wallet.getProvider()
+                try {
+                  const isKoraActive = await checkHealth()
 
-                const { blockhash } = await createMagicBlockConnection().getLatestBlockhash('confirmed')
+                  if (isKoraActive) {
+                    try {
+                      const signedTx = await koraService.signTransaction(tx as Transaction)
+                      return signedTx
+                    } catch (koraError: any) {
+                      //fail silently for gameplay
+                      // console.error('Kora signing failed, falling back to Privy:', koraError)
+                    }
+                  } else {
+                    console.error('⚠️ Kora not active, using wallet signing')
+                  }
 
-                if ('recentBlockhash' in tx) {
-                  tx.recentBlockhash = blockhash
+                  const provider = await wallet.getProvider()
+
+                  if (!('recentBlockhash' in tx) || !tx.recentBlockhash) {
+                    throw new Error('Transaction blockhash not set before signing')
+                  }
+
+                  await provider.request({
+                    method: 'signTransaction',
+                    params: {
+                      transaction: tx,
+                    },
+                  })
+
+                  return tx
+                } catch (error: any) {
+                  if (
+                    error.message?.includes('already been processed') ||
+                    error.message?.includes('already processed')
+                  ) {
+                    return tx
+                  }
+                  throw error
                 }
-
-                await provider.request({
-                  method: 'signTransaction',
-                  params: {
-                    transaction: tx,
-                  },
-                })
-
-                return tx
               })
             }, 'MagicBlock Privy sign')
           },
@@ -510,8 +544,10 @@ export const useMagicBlockProvider = (): AnchorProvider | null => {
     }
   }, [
     isConnected,
-    publicKey?.toString(),
+    publicKeyString,
     walletType,
+    koraService,
+    checkHealth,
     mwa.wallet?.address,
     mwa.signAllTransactions,
     wallets?.length,
@@ -520,52 +556,54 @@ export const useMagicBlockProvider = (): AnchorProvider | null => {
   ])
 }
 
-// ===============================================================================
-// PROGRAM HOOKS
-// ===============================================================================
-export const useWalletAndProgramReady = () => {
-  const { publicKey, isConnected } = useWalletInfo()
-  const { program, isReady } = useUndeadProgram()
-
-  return useMemo(() => {
-    const walletReady = isConnected && publicKey
-    const programReady = isReady && program?.programId
-    const bothReady = walletReady && programReady
-
-    return {
-      walletReady,
-      programReady,
-      bothReady,
-      publicKey,
-      program,
-    }
-  }, [isConnected, publicKey, isReady, program?.programId])
-}
-
-// ===============================================================================
-// EPHEMERAL PROGRAM HOOKS
-// ===============================================================================
 export async function sendERTransaction(
   program: any,
   methodBuilder: any,
   signer: PublicKey,
   provider: AnchorProvider | any,
-  description: string,
+  koraBlockhash?: string,
 ): Promise<string> {
   const operationKey = `er_tx_${signer.toString()}_${Date.now()}`
 
   return withDeduplication(operationKey, async () => {
     try {
+      let blockhash: string
+      let lastValidBlockHeight: number
+
+      try {
+        if (koraBlockhash && typeof koraBlockhash === 'string' && koraBlockhash.length > 0) {
+          blockhash = koraBlockhash
+          const blockHashInfo = await provider.connection.getLatestBlockhash('confirmed')
+          lastValidBlockHeight = blockHashInfo.lastValidBlockHeight
+        } else {
+          const blockHashInfo = await provider.connection.getLatestBlockhash('confirmed')
+          blockhash = blockHashInfo.blockhash
+          lastValidBlockHeight = blockHashInfo.lastValidBlockHeight
+        }
+      } catch (error: any) {
+        throw new Error(`Failed to get blockhash: ${error.message}`)
+      }
+
       let tx = await methodBuilder.transaction()
-      let { blockhash } = await provider.connection.getLatestBlockhash('confirmed')
-
-      tx.feePayer = provider.wallet.publicKey
       tx.recentBlockhash = blockhash
+      tx.feePayer = provider.wallet.publicKey
 
-      tx = await provider.wallet.signTransaction(tx)
+      const signedTx = await provider.wallet.signTransaction(tx)
+      const serializedTx = signedTx.serialize()
 
-      const rawTx = tx.serialize()
-      const txHash = await provider.connection.sendRawTransaction(rawTx)
+      const txHash = await provider.connection.sendRawTransaction(serializedTx, {
+        skipPreflight: true,
+        preflightCommitment: 'confirmed',
+      })
+
+      await provider.connection.confirmTransaction(
+        {
+          signature: txHash,
+          blockhash,
+          lastValidBlockHeight,
+        },
+        'confirmed',
+      )
 
       try {
         await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -573,14 +611,11 @@ export async function sendERTransaction(
         return txCommitSgn
       } catch (commitError: any) {
         if (commitError.message?.includes('already processed')) {
-          console.warn(`[ER] ${description} already processed, returning hash`)
           return txHash
         }
         return txHash
       }
     } catch (error: any) {
-      console.error(`[ER] ${description} failed:`, error)
-
       if (error.message?.includes('already processed')) {
         throw new Error('Transaction already processed - refresh to see updated state')
       }
@@ -621,15 +656,4 @@ export const createEphemeralProgram = (erProgramId: PublicKey, wallet: any): Und
   const ephemeralProgram = new Program(idl, provider) as UndeadProgram
 
   return ephemeralProgram
-}
-
-export const createERProvider = (wallet: any): AnchorProvider => {
-  const magicBlockConnection = createMagicBlockConnection()
-  const provider = new AnchorProvider(magicBlockConnection, wallet, {
-    commitment: 'confirmed',
-    preflightCommitment: 'confirmed',
-    skipPreflight: false,
-  })
-
-  return provider
 }

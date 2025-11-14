@@ -2,14 +2,36 @@ import Path1 from '@/assets/images/paths/path-01.svg'
 import Path2 from '@/assets/images/paths/path-02.svg'
 import Path3 from '@/assets/images/paths/path-03.svg'
 import Path4 from '@/assets/images/paths/path-04.svg'
-import { CharacterClass } from '@/constants/characters'
 import { Guide, WarriorType } from '@/types/mobile'
 import { Path } from '@/types/path'
-import { UserPersona } from '@/types/undead'
+import { WarriorClass as CharacterClass, UserPersona } from '@/types/undead'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createContext, useCallback, useEffect, useState } from 'react'
 
 class DataStore {
+  // User ID mapping by wallet address
+  static async saveUserIdForWallet(walletAddress: string, userId: string) {
+    const userIds = await this.getAllUserIds()
+    userIds[walletAddress] = userId
+    await AsyncStorage.setItem('@user_ids', JSON.stringify(userIds))
+  }
+
+  static async getAllUserIds(): Promise<Record<string, string>> {
+    const data = await AsyncStorage.getItem('@user_ids')
+    return data ? JSON.parse(data) : {}
+  }
+
+  static async getUserIdByWallet(walletAddress: string): Promise<string | null> {
+    const userIds = await this.getAllUserIds()
+    return userIds[walletAddress] || null
+  }
+
+  static async removeUserIdForWallet(walletAddress: string) {
+    const userIds = await this.getAllUserIds()
+    delete userIds[walletAddress]
+    await AsyncStorage.setItem('@user_ids', JSON.stringify(userIds))
+  }
+
   static async saveGuide(guide: Guide) {
     await AsyncStorage.setItem('@guide', JSON.stringify(guide))
   }
@@ -72,12 +94,16 @@ class DataStore {
     ])
   }
 }
+
 type Screen = 'intro' | 'path' | 'gameplay'
 
 interface ContextTypes {
   auth: {
     accessToken: string | null
     setAccessToken: (token: string | null) => Promise<void>
+    getUserIdByWallet: (walletAddress: string) => Promise<string | null>
+    saveUserIdForWallet: (walletAddress: string, userId: string) => Promise<void>
+    removeUserIdForWallet: (walletAddress: string) => Promise<void>
   }
   loader: {
     isLoading: boolean
@@ -109,6 +135,53 @@ interface ContextTypes {
 
 export const CreateContext = createContext({} as ContextTypes)
 
+const INITIAL_PATHS: Path[] = [
+  {
+    id: '1',
+    title: 'The Machine Spirits',
+    subtitle: 'Foundations',
+    image: Path1,
+    isLocked: false,
+    isActive: true,
+    isCompleted: false,
+    isSvg: true,
+    progress: 0,
+  },
+  {
+    id: '2',
+    title: 'The Soul Keys',
+    subtitle: 'Identity',
+    image: Path2,
+    isLocked: true,
+    isActive: false,
+    isCompleted: false,
+    isSvg: true,
+    progress: 0,
+  },
+  {
+    id: '3',
+    title: 'The Chain Wraiths',
+    subtitle: 'Solana',
+    image: Path3,
+    isLocked: true,
+    isActive: false,
+    isCompleted: false,
+    isSvg: true,
+    progress: 0,
+  },
+  {
+    id: '4',
+    title: 'The Validator',
+    subtitle: 'Distributed Systems',
+    image: Path4,
+    isLocked: true,
+    isActive: false,
+    isCompleted: false,
+    isSvg: true,
+    progress: 0,
+  },
+]
+
 const ContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [accessToken, setAccessTokenState] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -119,83 +192,34 @@ const ContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [playerName, setPlayerNameState] = useState<string>('')
   const [selectedCharacter, setSelectedCharacterState] = useState<CharacterClass | null>(null)
   const [isHydrated, setIsHydrated] = useState(false)
-
   const [currentScreen, setCurrentScreen] = useState<Screen>('intro')
-
-  const [paths, setPaths] = useState([
-    {
-      id: '1',
-      title: 'The Machine Spirits',
-      subtitle: 'Foundations',
-      image: Path1,
-      isLocked: false,
-      isActive: true, // First path starts as active
-      isCompleted: false,
-      isSvg: true,
-      progress: 0,
-    },
-    {
-      id: '2',
-      title: 'The Soul Keys',
-      subtitle: 'Identity',
-      image: Path2,
-      isLocked: true,
-      isActive: false,
-      isCompleted: false,
-      isSvg: true,
-      progress: 0,
-    },
-    {
-      id: '3',
-      title: 'The Chain Wraiths',
-      subtitle: 'Solana',
-      image: Path3,
-      isLocked: true,
-      isActive: false,
-      isCompleted: false,
-      isSvg: true,
-      progress: 0,
-    },
-    {
-      id: '4',
-      title: 'The Validator',
-      subtitle: 'Distributed Systems',
-      image: Path4,
-      isLocked: true,
-      isActive: false,
-      isCompleted: false,
-      isSvg: true,
-      progress: 0,
-    },
-  ])
+  const [paths, setPaths] = useState<Path[]>(INITIAL_PATHS)
 
   useEffect(() => {
+    const loadPersistedData = async () => {
+      try {
+        const [token, guide, warrior, persona, name, character] = await Promise.all([
+          DataStore.getAccessToken(),
+          DataStore.getGuide(),
+          DataStore.getWarriorType(),
+          DataStore.getPersona(),
+          DataStore.getPlayerName(),
+          DataStore.getSelectedCharacter(),
+        ])
+
+        if (token) setAccessTokenState(token)
+        if (guide) setSelectedGuideState(guide)
+        if (warrior) setSelectedWarriorTypeState(warrior)
+        if (persona) setSelectedPersonaState(persona)
+        if (name) setPlayerNameState(name)
+        if (character) setSelectedCharacterState(character)
+      } finally {
+        setIsHydrated(true)
+      }
+    }
+
     loadPersistedData()
   }, [])
-
-  const loadPersistedData = async () => {
-    try {
-      const [token, guide, warrior, persona, name, character] = await Promise.all([
-        DataStore.getAccessToken(),
-        DataStore.getGuide(),
-        DataStore.getWarriorType(),
-        DataStore.getPersona(),
-        DataStore.getPlayerName(),
-        DataStore.getSelectedCharacter(),
-      ])
-
-      if (token) setAccessTokenState(token)
-      if (guide) setSelectedGuideState(guide)
-      if (warrior) setSelectedWarriorTypeState(warrior)
-      if (persona) setSelectedPersonaState(persona)
-      if (name) setPlayerNameState(name)
-      if (character) setSelectedCharacterState(character)
-    } catch (error) {
-      console.error('Failed to load persisted data:', error)
-    } finally {
-      setIsHydrated(true)
-    }
-  }
 
   const setAccessToken = useCallback(async (token: string | null) => {
     setAccessTokenState(token)
@@ -204,6 +228,18 @@ const ContextProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       await AsyncStorage.removeItem('@access_token')
     }
+  }, [])
+
+  const getUserIdByWallet = useCallback(async (walletAddress: string) => {
+    return await DataStore.getUserIdByWallet(walletAddress)
+  }, [])
+
+  const saveUserIdForWallet = useCallback(async (walletAddress: string, userId: string) => {
+    await DataStore.saveUserIdForWallet(walletAddress, userId)
+  }, [])
+
+  const removeUserIdForWallet = useCallback(async (walletAddress: string) => {
+    await DataStore.removeUserIdForWallet(walletAddress)
   }, [])
 
   const setSelectedGuide = useCallback(async (guide: Guide | null) => {
@@ -262,6 +298,9 @@ const ContextProvider = ({ children }: { children: React.ReactNode }) => {
         auth: {
           accessToken,
           setAccessToken,
+          getUserIdByWallet,
+          saveUserIdForWallet,
+          removeUserIdForWallet,
         },
         loader: {
           isLoading,

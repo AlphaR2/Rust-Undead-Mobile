@@ -1,3 +1,4 @@
+
 // System to detect when character reaches the end of the world
 
 const BOUNDARY_THRESHOLD = 100 // Distance from end to trigger callback
