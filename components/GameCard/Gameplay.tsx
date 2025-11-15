@@ -89,6 +89,7 @@ const Gameplay: React.FC<GameplayProps> = ({
   const [activePathId, setActivePathId] = useState<string>('')
 
   const { data, loading } = useFetchConcepts()
+  // console.log("data", data)
   const KoraService = useKora()
 
   const getConceptIndex = () => {
@@ -330,6 +331,7 @@ const Gameplay: React.FC<GameplayProps> = ({
 
   const handleCheckpointReached = useCallback(
     (checkpointNumber: number, content: CheckpointContent) => {
+      console.log("checkpoint reached")
       setCurrentCheckpointNumber(checkpointNumber)
       setCurrentCheckpointContent(content)
       setShowMiniModal(true)
@@ -382,23 +384,23 @@ const Gameplay: React.FC<GameplayProps> = ({
 
   const checkpointEntitiesRef = useRef<any>({})
 
-  // useEffect(() => {
-  //   if (path && (checkpointPositions?.length ?? 0) > 0) {
-  //     const newCheckpointEntities: any = {}
-  //     checkpointPositions?.forEach((pos, index) => {
-  //       const checkpointData = createCheckpoint(world, pos.x, pos.y, index + 1, path.checkpoints[index])
-  //       newCheckpointEntities[`checkpoint_${index + 1}`] = {
-  //         ...checkpointData,
-  //         cameraOffsetRef: cameraOffsetRef,
-  //         isCompleted: false,
-  //         renderer: Checkpoint,
-  //       }
-  //     })
+  useEffect(() => {
+    if (path && (checkpointPositions?.length ?? 0) > 0) {
+      const newCheckpointEntities: any = {}
+      checkpointPositions?.forEach((pos, index) => {
+        const checkpointData = createCheckpoint(world, pos.x, pos.y, index + 1, path.checkpoints[index])
+        newCheckpointEntities[`checkpoint_${index + 1}`] = {
+          ...checkpointData,
+          cameraOffsetRef: cameraOffsetRef,
+          isCompleted: false,
+          renderer: Checkpoint,
+        }
+      })
 
-  //     checkpointEntitiesRef.current = newCheckpointEntities
-  //     Object.assign(entitiesRef.current, newCheckpointEntities)
-  //   }
-  // }, [checkpointPositions, path])
+      checkpointEntitiesRef.current = newCheckpointEntities
+      Object.assign(entitiesRef.current, newCheckpointEntities)
+    }
+  }, [checkpointPositions, path])
 
   const checkpointEntities = useMemo(() => {
     if (!checkpointPositions) {
@@ -626,11 +628,11 @@ const Gameplay: React.FC<GameplayProps> = ({
         />
 
         {/* ---------- CHECKPOINTS ON TOP ---------- */}
-        <CheckpointsOverlay
+        {/* <CheckpointsOverlay
           checkpointEntities={checkpointEntities!}
           cameraOffset={cameraOffset}
           screenHeight={screenHeight}
-        />
+        /> */}
 
         {/* ---------- MODALS & UI ---------- */}
         <CheckpointModal
