@@ -59,7 +59,7 @@ const useFetchConcepts = () => {
     error: null,
   })
 
-  const organizationId = process.env.EXPO_PUBLIC_ORGANIZATIONID
+  const organizationId = process.env.EXPO_PUBLIC_ORGANIZATION_ID
 
   const transformData = useCallback((conceptData: any): TransformedConcept[] => {
     const conceptsArray = Array.isArray(conceptData) ? conceptData : [conceptData]
@@ -108,18 +108,23 @@ const useFetchConcepts = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/concept/all/${organizationId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `https://undead-protocol.onrender.com/concept/all/${process.env.EXPO_PUBLIC_ORGANIZATION_ID}`,
+        {
+          method: 'GET',
+          headers: {
+            // 'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.EXPO_PUBLIC_AUTH_PASSWORD}`,
+          },
         },
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`Failed to fetch concepts: ${response.statusText}`)
       }
 
       const responseData = await response.json()
+      // console.log("responseData:", responseData)
       const conceptData = responseData.data || responseData
       const transformedData = transformData(conceptData)
 
