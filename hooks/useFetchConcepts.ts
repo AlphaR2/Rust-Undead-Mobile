@@ -114,7 +114,7 @@ const useFetchConcepts = () => {
           method: 'GET',
           headers: {
             // 'Content-Type': 'application/json',
-            authorization: `Bearer ${process.env.EXPO_PUBLIC_AUTH_PASSWORD}`,
+            Authorization: `Bearer ${process.env.EXPO_PUBLIC_AUTH_PASSWORD}`,
           },
         },
       )
@@ -124,6 +124,7 @@ const useFetchConcepts = () => {
       }
 
       const responseData = await response.json()
+      console.log("responseData:", responseData)
       const conceptData = responseData.data || responseData
       const transformedData = transformData(conceptData)
 

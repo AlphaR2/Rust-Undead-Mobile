@@ -206,88 +206,25 @@ const ChapterRoadmap = () => {
     }
 
     if (status === 'not-started') {
-      await handleStartChapter(chapterId, chapter.slug, chapter.title)
+      await handleStartChapter(chapterId)
     }
   }
 
-  const handleStartChapter = async (chapterId: number, slug: string, chapterTitle: string) => {
-    if (!ephemeralProgram || !publicKey || !gamerProfilePda || !magicBlockProvider) {
-      return
-    }
-
-    setIsStarting(true)
-    setLoadingChapterId(chapterId)
-
+  const handleStartChapter = async (chapterId: number) => {
     try {
-      let koraBlockhash: string | undefined
-      let koraPayer: PublicKey = publicKey
-      let koraHealth = false
-
-      if (walletType === 'privy') {
-        try {
-          koraHealth = await KoraService.checkHealth()
-
-          if (koraHealth) {
-            const [koraPayerInfo, koraBlockhashData] = await Promise.all([
-              KoraService.service.getPayerSigner(),
-              KoraService.service.getBlockhash(),
-            ])
-
-            if (koraPayerInfo?.signer_address) {
-              koraPayer = new PublicKey(koraPayerInfo.signer_address)
-            }
-
-            if (koraBlockhashData?.blockhash) {
-              koraBlockhash = koraBlockhashData.blockhash
-            }
-          }
-        } catch (koraError) {
-          toast.error('Kora unavailable')
-          koraHealth = false
-        }
+      let result
+      if (userAddress) {
+        result = await updateUserProgress(chapterId, 1)
       }
 
-      const { worldIdBytes, undeadWorldPda } = encodeWorldId(chapterTitle, PROGRAM_ID)
-
-      try {
-        await ephemeralProgram.account.undeadWorld.fetch(undeadWorldPda)
-      } catch (error) {
-        toast.error('Error', 'Chapter not found')
-        setIsStarting(false)
-        setLoadingChapterId(null)
-        return
-      }
-
-      const result = await startChapter({
-        ephemeralProgram,
-        playerPublicKey: publicKey,
-        koraPayer,
-        walletType,
-        koraHealth,
-        gamerProfilePda,
-        undeadWorldPda,
-        chapterNumber: chapterId,
-        worldId: worldIdBytes,
-        magicBlockProvider,
-      })
-
-      if (result.success) {
-        setChapterStatus((prev) => ({
-          ...prev,
-          [chapterId]: 'in-progress',
-        }))
-
-        if (userAddress) {
-          await updateUserProgress(chapterId, 1)
-        }
-
+      if (result) {
         toast.success('Success', 'Chapter started!')
 
         setTimeout(() => {
           router.push(`/dashboard/story-mode/chapter-one`)
         }, 500)
       } else {
-        throw new Error(result.error || 'Failed to start chapter')
+        throw new Error('Failed to start chapter')
       }
     } catch (error: any) {
       toast.error('Error', error?.message || 'Failed to start chapter')

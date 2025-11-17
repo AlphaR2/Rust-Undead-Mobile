@@ -4,6 +4,7 @@ import { getActivePath } from '@/utils/path'
 import { MaterialIcons } from '@expo/vector-icons'
 import React, { useContext, useEffect, useState } from 'react'
 import {
+  ActivityIndicator,
   Image,
   ImageBackground,
   ImageSourcePropType,
@@ -38,6 +39,7 @@ interface SelectionScreenProps {
   mainImage?: ImageSourcePropType
   ctaButtonText?: string
   buttonBackgroundImage?: ImageSourcePropType
+  isLoading?: boolean
 }
 
 const SelectionScreen: React.FC<SelectionScreenProps> = ({
@@ -54,6 +56,7 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
   mainImage,
   ctaButtonText,
   buttonBackgroundImage,
+  isLoading = false,
 }) => {
   const [isMuted, setIsMuted] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -73,13 +76,12 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
   }
 
   const handleItemSelect = (itemId: string, isLocked?: boolean) => {
-    if (isLocked) return
+    if (isLocked || isLoading) return
     setSelectedId(itemId)
     setTimeout(() => {
       onSelect(itemId)
     }, 300)
   }
- 
 
   return (
     <ImageBackground style={styles.container} source={backgroundImage}>
@@ -87,14 +89,14 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
 
       <View style={styles.header}>
         {showBackButton && (
-          <TouchableOpacity onPress={onBack} style={styles.headerButton}>
+          <TouchableOpacity onPress={onBack} style={styles.headerButton} disabled={isLoading}>
             <View style={styles.iconBackground}>
               <MaterialIcons name="arrow-back" size={22} color="white" />
             </View>
           </TouchableOpacity>
         )}
         {showMuteButton && (
-          <TouchableOpacity onPress={toggleMute} style={styles.headerButton}>
+          <TouchableOpacity onPress={toggleMute} style={styles.headerButton} disabled={isLoading}>
             <View style={styles.iconBackground}>
               <MaterialIcons name={isMuted ? 'volume-off' : 'volume-up'} size={22} color="white" />
             </View>
@@ -108,7 +110,12 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
 
       <View style={styles.contentContainer}>
         {items.length >= 1 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.itemsContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.itemsContainer}
+            scrollEnabled={!isLoading}
+          >
             {items.map((item, index) => {
               const ImageComponent = item.image
               return (
@@ -120,7 +127,7 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
                     item.isLocked && styles.itemCardLocked,
                   ]}
                   onPress={() => handleItemSelect(item.id, item.isLocked)}
-                  disabled={item.isLocked}
+                  disabled={item.isLocked || isLoading}
                   activeOpacity={0.8}
                 >
                   <View style={styles.itemImageContainer}>
@@ -149,7 +156,7 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
         <Text style={styles.descriptionText}>{description}</Text>
         {ctaButtonText && (
           <View style={styles.buttonWrapper}>
-            <TouchableOpacity style={styles.buttonTouchable}>
+            <TouchableOpacity style={styles.buttonTouchable} disabled={isLoading}>
               <ImageBackground source={buttonBackgroundImage} style={styles.buttonBackground} resizeMode="contain">
                 <Text style={[GameFonts.button, styles.buttonText]}>{ctaButtonText}</Text>
               </ImageBackground>
@@ -157,6 +164,16 @@ const SelectionScreen: React.FC<SelectionScreenProps> = ({
           </View>
         )}
       </View>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#cd7f32" />
+            <Text style={styles.loadingText}>Loading Path..</Text>
+          </View>
+        </View>
+      )}
     </ImageBackground>
   )
 }
@@ -315,6 +332,31 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     marginTop: 8,
+  },
+  // Loading Overlay Styles
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingContainer: {
+    backgroundColor: 'rgba(19, 19, 19, 0.95)',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#cd7f32',
+    minWidth: 200,
+  },
+  loadingText: {
+    color: '#cd7f32',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
+    letterSpacing: 1,
   },
 })
 
