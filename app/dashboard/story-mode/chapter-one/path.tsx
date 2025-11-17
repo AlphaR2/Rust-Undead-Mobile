@@ -157,9 +157,9 @@ const PathScreen: React.FC<PathScreenProps> = ({ onComplete, onBack }) => {
     }
   }
   const handlePathSelect = (pathId: string) => {
-        onComplete(pathId)
+        // onComplete(pathId)
 
-    // handleStartChapter(CHAPTER.id, CHAPTER.slug, CHAPTER.title, pathId)
+    handleStartChapter(CHAPTER.id, CHAPTER.slug, CHAPTER.title, pathId)
 
     // console.log("path selected")
   }

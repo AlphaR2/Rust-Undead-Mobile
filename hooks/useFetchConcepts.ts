@@ -59,7 +59,7 @@ const useFetchConcepts = () => {
     error: null,
   })
 
-  const organizationId = process.env.EXPO_PUBLIC_ORGANIZATIONID
+  const organizationId = process.env.EXPO_PUBLIC_ORGANIZATION_ID
 
   const transformData = useCallback((conceptData: any): TransformedConcept[] => {
     const conceptsArray = Array.isArray(conceptData) ? conceptData : [conceptData]
@@ -124,7 +124,7 @@ const useFetchConcepts = () => {
       }
 
       const responseData = await response.json()
-      console.log("responseData:", responseData)
+      // console.log("responseData:", responseData)
       const conceptData = responseData.data || responseData
       const transformedData = transformData(conceptData)
 
